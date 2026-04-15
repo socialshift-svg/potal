@@ -1110,9 +1110,9 @@ function applyTelStock() {
 // iframe内ならpostMessageで親に通知、直接アクセスならadmin.htmlへ遷移
 function goBackToAdmin() {
   if (window.parent && window.parent !== window) {
-    window.parent.postMessage('BACK_TO_ADMIN', 'https://koheiumeda-arch.github.io');
+    window.parent.postMessage('BACK_TO_ADMIN', 'https://socialshift-svg.github.io');
   } else {
-    window.location.href = 'https://koheiumeda-arch.github.io/SS1on1/admin.html';
+    window.location.href = 'https://socialshift-svg.github.io/potal/admin.html';
   }
 }
 

@@ -162,6 +162,7 @@ td{padding:10px 14px;font-size:13px}
 .btn-chat:hover{transform:translateY(-1px);box-shadow:0 5px 16px rgba(26,115,232,.4)}
 .btn-huddle{background:linear-gradient(135deg,#34a853,#1e8e3e);color:#fff;box-shadow:0 3px 12px rgba(52,168,83,.3)}
 .btn-huddle:hover{transform:translateY(-1px)}
+
 /* トースト */
 #toastWrap{position:fixed;bottom:24px;right:24px;z-index:999;display:flex;flex-direction:column;gap:8px}
 .toast-item{background:var(--bg2);border:1px solid var(--bd);border-radius:10px;padding:10px 16px;font-size:13px;color:var(--tx);box-shadow:var(--sh);animation:fi .25s ease;display:flex;align-items:center;gap:8px}
@@ -740,12 +741,28 @@ td{padding:10px 14px;font-size:13px}
 
 <!-- ════ MEMBERS ════ -->
 <div class="screen" id="s-members">
-  <div class="topbar"><div><div class="page-title">メンバー管理</div><div class="page-sub">担当メンティーの詳細・メモ・レポート</div></div></div>
+  <div class="topbar"><div><div class="page-title">メンバー管理</div><div class="page-sub">全メンティーの詳細・メモ・レポート</div></div></div>
 
-  <!-- メンバーカード一覧（複数対応） -->
+  <!-- 検索・フィルターバー -->
+  <div class="card" style="margin-bottom:12px">
+    <div style="padding:12px 16px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <input id="member-search" class="inp" style="flex:1;min-width:160px;font-size:13px;padding:7px 12px" placeholder="🔍 名前・稼働場所で検索…" oninput="filterAndRenderMembers()">
+      <select id="member-sort" class="inp" style="width:160px;font-size:13px;padding:7px 10px" onchange="filterAndRenderMembers()">
+        <option value="mine_first">担当順（自分優先）</option>
+        <option value="name">名前順</option>
+        <option value="status">ステータス順</option>
+      </select>
+      <span id="member-count" style="font-size:12px;color:var(--tx3);white-space:nowrap"></span>
+    </div>
+  </div>
+
+  <!-- メンバーカード一覧 -->
   <div id="memberCardList" style="display:flex;flex-direction:column;gap:12px">
     <div class="loading">読み込み中…</div>
   </div>
+
+  <!-- ページネーション -->
+  <div id="memberPager" style="display:none;padding:12px 0;display:flex;align-items:center;justify-content:center;gap:8px"></div>
 
   <!-- メンバー詳細ドロワー（タップで展開） -->
   <div id="memberDetailDrawer" style="display:none;margin-top:4px">
@@ -941,6 +958,7 @@ td{padding:10px 14px;font-size:13px}
   <div class="card"><div id="mentorTrainingList"><div class="loading">読み込み中…</div></div></div>
 </div>
 
+
 </main>
 </div>
 
@@ -1047,9 +1065,14 @@ var CAT_ICON_MENTOR = {'入社時研修':'📚','マニュアル':'📋','就業
 async function loadMentorTraining() {
   var container = document.getElementById('mentorTrainingList');
   if (!container) return;
-  if (_allMentorTraining.length > 0) { filterMentorTraining(); return; } // キャッシュ済み
+  if (_allMentorTraining.length > 0) { filterMentorTraining(); return; }
   container.innerHTML = '<div class="loading">読み込み中…</div>';
-  var data = await gasReq('api/admin/contents');
+  // ★ mentorロールでアクセス可能なAPIを使用
+  var data = await gasReq('api/mentee/contents');
+  if (!data || !data.contents || data.contents.length === 0) {
+    // フォールバック: admin APIも試みる
+    data = await gasReq('api/admin/contents');
+  }
   if (!data || !data.contents || data.contents.length === 0) {
     container.innerHTML = '<div style="padding:24px;text-align:center;color:var(--tx3)">コンテンツがありません</div>';
     return;
@@ -1402,7 +1425,7 @@ async function loadLatestSurveyForMentee(userId) {
   noSurvey.style.display   = 'none';
 
   // ① メンティーの最新アンケート回答を取得
-  var data = await gasReq('api/admin/surveys');
+  var data = await gasReq('api/mentor/surveys'); // ★ mentor用APIに変更
   if (!data || !data.surveys) return;
 
   var menteeSurveys = data.surveys
@@ -2466,7 +2489,7 @@ async function loadSurveys() {
   var bookings = (bData && bData.bookings) ? bData.bookings.filter(function(b){ return b.status==='completed'; }) : [];
 
   // 既回答のbooking_idを取得
-  var sData = await gasReq('api/admin/surveys');
+  var sData = await gasReq('api/mentor/surveys'); // ★ mentor用APIに変更
   var answered = (sData && sData.surveys)
     ? sData.surveys.filter(function(s){ return s.user_id===_me.user_id; }).map(function(s){ return s.booking_id; })
     : [];
@@ -2688,6 +2711,9 @@ async function saveScheduleSettings() {
 var _mdCurrentMentee = null;
 var _mdCurrentSig    = null;
 var SIG_MAP_MD  = { red:'rd', yellow:'am', green:'gr', blue:'cy' };
+var _allMembers      = [];   // ★ 全メンバーキャッシュ
+var _memberPage      = 1;
+var MEMBER_PER_PAGE  = 10;
 
 // ── ステータス表示設定 ──
 var SIG_CONFIG = {
@@ -2697,11 +2723,108 @@ var SIG_CONFIG = {
   blue:   { label:'🔵 快調',   cls:'sel-cy', color:'#4285f4'   },
 };
 
-function loadMembersTab() {
+// ★ 全メンバー読み込み（初回のみAPI呼び出し）
+async function loadMembersTab() {
   var listEl = document.getElementById('memberCardList');
   if (!listEl) return;
-  if (_myMentees.length === 0) {
-    listEl.innerHTML = '<div class="card" style="padding:24px;text-align:center;color:var(--tx3)">担当メンティーがいません</div>';
+
+  if (_allMembers.length === 0) {
+    listEl.innerHTML = '<div class="loading">読み込み中…</div>';
+    var data = await gasReq('api/mentor/members');
+    if (!data || !data.members) {
+      listEl.innerHTML = '<div class="card" style="padding:24px;text-align:center;color:var(--tx3)">メンバーの取得に失敗しました</div>';
+      return;
+    }
+    _allMembers = data.members;
+    // _myMentees も同期（担当メンティーだけ）
+    if (_allMembers.length > 0 && _me) {
+      var mine = _allMembers.filter(function(m){ return m.mentor_id === _me.user_id; });
+      if (mine.length > 0 && _myMentees.length === 0) _myMentees = mine;
+    }
+  }
+
+  _memberPage = 1;
+  filterAndRenderMembers();
+}
+
+// ★ 検索・ソート・ページネーション
+function filterAndRenderMembers() {
+  var kw   = ((document.getElementById('member-search') || {}).value || '').toLowerCase().replace(/[\s　]/g,'');
+  var sort = (document.getElementById('member-sort') || {}).value || 'mine_first';
+
+  var filtered = _allMembers.filter(function(m) {
+    if (!kw) return true;
+    var name  = (m.name      || '').toLowerCase().replace(/[\s　]/g,'');
+    var place = (m.workplace || '').toLowerCase().replace(/[\s　]/g,'');
+    return name.indexOf(kw) >= 0 || place.indexOf(kw) >= 0;
+  });
+
+  // ソート
+  var myId = _me ? _me.user_id : '';
+  filtered.sort(function(a, b) {
+    if (sort === 'mine_first') {
+      var am = a.mentor_id === myId ? 0 : 1;
+      var bm = b.mentor_id === myId ? 0 : 1;
+      if (am !== bm) return am - bm;
+      return (a.name || '').localeCompare(b.name || '', 'ja');
+    }
+    if (sort === 'name') return (a.name || '').localeCompare(b.name || '', 'ja');
+    if (sort === 'status') {
+      var order = { red:0, yellow:1, green:2, blue:3 };
+      return (order[a.status] || 2) - (order[b.status] || 2);
+    }
+    return 0;
+  });
+
+  var countEl = document.getElementById('member-count');
+  if (countEl) countEl.textContent = filtered.length + '名' + (_allMembers.length !== filtered.length ? '（全' + _allMembers.length + '名中）' : '');
+
+  // ページネーション計算
+  var totalPages = Math.max(1, Math.ceil(filtered.length / MEMBER_PER_PAGE));
+  if (_memberPage > totalPages) _memberPage = totalPages;
+  var start = (_memberPage - 1) * MEMBER_PER_PAGE;
+  var paged = filtered.slice(start, start + MEMBER_PER_PAGE);
+
+  // ページャーUI
+  var pagerEl = document.getElementById('memberPager');
+  if (pagerEl) {
+    pagerEl.style.display = totalPages <= 1 ? 'none' : 'flex';
+    pagerEl.innerHTML = '';
+    var btnStyle = 'padding:6px 12px;border-radius:8px;border:1px solid var(--bd);background:var(--bg3);font-size:13px;cursor:pointer;';
+    var activStyle = 'background:var(--pr);color:#fff;border-color:var(--pr);';
+    if (_memberPage > 1) {
+      var prev = document.createElement('button');
+      prev.textContent = '‹ 前へ';
+      prev.style.cssText = btnStyle;
+      (function(p){ prev.onclick = function(){ _memberPage = p; filterAndRenderMembers(); }; })(_memberPage - 1);
+      pagerEl.appendChild(prev);
+    }
+    for (var pg = Math.max(1, _memberPage-2); pg <= Math.min(totalPages, _memberPage+2); pg++) {
+      var btn = document.createElement('button');
+      btn.textContent = pg;
+      btn.style.cssText = btnStyle + (pg === _memberPage ? activStyle : '');
+      (function(p){ btn.onclick = function(){ _memberPage = p; filterAndRenderMembers(); }; })(pg);
+      pagerEl.appendChild(btn);
+    }
+    if (_memberPage < totalPages) {
+      var next = document.createElement('button');
+      next.textContent = '次へ ›';
+      next.style.cssText = btnStyle;
+      (function(p){ next.onclick = function(){ _memberPage = p; filterAndRenderMembers(); }; })(_memberPage + 1);
+      pagerEl.appendChild(next);
+    }
+  }
+
+  // カードレンダリング（既存ロジック流用）
+  renderMemberCards(paged);
+}
+
+// ★ カードレンダリングを既存から分離
+function renderMemberCards(members) {
+  var listEl = document.getElementById('memberCardList');
+  if (!listEl) return;
+  if (members.length === 0) {
+    listEl.innerHTML = '<div class="card" style="padding:24px;text-align:center;color:var(--tx3)">該当するメンバーがいません</div>';
     return;
   }
 
@@ -2718,7 +2841,7 @@ function loadMembersTab() {
   // ★ 毎回カードを再生成（ドロワーのinsertBefore参照を正確に保つ）
   listEl.innerHTML = '';
 
-  _myMentees.forEach(function(m) {
+  members.forEach(function(m) {
     var sig    = SIG_CONFIG[m.status] || SIG_CONFIG.green;
     var card   = document.createElement('div');
     card.className = 'card';
@@ -2759,6 +2882,13 @@ function loadMembersTab() {
     sigSpan.textContent = sig.label;
     nameRow.appendChild(nameDiv);
     nameRow.appendChild(sigSpan);
+    // ★ 担当バッジ
+    if (_me && m.mentor_id === _me.user_id) {
+      var myBadge = document.createElement('span');
+      myBadge.style.cssText = 'font-size:10px;padding:2px 7px;border-radius:8px;background:var(--cy-light);color:var(--cy);font-weight:600;flex-shrink:0';
+      myBadge.textContent = '担当';
+      nameRow.appendChild(myBadge);
+    }
     var subDiv = document.createElement('div');
     subDiv.style.cssText = 'font-size:12px;color:var(--tx3)';
     subDiv.textContent = (m.workplace||'—') + ' · ' + (m.work_status||'—');
@@ -2826,14 +2956,15 @@ function openBookingFor(userId) {
 }
 
 function openMemberDetail(userId, cardEl) {
-  // _myMentees未ロード時のガード：ロード後に再実行
-  if (!_myMentees || _myMentees.length === 0) {
-    loadMentees().then(function(){ openMemberDetail(userId, cardEl); });
-    return;
-  }
+  // _myMentees または _allMembers から検索（全メンバー表示対応）
   var m = _myMentees.find(function(x){ return x.user_id === userId; });
+  if (!m) m = _allMembers.find(function(x){ return x.user_id === userId; });
   if (!m) {
-    toast('メンティー情報が見つかりません（再読み込みしてください）', 'err');
+    if (_allMembers.length === 0) {
+      loadMembersTab().then ? loadMembersTab().then(function(){ openMemberDetail(userId, cardEl); }) : null;
+    } else {
+      toast('メンティー情報が見つかりません', 'err');
+    }
     return;
   }
   _mdCurrentMentee = m;
@@ -3579,6 +3710,7 @@ function updateMemberCardGoalBadge(userId, hasGoal) {
   badge.style.background = hasGoal ? 'var(--pr-light)' : 'var(--am-light)';
   badge.style.color      = hasGoal ? 'var(--pr)'       : 'var(--am)';
 }
+
 </script>
 </body>
 </html>

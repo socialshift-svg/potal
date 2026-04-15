@@ -166,6 +166,14 @@ input[type="month"].inp{padding:11px 14px}
 .spinner{width:22px;height:22px;border:2px solid var(--bd);border-top-color:var(--pr);border-radius:50%;animation:spin .7s linear infinite;margin-right:10px}
 @keyframes spin{to{transform:rotate(360deg)}}
 
+/* ── リファラル ── */
+.ref-mat-card{display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:12px;border:1px solid;margin-bottom:10px;transition:box-shadow .2s}
+.ref-mat-card:last-child{margin-bottom:0}
+.ref-cta-btn{white-space:nowrap;padding:8px 14px;font-size:12px;font-weight:700;border-radius:10px;border:none;cursor:pointer;flex-shrink:0;transition:all .2s;font-family:'Noto Sans JP',sans-serif}
+.ref-line-box{background:var(--bg3);border:1.5px solid var(--bd);border-radius:12px;padding:14px;font-size:13px;line-height:2;white-space:pre-wrap;color:var(--tx2)}
+@keyframes confettiFall{0%{transform:translateY(-20px) rotate(0deg);opacity:1}100%{transform:translateY(600px) rotate(720deg);opacity:0}}
+@keyframes celPop{from{transform:scale(.7);opacity:0}to{transform:scale(1);opacity:1}}
+
 /* ─── ヘッダー2段構成 ─── */
 .topbar-upper{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--bg2);max-width:600px;margin:0 auto;width:100%}
 .topbar-upper-l{display:flex;align-items:center;gap:8px}
@@ -469,7 +477,7 @@ input[type="month"].inp{padding:11px 14px}
           <span class="star-e" onclick="rateStar(5,'mental')" style="cursor:pointer;font-size:28px">★</span>
         </div>
       </div>
-      <div class="form-group" style="margin-bottom:0"><div class="form-label">自由コメント（任意）</div><textarea class="inp" id="survey-comment" rows="3" placeholder="感想や要望があれば記入してください…"></textarea></div>
+      <div class="form-group" style="margin-bottom:0"><div class="form-label">自由コメント（任意）</div><textarea class="inp" id="survey-comment" rows="3" placeholder="★の理由を教えてください。また、感想や要望があれば記入してください…"></textarea></div>
     </div>
   </div>
   <button class="btn btn-p" style="width:100%;margin-top:14px" onclick="submitSurvey()">📤 アンケートを送信</button>
@@ -586,6 +594,150 @@ input[type="month"].inp{padding:11px 14px}
   <button class="btn btn-g" style="width:100%;margin-top:8px" onclick="logout()">🚪 ログアウト</button>
 </div>
 
+<!-- ══════════════════════════════════════  REFERRAL（リファラル採用） -->
+<div class="screen" id="s-referral">
+  <!-- ヒーローバナー -->
+  <div class="card" style="overflow:visible">
+    <div style="background:linear-gradient(135deg,#5dafa7 0%,#3d9188 50%,#4a9890 100%);padding:24px 18px 20px;border-radius:13px 13px 0 0">
+      <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,.7);margin-bottom:6px;text-transform:uppercase">REFERRAL RECRUITING</div>
+      <div style="font-size:19px;font-weight:800;color:#fff;margin-bottom:8px;line-height:1.4">あなたの一声が、<br>だれかの人生を変えるかもしれない ✨</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.88);line-height:1.8">「話だけでも聞いてみない？」そんな一言でOK。<br>フォームは <b style="color:#fff">30秒で完了</b> します 🎉</div>
+      <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+        <div style="background:rgba(255,255,255,.18);border-radius:8px;padding:6px 12px;font-size:11px;color:#fff;font-weight:600">✅ 学習手当 月3万円〜</div>
+        <div style="background:rgba(255,255,255,.18);border-radius:8px;padding:6px 12px;font-size:11px;color:#fff;font-weight:600">✅ 残業ほぼなし</div>
+        <div style="background:rgba(255,255,255,.18);border-radius:8px;padding:6px 12px;font-size:11px;color:#fff;font-weight:600">✅ 有給消化率100%</div>
+      </div>
+    </div>
+    <div style="padding:12px 16px;background:var(--pr-light);display:flex;align-items:center;gap:12px;border-radius:0 0 13px 13px;flex-wrap:wrap">
+      <button id="ref-open-btn" onclick="toggleReferralForm()" style="background:var(--pr);color:#fff;border:none;cursor:pointer;font-size:14px;font-weight:700;padding:11px 22px;border-radius:12px;box-shadow:0 3px 14px rgba(93,175,167,.4);transition:all .2s;font-family:'Noto Sans JP',sans-serif;flex-shrink:0">🤝 リファラルする！</button>
+      <div style="font-size:12px;color:var(--tx2);line-height:1.6">必須は<b>名前だけ</b>でもOK 💪</div>
+    </div>
+  </div>
+
+  <!-- フォームパネル（トグル） -->
+  <div id="ref-form-panel" style="display:none;animation:fi .25s ease">
+    <div class="card">
+      <div class="ch">
+        <div class="ct">📝 候補者を紹介する</div>
+        <button onclick="toggleReferralForm()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--tx3);line-height:1">✕</button>
+      </div>
+      <div style="padding:16px">
+        <div style="margin-bottom:12px">
+          <label style="font-size:12px;font-weight:700;color:var(--tx2);display:block;margin-bottom:5px">あなたのお名前（紹介者）<span style="color:var(--rd)">*</span></label>
+          <input id="ref-referrer-name" type="text" placeholder="例：山田 太郎"
+            style="width:100%;padding:10px 13px;border-radius:10px;border:1.5px solid var(--bd);font-size:14px;font-family:'Noto Sans JP',sans-serif;background:var(--bg2);color:var(--tx);outline:none"
+            onfocus="this.style.borderColor='var(--pr)'" onblur="this.style.borderColor='var(--bd)'">
+        </div>
+        <div style="margin-bottom:12px">
+          <label style="font-size:12px;font-weight:700;color:var(--tx2);display:block;margin-bottom:5px">候補者のお名前<span style="color:var(--rd)">*</span></label>
+          <input id="ref-candidate-name" type="text" placeholder="例：鈴木 花子"
+            style="width:100%;padding:10px 13px;border-radius:10px;border:1.5px solid var(--bd);font-size:14px;font-family:'Noto Sans JP',sans-serif;background:var(--bg2);color:var(--tx);outline:none"
+            onfocus="this.style.borderColor='var(--pr)'" onblur="this.style.borderColor='var(--bd)'">
+        </div>
+        <div style="margin-bottom:12px">
+          <label style="font-size:12px;font-weight:700;color:var(--tx2);display:block;margin-bottom:5px">候補者の連絡先 <span style="font-weight:400;color:var(--tx3)">（1つでOK）</span></label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <input id="ref-candidate-email" type="email" placeholder="📧 メールアドレス"
+              style="flex:1;min-width:150px;padding:10px 13px;border-radius:10px;border:1.5px solid var(--bd);font-size:13px;font-family:'Noto Sans JP',sans-serif;background:var(--bg2);color:var(--tx);outline:none"
+              onfocus="this.style.borderColor='var(--pr)'" onblur="this.style.borderColor='var(--bd)'">
+            <input id="ref-candidate-phone" type="tel" placeholder="📱 電話番号"
+              style="flex:1;min-width:130px;padding:10px 13px;border-radius:10px;border:1.5px solid var(--bd);font-size:13px;font-family:'Noto Sans JP',sans-serif;background:var(--bg2);color:var(--tx);outline:none"
+              onfocus="this.style.borderColor='var(--pr)'" onblur="this.style.borderColor='var(--bd)'">
+          </div>
+        </div>
+        <div style="margin-bottom:12px">
+          <label style="font-size:12px;font-weight:700;color:var(--tx2);display:block;margin-bottom:5px">候補者との関係性</label>
+          <input id="ref-relationship" type="text" placeholder="例：元同僚、大学の友人…など"
+            style="width:100%;padding:10px 13px;border-radius:10px;border:1.5px solid var(--bd);font-size:13px;font-family:'Noto Sans JP',sans-serif;background:var(--bg2);color:var(--tx);outline:none"
+            onfocus="this.style.borderColor='var(--pr)'" onblur="this.style.borderColor='var(--bd)'">
+        </div>
+        <div style="margin-bottom:18px">
+          <label style="font-size:12px;font-weight:700;color:var(--tx2);display:block;margin-bottom:8px">候補者の現在の状況 <span style="font-weight:400;color:var(--tx3)">（ざっくりでOK）</span></label>
+          <div id="ref-status-chips" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+          <div id="ref-status-other-wrap" style="display:none;margin-top:10px">
+            <input id="ref-status-other" type="text" placeholder="具体的な状況を教えてください"
+              style="width:100%;padding:10px 13px;border-radius:10px;border:1.5px solid var(--bd);font-size:13px;font-family:'Noto Sans JP',sans-serif;background:var(--bg2);color:var(--tx);outline:none"
+              onfocus="this.style.borderColor='var(--pr)'" onblur="this.style.borderColor='var(--bd)'">
+          </div>
+        </div>
+        <div id="ref-error-msg" style="font-size:12px;color:var(--rd);margin-bottom:8px;min-height:16px"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button id="ref-submit-btn" onclick="submitReferral()"
+            style="flex:1;min-width:100px;background:var(--pr);color:#fff;border:none;cursor:pointer;font-size:14px;font-weight:700;padding:13px 16px;border-radius:12px;box-shadow:0 3px 12px rgba(93,175,167,.3);font-family:'Noto Sans JP',sans-serif">📤 投稿する</button>
+          <button onclick="saveDraftReferral()" style="padding:13px 13px;font-size:12px;background:var(--bg3);color:var(--tx2);border:1px solid var(--bd);border-radius:10px;cursor:pointer;font-family:'Noto Sans JP',sans-serif">💾 保存</button>
+          <button onclick="loadDraftReferral()" style="padding:13px 13px;font-size:12px;background:var(--bg3);color:var(--tx2);border:1px solid var(--bd);border-radius:10px;cursor:pointer;font-family:'Noto Sans JP',sans-serif">📂 呼出</button>
+        </div>
+        <div style="font-size:11px;color:var(--tx3);margin-top:10px;text-align:center">
+          ※ 個人情報は採用担当のみ閲覧します
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 参考資料 -->
+  <div class="card">
+    <div class="ch"><div class="ct">📚 参考資料</div></div>
+    <div style="padding:14px">
+      <div class="ref-mat-card" style="background:#f0faf9;border-color:rgba(93,175,167,.25)">
+        <div style="font-size:30px;flex-shrink:0">🌿</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700;margin-bottom:2px">リファラルブックレット</div>
+          <div style="font-size:11px;color:var(--tx3)">みんなのキャリア — 社員のリアルな声</div>
+        </div>
+        <button class="ref-cta-btn" onclick="window.open('https://minnanocareer.agent-network.com/company-reviews/socialshift/','_blank')" style="background:var(--pr);color:#fff;box-shadow:0 2px 8px rgba(93,175,167,.3)">開く →</button>
+      </div>
+      <div class="ref-mat-card" style="background:linear-gradient(135deg,#fdf3f8,#fff0f5);border-color:#f5c2d8">
+        <div style="font-size:30px;flex-shrink:0">📸</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700;margin-bottom:2px">Instagram</div>
+          <div style="font-size:11px;color:var(--tx3)">@socialshift.work — 日常・雰囲気</div>
+        </div>
+        <button class="ref-cta-btn" onclick="openRefInstagram()" style="background:linear-gradient(135deg,#e1306c,#f77737);color:#fff;box-shadow:0 2px 8px rgba(225,48,108,.25)">インスタ →</button>
+      </div>
+      <div class="ref-mat-card" style="background:#f5f8ff;border-color:#c7d9f9">
+        <div style="font-size:30px;flex-shrink:0">💼</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700;margin-bottom:2px">求人情報（Re就活）</div>
+          <div style="font-size:11px;color:var(--tx3)">仕事内容・待遇・応募方法</div>
+        </div>
+        <button class="ref-cta-btn" onclick="window.open('https://re-katsu.jp/career/company/recruit/49808/','_blank')" style="background:#3d6ef7;color:#fff;box-shadow:0 2px 8px rgba(61,110,247,.25)">求人 →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LINEシェア -->
+  <div class="card">
+    <div class="ch"><div class="ct">💬 LINEでかんたんシェア</div></div>
+    <div style="padding:14px">
+      <div style="font-size:12px;color:var(--tx2);margin-bottom:10px;line-height:1.7;background:var(--pr-light);border-radius:10px;padding:10px 13px">
+        📋 コピーして、LINEにそのまま貼り付けるだけ！<br>
+        <span style="font-size:11px;color:var(--tx3)">「話だけでも聞いてみない？」の一言から ✨</span>
+      </div>
+      <div id="ref-line-msg" class="ref-line-box"></div>
+      <button id="ref-copy-btn" onclick="copyRefLineMessage()"
+        style="width:100%;margin-top:10px;background:var(--pr);color:#fff;border:none;cursor:pointer;font-size:13px;font-weight:700;padding:13px;border-radius:12px;box-shadow:0 3px 12px rgba(93,175,167,.3);font-family:'Noto Sans JP',sans-serif">📋 コピーする（LINEに貼り付けて使おう！）</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ リファラル お祝いポップアップ ══ -->
+<div id="refCelebration" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.5);align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:24px;padding:36px 28px;text-align:center;max-width:360px;width:88%;position:relative;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.25);animation:celPop .35s ease;margin:16px">
+    <div id="refConfettiWrap" style="position:absolute;inset:0;pointer-events:none;overflow:hidden"></div>
+    <div style="font-size:56px;margin-bottom:6px;position:relative;z-index:1">🎉</div>
+    <div style="font-size:20px;font-weight:800;color:var(--pr);margin-bottom:8px;position:relative;z-index:1;line-height:1.3">リファラル<br>ありがとうございます！</div>
+    <div style="font-size:13px;color:var(--tx2);line-height:1.8;margin-bottom:8px;position:relative;z-index:1">
+      あなたの紹介が素晴らしい出会いにつながります 🌱<br>
+      採用担当から候補者の方へご連絡します ✨
+    </div>
+    <div style="font-size:28px;margin-bottom:14px;position:relative;z-index:1;letter-spacing:4px">🌸 🤝 💐</div>
+    <div id="refCelId" style="font-size:11px;color:var(--tx3);margin-bottom:16px;position:relative;z-index:1;background:var(--bg3);border-radius:8px;padding:5px 12px;display:inline-block"></div>
+    <br>
+    <button onclick="closeRefCelebration()"
+      style="background:var(--pr);color:#fff;border:none;cursor:pointer;font-size:14px;font-weight:700;padding:12px 32px;border-radius:12px;box-shadow:0 3px 12px rgba(93,175,167,.35);position:relative;z-index:1;font-family:'Noto Sans JP',sans-serif">とじる ✓</button>
+  </div>
+</div>
+
 <!-- ══════════════════════════════════════  ボトムナビ -->
 <div class="bottom-nav">
   <div class="ni active" id="ni-home" onclick="goNav('home')"><div class="ni-ic">🏠</div><div class="ni-lb">ホーム</div></div>
@@ -593,7 +745,7 @@ input[type="month"].inp{padding:11px 14px}
   <div class="ni" id="ni-reports" onclick="goNav('reports')"><div class="ni-ic">📋</div><div class="ni-lb">レポート</div></div>
   <div class="ni" id="ni-weeklyTel" style="display:none" onclick="goNav('weeklyTel')"><div class="ni-ic">📞</div><div class="ni-lb">週次TEL</div></div>
   <div class="ni" id="ni-training" onclick="goNav('training')"><div class="ni-ic">🎬</div><div class="ni-lb">研修</div></div>
-  <div class="ni" id="ni-settings" onclick="goNav('settings')"><div class="ni-ic">⚙️</div><div class="ni-lb">設定</div></div>
+  <div class="ni" id="ni-referral" onclick="goNav('referral')"><div class="ni-ic">🤝</div><div class="ni-lb">リファラル</div></div>
 </div>
 
 <!-- トースト -->
@@ -1160,6 +1312,7 @@ function goNav(id) {
   if (id === 'training') loadTraining();
   if (id === 'booking') { loadMyBookings(); }
   if (id === 'settings') { loadHomeData(); }
+  if (id === 'referral') { loadReferral(); }
 }
 
 
@@ -2097,6 +2250,259 @@ function renderMyBookings() {
 function jumpBookingsPage(p) {
   _bookingsPage = p;
   renderMyBookings();
+}
+
+// ══════════════════════════════════════════════════════════
+//  リファラル
+// ══════════════════════════════════════════════════════════
+var _refSelectedStatus = '';
+var _refInitialized = false;
+
+var REF_STATUS_OPTIONS = [
+  { value: '転職活動中',                     label: '🔥 転職活動中' },
+  { value: '転職を検討している',              label: '🤔 転職を検討中' },
+  { value: '良い機会があれば話を聞いてみたい', label: '👂 良い機会なら聞きたい' },
+  { value: 'すぐの転職予定はないが興味はある', label: '💡 今すぐでないが興味あり' },
+  { value: 'まずはカジュアルに話を聞いてみたい', label: '☕ カジュアルに話したい' },
+  { value: 'その他',                         label: '✏️ その他' },
+];
+
+function getRefLineMessage(myName) {
+  var name = myName || 'SocialShiftのメンバー';
+  return name + ' と申します。\n\n'
+    + '突然のご連絡すみません！\n'
+    + 'ご紹介したい会社の話があって、もし良ければ聞いてみませんか？😊\n\n'
+    + '私が働いているSocialShiftという会社なんですが...\n\n'
+    + '✅ 学習手当が月3万円〜支給されます\n'
+    + '✅ 残業がほぼなく（月7〜10時間）プライベートも大事にできます\n'
+    + '✅ 有給消化率100%で休みやすい文化があります\n'
+    + '✅ 平均年齢25歳で若いメンバーがイキイキ働いています\n\n'
+    + '転職を検討していなくても全然OKです！\n'
+    + '「話だけでも聞いてみようかな」くらいの気持ちで大丈夫です 🙌\n\n'
+    + '興味があればぜひ一度カジュアルにお話聞いてみませんか？\n'
+    + 'ちょっとでも気になる方はこちらのご案内を見てみてください。\n'
+    + 'https://minnanocareer.agent-network.com/company-reviews/socialshift/\n'
+    + 'Re就活にもご案内があります！\n'
+    + 'https://re-katsu.jp/career/company/recruit/49808/\n'
+    + 'インスタは、「@socialshift.work」から！\n\n'
+    + 'よかったら返信してください 🌱';
+}
+
+function loadReferral() {
+  var user = JSON.parse(localStorage.getItem('1on1_user') || '{}');
+  var myName = user.name || '';
+  var msgEl = document.getElementById('ref-line-msg');
+  if (msgEl) msgEl.textContent = getRefLineMessage(myName);
+  if (!_refInitialized) {
+    var refName = document.getElementById('ref-referrer-name');
+    if (refName && myName && !refName.value) refName.value = myName;
+    renderRefStatusChips();
+    _refInitialized = true;
+  }
+}
+
+function toggleReferralForm() {
+  var panel = document.getElementById('ref-form-panel');
+  if (!panel) return;
+  var isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  var btn = document.getElementById('ref-open-btn');
+  if (btn) btn.textContent = isOpen ? '🤝 リファラルする！' : '✕ フォームを閉じる';
+  if (!isOpen) {
+    var user = JSON.parse(localStorage.getItem('1on1_user') || '{}');
+    var refName = document.getElementById('ref-referrer-name');
+    if (refName && user.name && !refName.value) refName.value = user.name;
+    renderRefStatusChips();
+    var errEl = document.getElementById('ref-error-msg');
+    if (errEl) errEl.textContent = '';
+    setTimeout(function(){ panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 50);
+  }
+}
+
+function renderRefStatusChips() {
+  var wrap = document.getElementById('ref-status-chips');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  REF_STATUS_OPTIONS.forEach(function(opt) {
+    var chip = document.createElement('button');
+    chip.type = 'button';
+    var sel = _refSelectedStatus === opt.value;
+    chip.style.cssText = 'padding:7px 12px;border-radius:18px;font-size:11px;font-weight:600;cursor:pointer;'
+      + 'white-space:nowrap;font-family:\'Noto Sans JP\',sans-serif;'
+      + 'background:' + (sel ? 'var(--pr)' : 'var(--bg3)') + ';'
+      + 'color:' + (sel ? '#fff' : 'var(--tx2)') + ';'
+      + 'border:1.5px solid ' + (sel ? 'var(--pr)' : 'var(--bd)') + ';';
+    chip.textContent = opt.label;
+    chip.onclick = function(){ selectRefStatus(opt.value); };
+    wrap.appendChild(chip);
+  });
+}
+
+function selectRefStatus(value) {
+  _refSelectedStatus = (_refSelectedStatus === value) ? '' : value;
+  renderRefStatusChips();
+  var otherWrap = document.getElementById('ref-status-other-wrap');
+  if (otherWrap) otherWrap.style.display = (_refSelectedStatus === 'その他') ? 'block' : 'none';
+}
+
+async function submitReferral() {
+  var errEl = document.getElementById('ref-error-msg');
+  if (errEl) errEl.textContent = '';
+  var referrerName  = (document.getElementById('ref-referrer-name')   || {}).value || '';
+  var candidateName = (document.getElementById('ref-candidate-name')  || {}).value || '';
+  var email         = (document.getElementById('ref-candidate-email') || {}).value || '';
+  var phone         = (document.getElementById('ref-candidate-phone') || {}).value || '';
+  var relationship  = (document.getElementById('ref-relationship')    || {}).value || '';
+  var statusOther   = (document.getElementById('ref-status-other')    || {}).value || '';
+  if (!referrerName.trim()) {
+    if (errEl) errEl.textContent = '⚠️ あなたのお名前を入力してください';
+    return;
+  }
+  if (!candidateName.trim()) {
+    if (errEl) errEl.textContent = '⚠️ 候補者のお名前を入力してください';
+    return;
+  }
+  var btn = document.getElementById('ref-submit-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '送信中…'; }
+  try {
+    var r = await apiRequest('/api/mentee/referral', { method: 'POST', body: JSON.stringify({
+      referrer_name:  referrerName.trim(),
+      candidate_name: candidateName.trim(),
+      email:          email.trim(),
+      phone:          phone.trim(),
+      relationship:   relationship.trim(),
+      status:         _refSelectedStatus,
+      status_other:   (_refSelectedStatus === 'その他') ? statusOther.trim() : '',
+      notes:          '',
+    }) });
+    if (r && r.ok) {
+      ['ref-referrer-name','ref-candidate-name','ref-candidate-email','ref-candidate-phone','ref-relationship','ref-status-other'].forEach(function(id){
+        var el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+      _refSelectedStatus = '';
+      renderRefStatusChips();
+      var otherWrap = document.getElementById('ref-status-other-wrap');
+      if (otherWrap) otherWrap.style.display = 'none';
+      var panel = document.getElementById('ref-form-panel');
+      if (panel) panel.style.display = 'none';
+      var openBtn = document.getElementById('ref-open-btn');
+      if (openBtn) openBtn.textContent = '🤝 リファラルする！';
+      localStorage.removeItem('1on1_ref_draft');
+      showRefCelebration(r.referral_id || '');
+    } else {
+      if (errEl) errEl.textContent = '⚠️ 送信に失敗しました: ' + ((r && (r.error || r.message)) || 'GAS応答なし');
+    }
+  } catch(e) {
+    if (errEl) errEl.textContent = '⚠️ 通信エラー: ' + e.message;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '📤 投稿する'; }
+  }
+}
+
+function saveDraftReferral() {
+  var draft = {
+    referrerName:  (document.getElementById('ref-referrer-name')   || {}).value || '',
+    candidateName: (document.getElementById('ref-candidate-name')  || {}).value || '',
+    email:         (document.getElementById('ref-candidate-email') || {}).value || '',
+    phone:         (document.getElementById('ref-candidate-phone') || {}).value || '',
+    relationship:  (document.getElementById('ref-relationship')    || {}).value || '',
+    status:        _refSelectedStatus,
+    statusOther:   (document.getElementById('ref-status-other')    || {}).value || '',
+  };
+  localStorage.setItem('1on1_ref_draft', JSON.stringify(draft));
+  showToast('💾 下書きを保存しました');
+}
+
+function loadDraftReferral() {
+  var raw = localStorage.getItem('1on1_ref_draft');
+  if (!raw) { showToast('保存された下書きはありません'); return; }
+  try {
+    var draft = JSON.parse(raw);
+    var setVal = function(id, v) { var el = document.getElementById(id); if (el) el.value = v || ''; };
+    setVal('ref-referrer-name',   draft.referrerName);
+    setVal('ref-candidate-name',  draft.candidateName);
+    setVal('ref-candidate-email', draft.email);
+    setVal('ref-candidate-phone', draft.phone);
+    setVal('ref-relationship',    draft.relationship);
+    setVal('ref-status-other',    draft.statusOther);
+    _refSelectedStatus = draft.status || '';
+    renderRefStatusChips();
+    var otherWrap = document.getElementById('ref-status-other-wrap');
+    if (otherWrap) otherWrap.style.display = (_refSelectedStatus === 'その他') ? 'block' : 'none';
+    var panel = document.getElementById('ref-form-panel');
+    if (panel && panel.style.display === 'none') toggleReferralForm();
+    showToast('📂 下書きを呼び出しました');
+  } catch(e) { showToast('下書きの読み込みに失敗しました'); }
+}
+
+function copyRefLineMessage() {
+  var msgEl = document.getElementById('ref-line-msg');
+  if (!msgEl) return;
+  var text = msgEl.textContent || '';
+  var btn = document.getElementById('ref-copy-btn');
+  var copied = function() {
+    if (btn) { btn.textContent = '✅ コピーしました！'; setTimeout(function(){ btn.textContent = '📋 コピーする（LINEに貼り付けて使おう！）'; }, 2500); }
+    showToast('✅ メッセージをコピーしました');
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(copied).catch(function() {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.cssText = 'position:fixed;opacity:0;pointer-events:none';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      copied();
+    });
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;opacity:0;pointer-events:none';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    copied();
+  }
+}
+
+function openRefInstagram() {
+  window.open('https://www.instagram.com/socialshift.work/', '_blank');
+}
+
+function showRefCelebration(referralId) {
+  var el = document.getElementById('refCelebration');
+  if (!el) return;
+  el.style.display = 'flex';
+  var idEl = document.getElementById('refCelId');
+  if (idEl) idEl.textContent = referralId ? ('紹介ID: ' + referralId) : '';
+  var wrap = document.getElementById('refConfettiWrap');
+  if (wrap) {
+    wrap.innerHTML = '';
+    var colors = ['#5dafa7','#52c997','#e8a852','#e87171','#52c9e8','#f7c948','#e8619a'];
+    for (var i = 0; i < 40; i++) {
+      var p = document.createElement('div');
+      var size = 6 + Math.random() * 8;
+      var left = Math.random() * 100;
+      var delay = Math.random() * 1.5;
+      var dur = 1.8 + Math.random() * 1.2;
+      p.style.cssText = 'position:absolute;width:' + size + 'px;height:' + size + 'px;'
+        + 'background:' + colors[i % colors.length] + ';'
+        + 'border-radius:' + (Math.random() > 0.5 ? '50%' : '2px') + ';'
+        + 'left:' + left + '%;top:-20px;'
+        + 'animation:confettiFall ' + dur + 's ' + delay + 's ease-in forwards;';
+      wrap.appendChild(p);
+    }
+  }
+}
+
+function closeRefCelebration() {
+  var el = document.getElementById('refCelebration');
+  if (el) el.style.display = 'none';
+  var wrap = document.getElementById('refConfettiWrap');
+  if (wrap) wrap.innerHTML = '';
 }
 </script>
 </body>
