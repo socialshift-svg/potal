@@ -327,12 +327,12 @@ function clearAlert() {
   document.getElementById('alertErr').classList.remove('show');
   document.getElementById('alertOk').classList.remove('show');
 }
-function setLoading(loading) {
+function setLoading(loading, msg) {
   const btn     = document.getElementById('loginBtn');
   const text    = document.getElementById('btnText');
   const spinner = document.getElementById('btnSpinner');
   btn.disabled          = loading;
-  text.textContent      = loading ? '確認中…' : 'ログイン';
+  text.textContent      = loading ? (msg || '確認中…') : 'ログイン';
   spinner.style.display = loading ? 'block' : 'none';
 }
 
@@ -355,14 +355,37 @@ async function handleLogin(e) {
     const passwordHash = await sha256Hex(password);
 
     const payload = { path: 'auth/login', _method: 'POST', email, password_hash: passwordHash };
-    const res = await fetch(GAS_URL, {
-      method: 'POST',
-      body:   JSON.stringify(payload),
-    });
 
-    const text = await res.text();
-    let data;
-    try { data = JSON.parse(text); } catch { data = {}; }
+    // ★ リトライロジック（GAS同時実行上限対策）
+    // 503/429 または通信エラー時に最大3回、指数バックオフで再試行
+    let data = {};
+    const MAX_RETRY = 3;
+    for (let attempt = 1; attempt <= MAX_RETRY; attempt++) {
+      try {
+        const res = await fetch(GAS_URL, {
+          method: 'POST',
+          body:   JSON.stringify(payload),
+        });
+        const text = await res.text();
+        try { data = JSON.parse(text); } catch { data = {}; }
+        // 503（GAS同時実行超過）または空レスポンスの場合はリトライ
+        if (res.status === 503 || res.status === 429 || !text) {
+          if (attempt < MAX_RETRY) {
+            const wait = attempt * 1500; // 1.5秒 → 3秒 → 4.5秒
+            setLoading(true, `サーバーが混雑しています。再試行中… (${attempt}/${MAX_RETRY})`);
+            await new Promise(r => setTimeout(r, wait));
+            continue;
+          }
+        }
+        break; // 成功またはアプリエラーならループ終了
+      } catch (fetchErr) {
+        if (attempt < MAX_RETRY) {
+          await new Promise(r => setTimeout(r, attempt * 1500));
+          continue;
+        }
+        throw fetchErr;
+      }
+    }
 
     if (data.error) {
       const msgMap = {
