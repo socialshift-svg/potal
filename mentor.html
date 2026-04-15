@@ -967,7 +967,7 @@ td{padding:10px 14px;font-size:13px}
 //  設定
 // ══════════════════════════════════════════════════════════
 const GAS_URL     = 'https://script.google.com/macros/s/AKfycbzdwzQYNRRHO5S7Fq1qBE7qYoMEYoJTjqU1MoQivOWxFpzt4w5NcuICTOYROISn6KYpmQ/exec';
-const GITHUB_BASE = 'https://socialshift-svg.github.io/potal';
+const GITHUB_BASE = 'https://koheiumeda-arch.github.io/SS1on1';
 
 // ★ セキュリティ: フロントエンドでSHA-256ハッシュ化（パスワードを平文送信しない）
 async function sha256Hex(str) {
@@ -1065,14 +1065,11 @@ var CAT_ICON_MENTOR = {'入社時研修':'📚','マニュアル':'📋','就業
 async function loadMentorTraining() {
   var container = document.getElementById('mentorTrainingList');
   if (!container) return;
+  // ★ キャッシュが空でも再取得するよう修正（空データがキャッシュされる問題対策）
   if (_allMentorTraining.length > 0) { filterMentorTraining(); return; }
   container.innerHTML = '<div class="loading">読み込み中…</div>';
-  // ★ mentorロールでアクセス可能なAPIを使用
-  var data = await gasReq('api/mentee/contents');
-  if (!data || !data.contents || data.contents.length === 0) {
-    // フォールバック: admin APIも試みる
-    data = await gasReq('api/admin/contents');
-  }
+  // ★ api/mentor/contents を使用（GASに正式定義済み、ロール制限なし）
+  var data = await gasReq('api/mentor/contents');
   if (!data || !data.contents || data.contents.length === 0) {
     container.innerHTML = '<div style="padding:24px;text-align:center;color:var(--tx3)">コンテンツがありません</div>';
     return;
@@ -1122,7 +1119,7 @@ function filterMentorTraining() {
 function logoutMentor() {
   if (!confirm('ログアウトしますか？')) return;
   Auth.clearAuth();
-  window.location.href = 'https://socialshift-svg.github.io/potal/login.html';
+  window.location.href = 'https://koheiumeda-arch.github.io/SS1on1/login.html';
 }
 
 function warmupGAS() {

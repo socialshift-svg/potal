@@ -707,13 +707,33 @@ input[type="month"].inp{padding:11px 14px}
 
   <!-- LINEシェア -->
   <div class="card">
-    <div class="ch"><div class="ct">💬 LINEでかんたんシェア</div></div>
+    <div class="ch">
+      <div class="ct">💬 LINEでかんたんシェア</div>
+      <button id="ref-edit-toggle-btn" onclick="toggleLineEdit()"
+        style="font-size:11px;padding:4px 10px;border-radius:8px;border:1px solid var(--bd);background:var(--bg3);color:var(--tx2);cursor:pointer">✏️ 編集</button>
+    </div>
     <div style="padding:14px">
       <div style="font-size:12px;color:var(--tx2);margin-bottom:10px;line-height:1.7;background:var(--pr-light);border-radius:10px;padding:10px 13px">
         📋 コピーして、LINEにそのまま貼り付けるだけ！<br>
         <span style="font-size:11px;color:var(--tx3)">「話だけでも聞いてみない？」の一言から ✨</span>
       </div>
-      <div id="ref-line-msg" class="ref-line-box"></div>
+      <!-- 表示モード -->
+      <div id="ref-line-msg" class="ref-line-box" style="white-space:pre-wrap;line-height:1.8;font-size:13px;color:var(--tx);background:var(--bg3);border-radius:10px;padding:12px 14px"></div>
+      <!-- 編集モード -->
+      <div id="ref-line-edit-area" style="display:none">
+        <textarea id="ref-line-textarea" class="inp"
+          style="width:100%;height:260px;font-size:13px;line-height:1.8;resize:vertical;font-family:'Noto Sans JP',sans-serif;padding:12px 14px;border-radius:10px"
+          placeholder="LINEに貼り付ける文章を自由に編集できます"></textarea>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button onclick="saveLineMessage()"
+            style="flex:1;background:var(--pr);color:#fff;border:none;cursor:pointer;font-size:13px;font-weight:700;padding:10px;border-radius:10px;font-family:'Noto Sans JP',sans-serif">💾 保存する</button>
+          <button onclick="resetLineMessage()"
+            style="padding:10px 14px;font-size:12px;background:var(--bg3);color:var(--tx3);border:1px solid var(--bd);border-radius:10px;cursor:pointer;font-family:'Noto Sans JP',sans-serif">↩ デフォルトに戻す</button>
+          <button onclick="toggleLineEdit()"
+            style="padding:10px 14px;font-size:12px;background:var(--bg3);color:var(--tx2);border:1px solid var(--bd);border-radius:10px;cursor:pointer;font-family:'Noto Sans JP',sans-serif">✕</button>
+        </div>
+        <div id="ref-line-save-msg" style="font-size:11px;color:var(--gr);margin-top:4px;min-height:14px;text-align:center"></div>
+      </div>
       <button id="ref-copy-btn" onclick="copyRefLineMessage()"
         style="width:100%;margin-top:10px;background:var(--pr);color:#fff;border:none;cursor:pointer;font-size:13px;font-weight:700;padding:13px;border-radius:12px;box-shadow:0 3px 12px rgba(93,175,167,.3);font-family:'Noto Sans JP',sans-serif">📋 コピーする（LINEに貼り付けて使おう！）</button>
     </div>
@@ -896,7 +916,7 @@ async function apiRequest(endpoint, options) {
       try { data = JSON.parse(text); } catch(pe) { console.error('[mentee] JSON parse error', text.slice(0,200)); return null; }
       if (data && (data.error === 'TOKEN_MISSING' || data.error === 'INVALID_TOKEN')) {
         Auth.clearAuth();
-        window.location.href = 'https://socialshift-svg.github.io/potal/login.html';
+        window.location.href = 'https://koheiumeda-arch.github.io/SS1on1/login.html';
         return null;
       }
       return data;
@@ -917,7 +937,7 @@ function warmupGAS() {
 
 function logout() {
   Auth.clearAuth();
-  window.location.href = 'https://socialshift-svg.github.io/potal/login.html';
+  window.location.href = 'https://koheiumeda-arch.github.io/SS1on1/login.html';
 }
 
 // ══════════════════════════════════════════════════════════
@@ -929,11 +949,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (_wtModal) _wtModal.addEventListener('click', e => { if (e.target === _wtModal) closeModal('wtTelModal'); });
 
   // ① 認証チェック
-  if (!Auth.isLoggedIn()) { window.location.href = 'https://socialshift-svg.github.io/potal/login.html'; return; }
+  if (!Auth.isLoggedIn()) { window.location.href = 'https://koheiumeda-arch.github.io/SS1on1/login.html'; return; }
 
   // ② ロールチェック（mentee のみ許可。admin は管理目的で閲覧可）
   const _role = (Auth.getUser() || {}).role;
-  if (_role && _role !== 'mentee' && _role !== 'admin') { window.location.href = 'https://socialshift-svg.github.io/potal/login.html'; return; }
+  if (_role && _role !== 'mentee' && _role !== 'admin') { window.location.href = 'https://koheiumeda-arch.github.io/SS1on1/login.html'; return; }
 
   // ③ ページビュー記録（F-07）+ GASウォームアップを並列実行
   warmupGAS();
@@ -2288,17 +2308,76 @@ function getRefLineMessage(myName) {
     + 'よかったら返信してください 🌱';
 }
 
+var LINE_MSG_STORAGE_KEY = '1on1_ref_line_msg';
+
 function loadReferral() {
   var user = JSON.parse(localStorage.getItem('1on1_user') || '{}');
   var myName = user.name || '';
+  // ★ 保存済みメッセージがあればそれを使用、なければデフォルトを生成
+  var saved = localStorage.getItem(LINE_MSG_STORAGE_KEY);
   var msgEl = document.getElementById('ref-line-msg');
-  if (msgEl) msgEl.textContent = getRefLineMessage(myName);
+  if (msgEl) msgEl.textContent = saved || getRefLineMessage(myName);
   if (!_refInitialized) {
     var refName = document.getElementById('ref-referrer-name');
     if (refName && myName && !refName.value) refName.value = myName;
     renderRefStatusChips();
     _refInitialized = true;
   }
+}
+
+// ★ 編集モード切り替え
+function toggleLineEdit() {
+  var editArea  = document.getElementById('ref-line-edit-area');
+  var displayEl = document.getElementById('ref-line-msg');
+  var copyBtn   = document.getElementById('ref-copy-btn');
+  var editBtn   = document.getElementById('ref-edit-toggle-btn');
+  var isEditing = editArea && editArea.style.display !== 'none';
+  if (isEditing) {
+    // 編集を閉じる
+    if (editArea)  editArea.style.display  = 'none';
+    if (displayEl) displayEl.style.display = '';
+    if (copyBtn)   copyBtn.style.display   = '';
+    if (editBtn)   editBtn.textContent     = '✏️ 編集';
+  } else {
+    // 編集を開く：現在の表示テキストをテキストエリアに反映
+    var ta = document.getElementById('ref-line-textarea');
+    if (ta && displayEl) ta.value = displayEl.textContent || '';
+    if (editArea)  editArea.style.display  = '';
+    if (displayEl) displayEl.style.display = 'none';
+    if (copyBtn)   copyBtn.style.display   = 'none';
+    if (editBtn)   editBtn.textContent     = '✕ 閉じる';
+    var saveMsg = document.getElementById('ref-line-save-msg');
+    if (saveMsg) saveMsg.textContent = '';
+  }
+}
+
+// ★ メッセージを保存
+function saveLineMessage() {
+  var ta  = document.getElementById('ref-line-textarea');
+  var msg = ta ? ta.value.trim() : '';
+  if (!msg) { showToast('文章を入力してください'); return; }
+  localStorage.setItem(LINE_MSG_STORAGE_KEY, msg);
+  // 表示を更新して編集を閉じる
+  var displayEl = document.getElementById('ref-line-msg');
+  if (displayEl) displayEl.textContent = msg;
+  var saveMsg = document.getElementById('ref-line-save-msg');
+  if (saveMsg) { saveMsg.textContent = '✅ 保存しました'; setTimeout(function(){ saveMsg.textContent=''; }, 2000); }
+  toggleLineEdit();
+  showToast('LINE文章を保存しました');
+}
+
+// ★ デフォルトに戻す
+function resetLineMessage() {
+  if (!confirm('デフォルトの文章に戻しますか？')) return;
+  localStorage.removeItem(LINE_MSG_STORAGE_KEY);
+  var user   = JSON.parse(localStorage.getItem('1on1_user') || '{}');
+  var myName = user.name || '';
+  var defaultMsg = getRefLineMessage(myName);
+  var ta = document.getElementById('ref-line-textarea');
+  if (ta) ta.value = defaultMsg;
+  var displayEl = document.getElementById('ref-line-msg');
+  if (displayEl) displayEl.textContent = defaultMsg;
+  showToast('デフォルトに戻しました');
 }
 
 function toggleReferralForm() {
@@ -2438,6 +2517,17 @@ function loadDraftReferral() {
 
 function copyRefLineMessage() {
   var msgEl = document.getElementById('ref-line-msg');
+  // 編集中の場合はテキストエリアの値を使用
+  var editArea = document.getElementById('ref-line-edit-area');
+  if (editArea && editArea.style.display !== 'none') {
+    var ta = document.getElementById('ref-line-textarea');
+    if (ta && navigator.clipboard) {
+      navigator.clipboard.writeText(ta.value).then(function(){
+        showToast('コピーしました！');
+      });
+      return;
+    }
+  }
   if (!msgEl) return;
   var text = msgEl.textContent || '';
   var btn = document.getElementById('ref-copy-btn');
