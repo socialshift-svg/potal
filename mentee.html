@@ -1,0 +1,2041 @@
+<!DOCTYP>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>マイページ｜1on1管理システム</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f7faf9;--bg2:#ffffff;--bg3:#f0f6f5;--bg4:#e8f2f0;
+  --bd:#d4e5e2;--tx:#2c3e3a;--tx2:#5a6e68;--tx3:#8fa39d;
+  --pr:#5dafa7;--pr2:#4a9890;--pr-light:#e8f5f4;
+  --gr:#52c997;--gr-light:#e6f9f2;
+  --am:#e8a852;--am-light:#fef5e6;
+  --rd:#e87171;--rd-light:#fef2f2;
+  --sh:0 2px 12px rgba(93,175,167,.08)
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;line-height:1.6;overflow-x:hidden;padding-top:110px;}
+
+/* ── トップバー（クイックリンク含む固定エリア） ── */
+.topbar-wrap{position:fixed;top:0;left:0;right:0;z-index:100;background:var(--bg2);border-bottom:1px solid var(--bd);box-shadow:var(--sh)}
+.topbar{padding:14px 18px;display:flex;align-items:center;justify-content:space-between}
+.logo{font-weight:800;font-size:17px;color:var(--pr)}
+.tb-r{display:flex;align-items:center;gap:11px}
+.nb{width:36px;height:36px;border-radius:11px;background:var(--bg3);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:16px;position:relative;cursor:pointer}
+.nd{position:absolute;top:7px;right:7px;width:7px;height:7px;border-radius:50%;background:var(--rd);border:2px solid var(--bg2)}
+.ava{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--pr),var(--pr2));display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;cursor:pointer}
+
+/* ── クイックリンクバー（横スクロール対応） ── */
+.quick-links{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 16px;
+  border-top:1px solid var(--bd);
+  background:var(--bg2);
+  overflow-x:auto;
+  overflow-y:hidden;
+  -webkit-overflow-scrolling:touch; /* iOS慣性スクロール */
+  scrollbar-width:none; /* Firefox: スクロールバー非表示 */
+  max-width:600px;
+  margin:0 auto;
+  width:100%;
+  flex-wrap:nowrap; /* ★ 折り返し禁止 */
+}
+.quick-links::-webkit-scrollbar{display:none;} /* Chrome/Safari: スクロールバー非表示 */
+.ql-item{
+  display:inline-flex;
+  flex-direction:row;
+  align-items:center;
+  gap:6px;
+  text-decoration:none;
+  cursor:pointer;
+  flex-shrink:0; /* ★ 縮まない */
+  padding:6px 12px;
+  background:var(--bg3);
+  border-radius:8px;
+  border:1px solid var(--bd);
+  white-space:nowrap; /* ★ テキスト折り返し禁止 */
+}
+.ql-item:active{background:var(--pr-light);border-color:var(--pr);}
+.ql-icon{font-size:16px;flex-shrink:0;}
+.ql-label{font-size:12px;color:var(--tx2);font-weight:500;max-width:none;overflow:visible;text-overflow:unset;}
+/* リンクが未設定のプレースホルダー */
+.ql-item.empty{opacity:.3;}
+
+/* ── 画面共通 ── */
+.screen{display:none;padding:16px 16px 80px;flex-direction:column;gap:15px;max-width:600px;margin:0 auto;width:100%}
+.screen.active{display:flex;animation:fi .3s ease}
+@keyframes fi{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── カード類 ── */
+.greet{background:linear-gradient(135deg,var(--pr),var(--pr2));border-radius:14px;padding:22px;color:#fff;position:relative;overflow:hidden;box-shadow:var(--sh)}
+.greet::after{content:'';position:absolute;right:-25px;top:-25px;width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,.08)}
+.greet-sub{font-size:13px;opacity:.88;margin-bottom:5px}
+.greet-name{font-size:21px;font-weight:700;margin-bottom:15px}
+.mentor-chip{display:inline-flex;align-items:center;gap:9px;background:rgba(255,255,255,.17);border-radius:11px;padding:9px 14px;font-size:13px;backdrop-filter:blur(5px)}
+.mentor-name{font-weight:700}
+.card{background:var(--bg2);border-radius:14px;border:1px solid var(--bd);overflow:hidden;box-shadow:var(--sh)}
+.ch{display:flex;align-items:center;justify-content:space-between;padding:15px 18px;border-bottom:1px solid var(--bd)}
+.ct{font-size:15px;font-weight:700}.ca{font-size:13px;color:var(--pr);font-weight:600;cursor:pointer}
+.goal-card{background:var(--bg2);border-radius:14px;padding:19px;border:1px solid var(--bd);box-shadow:var(--sh)}
+.card-label{font-size:11px;font-weight:700;letter-spacing:.6px;color:var(--tx3);text-transform:uppercase;margin-bottom:11px}
+.goal-text{font-size:17px;font-weight:700;color:var(--pr);line-height:1.5}
+.goal-from{font-size:11px;color:var(--tx3);margin-top:7px}
+.next-card{background:var(--bg2);border-radius:14px;border:2px solid var(--pr);box-shadow:0 4px 18px rgba(93,175,167,.15);overflow:hidden}
+.next-hd{background:var(--pr);padding:11px 18px;display:flex;align-items:center;justify-content:space-between}
+.next-hd-t{color:#fff;font-size:13px;font-weight:700}
+.countdown{background:rgba(255,255,255,.22);color:#fff;font-size:11px;padding:4px 11px;border-radius:11px;font-weight:700}
+.next-bd{padding:18px}
+.next-date{font-size:21px;font-weight:700;margin-bottom:3px}.next-time{font-size:14px;color:var(--tx2);margin-bottom:15px}
+.meet-btn{width:100%;padding:15px;background:linear-gradient(135deg,var(--pr),var(--pr2));color:#fff;border:none;border-radius:13px;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px;font-family:'Noto Sans JP',sans-serif;box-shadow:0 4px 15px rgba(93,175,167,.3)}
+.meet-btn:active{transform:scale(.98)}
+.sub-acts{display:flex;gap:9px;margin-top:11px}
+.sub-btn{flex:1;padding:11px;background:var(--bg3);border:1px solid var(--bd);border-radius:11px;font-size:13px;font-weight:600;color:var(--tx2);cursor:pointer;text-align:center;font-family:'Noto Sans JP',sans-serif}
+.sub-btn.accent{background:var(--pr-light);color:var(--pr);border-color:rgba(93,175,167,.3)}
+.sub-btn:active{background:var(--bd)}
+.tag{font-size:11px;padding:3px 11px;border-radius:7px;font-weight:600}
+.tag-gr{background:var(--gr-light);color:var(--gr)}.tag-am{background:var(--am-light);color:var(--am)}
+.rep-item{display:flex;align-items:center;gap:13px;padding:14px 18px;border-bottom:1px solid var(--bd);cursor:pointer}
+.rep-item:hover,.rep-item:active{background:var(--bg3)}.rep-item:last-child{border-bottom:none}
+.rep-date{background:var(--bg3);border-radius:10px;padding:7px 10px;text-align:center;flex-shrink:0;border:1px solid var(--bd)}
+.rd{font-size:17px;font-weight:700;line-height:1}.rm{font-size:10px;color:var(--tx3)}
+.ri{flex:1}.ri-t{font-size:14px;font-weight:600;margin-bottom:3px}.ri-s{font-size:12px;color:var(--tx3)}
+.arr{color:var(--tx3);font-size:15px}
+
+/* ── フォーム ── */
+.bc{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--tx3);margin-bottom:14px}
+.bc-link{color:var(--pr);cursor:pointer;font-weight:600}
+.bc-link:hover{color:var(--pr2)}
+.detail-box{background:var(--bg3);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:14px}
+.db-label{font-size:12px;color:var(--tx3);margin-bottom:8px;font-weight:600}
+.db-text{font-size:14px;color:var(--tx);line-height:1.8}
+.form-group{margin-bottom:14px}
+.form-label{font-size:13px;font-weight:600;color:var(--tx2);margin-bottom:7px;display:block}
+.form-label .req{color:var(--rd);font-size:11px;margin-left:4px}
+.inp,textarea.inp{width:100%;background:var(--bg3);border:1px solid var(--bd);border-radius:11px;padding:12px 14px;font-size:14px;color:var(--tx);font-family:'Noto Sans JP',sans-serif;outline:none;transition:all .2s}
+.inp:focus,textarea.inp:focus{border-color:var(--pr);background:var(--bg2);box-shadow:0 0 0 3px var(--pr-light)}
+textarea.inp{resize:vertical;min-height:90px}
+select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238fa39d' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px}
+.btn{padding:13px 20px;border-radius:11px;font-size:14px;font-weight:700;cursor:pointer;border:none;font-family:'Noto Sans JP',sans-serif;transition:all .2s}
+.btn-p{background:var(--pr);color:#fff;box-shadow:0 3px 12px rgba(93,175,167,.25)}.btn-p:active{transform:scale(.98)}
+.btn-g{background:var(--bg3);color:var(--tx2);border:1px solid var(--bd)}
+.stars{display:flex;gap:6px;font-size:26px;cursor:pointer}
+.star-f{color:var(--am)}.star-e{color:var(--bd)}
+
+/* ── 予約カレンダー ── */
+.book-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:16px}
+.cal-day{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;border-radius:10px;cursor:pointer;background:var(--bg3);border:1px solid var(--bd)}
+.cal-day.sel{background:var(--pr);color:#fff;border-color:var(--pr)}
+.cal-day.dis{opacity:.3;pointer-events:none}
+.time-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.time-slot{padding:13px;background:var(--bg3);border:1px solid var(--bd);border-radius:10px;text-align:center;font-size:14px;font-weight:600;cursor:pointer}
+.time-slot.sel{background:var(--pr);color:#fff;border-color:var(--pr)}
+.time-slot.full{opacity:.3;pointer-events:none}
+
+/* ── コンテンツカード ── */
+.content-card{background:var(--bg2);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:12px;cursor:pointer;transition:all .2s}
+.content-card:active{background:var(--bg3)}
+.cc-tag{display:inline-block;background:var(--pr-light);color:var(--pr);font-size:10px;padding:3px 9px;border-radius:5px;font-weight:700;margin-bottom:9px}
+.training-cat-btn{padding:8px 14px;font-size:12px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;color:var(--tx2);font-family:'Noto Sans JP',sans-serif;transition:all .15s;flex-shrink:0}
+.training-cat-btn.active{color:var(--pr);border-bottom-color:var(--pr)}
+.training-cat-btn:active{opacity:.7}
+.cc-title{font-size:15px;font-weight:700;margin-bottom:5px}
+.cc-meta{font-size:12px;color:var(--tx3)}
+
+/* ── 月入力 ── */
+input[type="month"].inp{padding:11px 14px}
+
+/* ── 区切り ── */
+.section-title{font-size:12px;font-weight:700;letter-spacing:.8px;color:var(--tx3);text-transform:uppercase;padding:4px 0 2px;margin-top:6px}
+
+/* ── ボトムナビ ── */
+.bottom-nav{max-width:600px;margin:0 auto;position:fixed;bottom:0;left:0;right:0;z-index:150;background:var(--bg2);position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:var(--bg2);border-top:1px solid var(--bd);display:flex;padding-bottom:env(safe-area-inset-bottom);box-shadow:0 -4px 18px rgba(93,175,167,.08);z-index:100}
+.ni{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:11px 0 9px;cursor:pointer}
+.ni-ic{font-size:21px}.ni-lb{font-size:10px;color:var(--tx3);margin-top:4px;font-weight:500}
+.ni.active .ni-lb{color:var(--pr);font-weight:700}
+
+/* ── トースト通知 ── */
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--tx);color:#fff;padding:11px 20px;border-radius:11px;font-size:13px;font-weight:600;opacity:0;transition:all .3s;z-index:999;white-space:nowrap;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── ローディング ── */
+.loading{display:flex;align-items:center;justify-content:center;padding:40px;color:var(--tx3);font-size:14px}
+.spinner{width:22px;height:22px;border:2px solid var(--bd);border-top-color:var(--pr);border-radius:50%;animation:spin .7s linear infinite;margin-right:10px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ─── ヘッダー2段構成 ─── */
+.topbar-upper{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--bg2);max-width:600px;margin:0 auto;width:100%}
+.topbar-upper-l{display:flex;align-items:center;gap:8px}
+.topbar-upper-r{display:flex;align-items:center;gap:8px}
+.logo-text{font-size:16px;font-weight:700;color:var(--pr)}
+.tb-icon{width:34px;height:34px;border-radius:10px;background:var(--bg3);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;position:relative;transition:all .2s}
+.tb-icon:hover{background:var(--bg4)}
+.badge{position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:var(--rd);font-size:0}
+.ava-sm{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--pr),var(--pr2));display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;cursor:pointer}
+
+/* ─── モーダル ─── */
+.modal{display:none;position:fixed;inset:0;background:rgba(44,62,58,.5);z-index:200;align-items:flex-end;justify-content:center;backdrop-filter:blur(2px);padding-bottom:env(safe-area-inset-bottom)}
+.modal.open{display:flex}
+.modal-content{background:var(--bg2);border-radius:16px 16px 0 0;padding:20px 16px calc(80px + env(safe-area-inset-bottom));width:100%;max-width:480px;max-height:85vh;overflow-y:auto;box-shadow:0 -4px 30px rgba(93,175,167,.2)}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:14px}
+.modal-close{display:none}
+.f-foot{display:flex;gap:10px;margin-top:16px;justify-content:flex-end}
+.form-label{font-size:13px;color:var(--tx2);font-weight:600;display:block;margin-bottom:5px}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════
+     トップバー固定エリア（クイックリンク含む）
+     ══════════════════════════════════════ -->
+<div class="topbar-wrap">
+  <!-- 上段：お知らせ・チャット・サインアウト -->
+  <div class="topbar-upper">
+    <div class="topbar-upper-l">
+      <span class="logo-text">1on1</span>
+    </div>
+    <div class="topbar-upper-r">
+      <div class="tb-icon" id="chatBtn" style="display:none;background:linear-gradient(135deg,#1a73e8,#0d62d1);color:#fff;border:none" onclick="openMyChat()" title="グループチャット（ハドル）">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+      </div>
+      <div class="tb-icon" id="leaderChatBtn" style="display:none;background:linear-gradient(135deg,#34a853,#1e8e3e);color:#fff;border:none" onclick="openLeaderChat()" title="リーダーに連絡">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.1 19.79 19.79 0 0 1 1.62 4.43 2 2 0 0 1 3.77 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+      </div>
+      <div class="tb-icon" id="noticeBtn" onclick="toggleNoticePanel()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg><span class="badge" id="notiBadge" style="display:none"></span>
+      </div>
+      <div class="tb-icon" onclick="logout()" title="サインアウト">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+      </div>
+      <div class="ava-sm" id="userAva" onclick="goNav('settings')">木</div>
+    </div>
+  </div>
+  <!-- お知らせパネル -->
+  <div id="noticePanel" style="display:none;background:var(--bg2);border-bottom:1px solid var(--bd);padding:12px 16px;font-size:13px;color:var(--tx2);max-width:600px;margin:0 auto;width:100%">
+    <div id="noticePanelContent">読み込み中...</div>
+  </div>
+  <!-- 下段：クイックリンクバー -->
+  <div class="quick-links" id="quickLinksBar">
+    <div class="loading"><div class="spinner"></div></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════  HOME  -->
+<div class="screen active" id="s-home">
+  <!-- ★ アンケートバナー（未回答時のみ表示） -->
+  <div id="surveyBanner" style="display:none;margin-bottom:12px;background:linear-gradient(135deg,#ff9f43,#ee5a24);border-radius:14px;padding:14px 16px;color:#fff">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-size:24px">📋</span>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:700;margin-bottom:2px">1on1アンケートに回答してください</div>
+        <div style="font-size:12px;opacity:.9" id="surveyBannerDate">ミーティングが終了しました</div>
+      </div>
+      <button onclick="goScreen('survey')" style="background:rgba(255,255,255,.25);border:none;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;white-space:nowrap">回答する →</button>
+    </div>
+  </div>
+  <div class="greet">
+    <div class="greet-sub" id="greetSub">こんにちは</div>
+    <div class="greet-name" id="greetName">読み込み中…</div>
+    <div class="mentor-chip"><span>👤</span><div>担当：<span class="mentor-name" id="mentorName">—</span></div></div>
+    <div class="mentor-chip" id="leaderChip" style="display:none"><span>📞</span><div>リーダー：<span class="mentor-name" id="leaderName">—</span></div></div>
+    <div id="leaderPhoneChip" style="display:none;margin-top:6px">
+      <a id="leaderPhoneLink" href="tel:" style="display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.2);border-radius:10px;padding:7px 13px;font-size:13px;color:#fff;text-decoration:none;font-weight:600">
+        <span>☎️</span><span id="leaderPhoneText">電話する</span>
+      </a>
+    </div>
+    <div id="telStartChip" style="display:none;margin-top:6px">
+      <button id="telStartBtn" onclick="startMenteeTelCall()" style="display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.2);border:none;border-radius:10px;padding:9px 16px;font-size:14px;font-weight:700;color:#fff;cursor:pointer;font-family:'Noto Sans JP',sans-serif">
+        <span>📞</span><span>リーダーにTEL</span>
+      </button>
+    </div>
+  </div>
+  <div class="goal-card">
+    <div class="card-label">🎯 今月の目標</div>
+    <div class="goal-text" id="currentGoal">読み込み中…</div>
+    <div class="goal-from" id="goalFrom">📋 最新の1on1レポートより</div>
+    <div id="home-goals-section" style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.2)">
+      <div id="home-goal-period" style="font-size:10px;color:rgba(255,255,255,.6);margin-bottom:6px;display:none"></div>
+      <div class="goal-label" style="font-size:11px;color:rgba(255,255,255,.7);font-weight:600;margin-bottom:3px">半年業務目標</div>
+      <div id="home-goal-work" style="font-size:13px;color:#fff;margin-bottom:8px">—</div>
+      <div class="goal-label" style="font-size:11px;color:rgba(255,255,255,.7);font-weight:600;margin-bottom:3px">半年スキル目標</div>
+      <div id="home-goal-skill" style="font-size:13px;color:#fff">—</div>
+    </div>
+  </div>
+  <div class="next-card">
+    <div class="next-hd"><div class="next-hd-t">📅 次回の1on1</div><div class="countdown" id="countdown">明日まで</div></div>
+    <div class="next-bd">
+      <div class="next-date" id="nextDate">2月18日（火）</div>
+      <div class="next-time" id="nextTime">—</div>
+      <button class="meet-btn" id="meetBtn" onclick="openMeet()"><span>▶</span> Google Meetに参加する</button>
+      <div class="sub-acts">
+        <button class="sub-btn accent" onclick="goScreen('preReport')">📝 事前レポート提出</button>
+        <button class="sub-btn" onclick="goNav('booking')">📅 予約を変更</button>
+      </div>
+      <div id="homeCancelArea" style="display:none;margin-top:6px"></div>
+    </div>
+  </div>
+  <div class="card" id="homeScheduleCard">
+    <div class="ch"><div class="ct">📅 直近のスケジュール</div><div class="ca" onclick="goNav('booking')">全て見る</div></div>
+    <div id="homeScheduleList"><div class="loading"><div class="spinner"></div></div></div>
+  </div>
+  <div class="card">
+    <div class="ch"><div class="ct">📂 過去の1on1レポート</div><div class="ca" onclick="goNav('reports')">全て見る</div></div>
+    <div id="recentReports"><div class="loading"><div class="spinner"></div></div></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════  BOOKING -->
+<div class="screen" id="s-booking">
+  <!-- スケジュール一覧 -->
+  <div class="card" style="margin-bottom:12px">
+    <div class="ch"><div class="ct">📅 スケジュール一覧</div></div>
+    <div id="myBookingsList"></div>
+    <div id="myBookingsPager" style="display:none;padding:10px 16px;display:flex;align-items:center;justify-content:center;gap:8px;border-top:1px solid var(--bd)"></div>
+  </div>
+  <div style="margin-bottom:4px"><div style="font-size:19px;font-weight:700">新しい1on1を予約</div><div style="font-size:13px;color:var(--tx2);margin-top:3px">日時を選択してください</div></div>
+  <div class="card">
+    <div class="ch"><div class="ct">📅 日付を選択</div><div style="font-size:12px;color:var(--tx3)" id="calMonthLabel"></div></div>
+    <div style="padding:12px 16px 4px">
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:8px;text-align:center">
+        <div style="font-size:10px;color:var(--rd);font-weight:600">日</div>
+        <div style="font-size:10px;color:var(--tx3);font-weight:600">月</div>
+        <div style="font-size:10px;color:var(--tx3);font-weight:600">火</div>
+        <div style="font-size:10px;color:var(--tx3);font-weight:600">水</div>
+        <div style="font-size:10px;color:var(--tx3);font-weight:600">木</div>
+        <div style="font-size:10px;color:var(--tx3);font-weight:600">金</div>
+        <div style="font-size:10px;color:#4285f4;font-weight:600">土</div>
+      </div>
+      <div class="book-cal" id="bookCal">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="card" id="timeCard" style="display:none">
+    <div class="ch"><div class="ct">🕐 時間を選択</div><div style="font-size:13px;color:var(--tx2)" id="selectedDateLabel"></div></div>
+    <div style="padding:16px">
+      <div class="time-grid" id="timeGrid"></div>
+    </div>
+  </div>
+  <button class="btn btn-p" style="width:100%;margin-top:8px;display:none" id="bookBtn" onclick="bookSlot()">✅ この日時で予約する</button>
+</div>
+
+<!-- ══════════════════════════════════════  事前レポート（要件②対応・新フォーム項目） -->
+<div class="screen" id="s-preReport">
+  <div class="bc"><span class="bc-link" onclick="goScreen('home')">ホーム</span><span>›</span><span>事前レポート</span></div>
+  <div style="margin-bottom:4px">
+    <div style="font-size:19px;font-weight:700;margin-bottom:4px">事前レポート提出</div>
+    <div style="font-size:13px;color:var(--tx2)" id="preReportSubtitle">—</div>
+  </div>
+
+  <!-- ① 基本情報 -->
+  <div class="card">
+    <div class="ch"><div class="ct">📋 基本情報</div></div>
+    <div style="padding:16px">
+      <div class="form-group">
+        <label class="form-label">対象月<span class="req">*</span></label>
+        <input type="month" class="inp" id="pr-targetMonth" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">実施日<span class="req">*</span></label>
+        <input type="date" class="inp" id="pr-sessionDate" />
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">担当メンター</label>
+        <input class="inp" id="pr-mentor" readonly style="background:var(--bg4);color:var(--tx2)" />
+      </div>
+    </div>
+  </div>
+
+  <!-- ② 案件・目標 -->
+  <div class="card">
+    <div class="ch"><div class="ct">💼 案件・目標</div></div>
+    <div style="padding:16px">
+      <div class="form-group">
+        <label class="form-label">現在の案件</label>
+        <div id="pr-currentProject" class="inp readonly-field" style="background:var(--bg4);color:var(--tx2);min-height:38px;display:flex;align-items:center">—</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">半年の目標（業務）<span style="font-size:11px;color:var(--tx3);font-weight:400;margin-left:6px">※メンターが設定</span></label>
+        <div id="pr-goalWork6m-disp" class="inp readonly-field" style="background:var(--bg4);color:var(--tx2);min-height:38px;display:flex;align-items:center">—</div>
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">半年の目標（資格取得・スキルアップ）<span style="font-size:11px;color:var(--tx3);font-weight:400;margin-left:6px">※メンターが設定</span></label>
+        <div id="pr-goalSkill6m-disp" class="inp readonly-field" style="background:var(--bg4);color:var(--tx2);min-height:38px;display:flex;align-items:center">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ③ 実績 -->
+  <div class="card">
+    <div class="ch"><div class="ct">📈 今月の実績</div></div>
+    <div style="padding:16px">
+      <div class="form-group">
+        <label class="form-label">案件の実績<span class="req">*</span></label>
+        <textarea class="inp" id="pr-projectResult" rows="3" placeholder="今月の案件での成果・取り組み"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">学習の実績（学習時間）</label>
+        <div style="display:flex;align-items:center;gap:10px">
+          <input type="number" class="inp" id="pr-studyHours" placeholder="0" min="0" max="999" style="max-width:100px" />
+          <span style="font-size:14px;color:var(--tx2);white-space:nowrap">時間 / 月</span>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">学習の実績（学習内容）</label>
+        <textarea class="inp" id="pr-studyContent" rows="3" placeholder="学習した内容・使ったリソースなど"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- ④ 振り返り -->
+  <div class="card">
+    <div class="ch"><div class="ct">🔍 今月の振り返り</div></div>
+    <div style="padding:16px">
+      <div class="form-group">
+        <label class="form-label">良かったこと・成長したこと<span class="req">*</span></label>
+        <textarea class="inp" id="pr-goodPoints" rows="3" placeholder="うまくいったこと、自分の成長を感じた点"></textarea>
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">良くなかったこと・のびしろ</label>
+        <textarea class="inp" id="pr-improvementPoints" rows="3" placeholder="改善したい点、次に活かしたい学び"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑤ 次月目標 -->
+  <!-- 前回Mentorとの合意目標（公開済みレポートがある場合のみ表示） -->
+  <div id="pr-prevNextGoalBox" style="display:none;background:var(--pr-light);border:1px solid rgba(93,175,167,.3);border-radius:12px;padding:14px 16px;margin-bottom:4px">
+    <div style="font-size:12px;font-weight:700;color:var(--pr);margin-bottom:8px">📌 前回Mentorとの合意目標（参考・変更不可）</div>
+    <div style="font-size:12px;color:var(--tx2);margin-bottom:6px"><span style="font-weight:600">案件：</span><span id="pr-prevNextProject">—</span></div>
+    <div style="font-size:12px;color:var(--tx2)"><span style="font-weight:600">学習：</span><span id="pr-prevNextStudy">—</span></div>
+  </div>
+  <div class="card">
+    <div class="ch"><div class="ct">🎯 次月の目標</div></div>
+    <div style="padding:16px">
+      <div class="form-group">
+        <label class="form-label">次月目標（案件での目標）<span class="req">*</span></label>
+        <textarea class="inp" id="pr-nextMonthProjectGoal" rows="3" placeholder="来月に案件で達成したいこと"></textarea>
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">次月目標（学習の目標）</label>
+        <textarea class="inp" id="pr-nextMonthStudyGoal" rows="3" placeholder="来月の学習目標・取り組む内容"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn btn-p" style="width:100%" onclick="submitPreReport()">📝 事前レポートを提出</button>
+  <div style="font-size:12px;color:var(--tx3);text-align:center;margin-top:-8px">※ <span class="req" style="color:var(--rd)">*</span> は必須項目です</div>
+</div>
+
+<!-- ══════════════════════════════════════  SURVEY（アンケート） -->
+<div class="screen" id="s-survey">
+  <div class="bc"><span class="bc-link" onclick="goScreen('home')">ホーム</span><span>›</span><span>アンケート</span></div>
+  <div style="margin-bottom:4px">
+    <div style="font-size:19px;font-weight:700;margin-bottom:4px" id="survey-title">1on1アンケート</div>
+    <div style="font-size:13px;color:var(--tx2)" id="surveySubtitle">—</div>
+  </div>
+  <input type="hidden" id="survey-booking-id" value="">
+  <div class="card">
+    <div class="ch"><div class="ct">満足度評価</div></div>
+    <div style="padding:18px">
+      <div class="form-group"><div class="form-label">進捗・成長についての満足度</div>
+        <div class="stars" id="stars-progress">
+          <span class="star-e" onclick="rateStar(1,'progress')" style="cursor:pointer;font-size:28px">★</span>
+          <span class="star-e" onclick="rateStar(2,'progress')" style="cursor:pointer;font-size:28px">★</span>
+          <span class="star-e" onclick="rateStar(3,'progress')" style="cursor:pointer;font-size:28px">★</span>
+          <span class="star-e" onclick="rateStar(4,'progress')" style="cursor:pointer;font-size:28px">★</span>
+          <span class="star-e" onclick="rateStar(5,'progress')" style="cursor:pointer;font-size:28px">★</span>
+        </div>
+      </div>
+      <div class="form-group"><div class="form-label">メンタル・モチベーション</div>
+        <div class="stars" id="stars-mental">
+          <span class="star-e" onclick="rateStar(1,'mental')" style="cursor:pointer;font-size:28px">★</span>
+          <span class="star-e" onclick="rateStar(2,'mental')" style="cursor:pointer;font-size:28px">★</span>
+          <span class="star-e" onclick="rateStar(3,'mental')" style="cursor:pointer;font-size:28px">★</span>
+          <span class="star-e" onclick="rateStar(4,'mental')" style="cursor:pointer;font-size:28px">★</span>
+          <span class="star-e" onclick="rateStar(5,'mental')" style="cursor:pointer;font-size:28px">★</span>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:0"><div class="form-label">自由コメント（任意）</div><textarea class="inp" id="survey-comment" rows="3" placeholder="感想や要望があれば記入してください…"></textarea></div>
+    </div>
+  </div>
+  <button class="btn btn-p" style="width:100%;margin-top:14px" onclick="submitSurvey()">📤 アンケートを送信</button>
+</div>
+
+<!-- ══════════════════════════════════════  REPORTS -->
+<div class="screen" id="s-reports">
+  <div style="margin-bottom:4px"><div style="font-size:19px;font-weight:700;margin-bottom:4px">過去のレポート</div><div style="font-size:13px;color:var(--tx2)">確定済み1on1レポート一覧</div></div>
+  <div class="card" id="reportsList">
+    <div class="loading"><div class="spinner"></div>読み込み中...</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════  REPORT DETAIL -->
+<div class="screen" id="s-reportDetail">
+  <div class="bc"><span class="bc-link" onclick="goScreen('reports')">レポート</span><span>›</span><span>詳細</span></div>
+  <div style="margin-bottom:4px"><div style="font-size:19px;font-weight:700;margin-bottom:4px">1on1レポート</div></div>
+  <div class="detail-box">
+    <div class="db-label">📋 AIサマリー</div>
+    <div class="db-text" id="detail-summary">—</div>
+  </div>
+  <div class="detail-box">
+    <div class="db-label">💡 メンターからのアドバイス</div>
+    <div class="db-text" id="detail-advice">—</div>
+  </div>
+  <div class="detail-box" style="margin-bottom:0">
+    <div class="db-label">🎯 次月目標</div>
+    <div class="db-text" id="detail-goal">—</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════  WEEKLY TEL -->
+<div class="screen" id="s-weeklyTel">
+  <div style="margin-bottom:16px">
+    <div style="font-size:19px;font-weight:700;margin-bottom:4px">📞 週次TEL管理</div>
+    <div style="font-size:13px;color:var(--tx2)">担当メンティーへの定期連絡とフォローアップ</div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
+    <div style="background:var(--bg2);border:1px solid var(--bd);border-radius:12px;padding:14px">
+      <div style="font-size:11px;color:var(--tx3);margin-bottom:6px;font-weight:500">今週の実施率</div>
+      <div style="font-family:'Space Mono',monospace;font-size:24px;font-weight:700;color:var(--pr)" id="wt-kpi-rate">—</div>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--bd);border-radius:12px;padding:14px">
+      <div style="font-size:11px;color:var(--tx3);margin-bottom:6px;font-weight:500">レポート提出率</div>
+      <div style="font-family:'Space Mono',monospace;font-size:24px;font-weight:700;color:var(--gr)" id="wt-kpi-report">—</div>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--bd);border-radius:12px;padding:14px">
+      <div style="font-size:11px;color:var(--tx3);margin-bottom:6px;font-weight:500">担当人数</div>
+      <div style="font-family:'Space Mono',monospace;font-size:24px;font-weight:700;color:var(--tx)" id="wt-kpi-count">—</div>
+    </div>
+  </div>
+  <div style="font-size:14px;font-weight:700;margin-bottom:12px">📋 担当メンティー一覧</div>
+  <div id="wt-mentee-cards" style="display:flex;flex-direction:column;gap:12px">
+    <div style="padding:24px;text-align:center;color:var(--tx3)">読み込み中...</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════  TRAINING -->
+<div class="screen" id="s-training">
+  <div style="margin-bottom:4px"><div style="font-size:19px;font-weight:700;margin-bottom:4px">研修コンテンツ</div><div style="font-size:13px;color:var(--tx2)">動画・資料で学ぶ</div></div>
+  <!-- 検索バー -->
+  <div class="card" style="margin-bottom:0">
+    <div style="padding:10px 14px">
+      <input id="training-search" class="inp" style="width:100%;font-size:13px;padding:8px 12px" placeholder="🔍 タイトル・説明で検索…" oninput="filterTraining()">
+    </div>
+    <!-- カテゴリタブ -->
+    <div style="display:flex;gap:0;overflow-x:auto;border-top:1px solid var(--bd);scrollbar-width:none;-webkit-overflow-scrolling:touch">
+      <button class="training-cat-btn active" data-cat="" onclick="selectTrainingCat(this,'')">すべて</button>
+      <button class="training-cat-btn" data-cat="入社時研修" onclick="selectTrainingCat(this,'入社時研修')">📚 入社時研修</button>
+      <button class="training-cat-btn" data-cat="マニュアル" onclick="selectTrainingCat(this,'マニュアル')">📋 マニュアル</button>
+      <button class="training-cat-btn" data-cat="就業規則" onclick="selectTrainingCat(this,'就業規則')">📜 就業規則</button>
+      <button class="training-cat-btn" data-cat="社内ナレッジ" onclick="selectTrainingCat(this,'社内ナレッジ')">💡 社内ナレッジ</button>
+      <button class="training-cat-btn" data-cat="AWARD/配信" onclick="selectTrainingCat(this,'AWARD/配信')">🏆 AWARD/配信</button>
+    </div>
+  </div>
+  <div id="trainingList"><div class="loading"><div class="spinner"></div>読み込み中...</div></div>
+</div>
+
+<!-- ══════════════════════════════════════  SETTINGS -->
+<div class="screen" id="s-settings">
+  <div style="margin-bottom:4px"><div style="font-size:19px;font-weight:700;margin-bottom:4px">マイページ</div><div style="font-size:13px;color:var(--tx2)">アカウント情報（変更はAdminから行います）</div></div>
+  <div class="card">
+    <div class="ch"><div class="ct">👤 プロフィール</div></div>
+    <div style="padding:16px 18px">
+      <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bd)"><span style="font-size:13px;color:var(--tx2)">氏名</span><span style="font-size:14px;font-weight:600" id="set-name-disp">—</span></div>
+      <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bd)"><span style="font-size:13px;color:var(--tx2)">メールアドレス</span><span style="font-size:14px;font-weight:600" id="set-email-disp">—</span></div>
+      <div style="display:flex;justify-content:space-between;padding:10px 0"><span style="font-size:13px;color:var(--tx2)">電話番号</span><span style="font-size:14px;font-weight:600" id="set-tel-disp">—</span></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ch"><div class="ct">🏢 担当情報</div></div>
+    <div style="padding:16px 18px">
+      <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bd)"><span style="font-size:13px;color:var(--tx2)">担当メンター</span><span style="font-size:14px;font-weight:600" id="set-mentor">—</span></div>
+      <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bd)"><span style="font-size:13px;color:var(--tx2)">担当リーダー</span><span style="font-size:14px;font-weight:600" id="set-leader">—</span></div>
+      <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bd)"><span style="font-size:13px;color:var(--tx2)">稼働場所</span><span style="font-size:14px;font-weight:600" id="set-workplace">—</span></div>
+      <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bd)"><span style="font-size:13px;color:var(--tx2)">雇用形態</span><span style="font-size:14px;font-weight:600" id="set-workstatus">—</span></div>
+      <div style="display:none;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bd)" id="set-hire-date-row"><span style="font-size:13px;color:var(--tx2)">入社日</span><span style="font-size:14px;font-weight:600" id="set-hire-date">—</span></div>
+      <div style="display:none;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bd)" id="set-tenure-row"><span style="font-size:13px;color:var(--tx2)">在籍期間</span><span style="font-size:14px;font-weight:700;color:var(--pr)" id="set-tenure">—</span></div>
+      <div style="display:none;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bd)" id="set-goal-period-row">
+        <span style="font-size:13px;color:var(--tx2)">目標期間</span>
+        <span style="font-size:13px;font-weight:600;color:var(--pr)" id="set-goal-period">—</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bd)"><span style="font-size:13px;color:var(--tx2)">半年業務目標</span><span style="font-size:14px;font-weight:600;max-width:60%;text-align:right;line-height:1.5" id="set-goal-work">—</span></div>
+      <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bd)"><span style="font-size:13px;color:var(--tx2)">半年スキル目標</span><span style="font-size:14px;font-weight:600;max-width:60%;text-align:right;line-height:1.5" id="set-goal-skill">—</span></div>
+      <!-- 時給表示: 表示するには style="display:none" を削除 -->
+      <div class="wage-row" style="display:none"><div style="display:flex;justify-content:space-between;padding:10px 0"><span style="font-size:13px;color:var(--tx2)">時給</span><span style="font-size:14px;font-weight:600" id="set-wage">—</span></div></div>
+    </div>
+  </div>
+  <div class="card" style="background:var(--am-light);border-color:var(--am)">
+    <div style="padding:14px 18px;font-size:12px;color:var(--am);line-height:1.7">
+      💡 プロフィールの変更は管理者にご依頼ください。<br>情報の更新はAdminパネルから行われます。
+    </div>
+  </div>
+  <button class="btn btn-g" style="width:100%;margin-top:8px" onclick="logout()">🚪 ログアウト</button>
+</div>
+
+<!-- ══════════════════════════════════════  ボトムナビ -->
+<div class="bottom-nav">
+  <div class="ni active" id="ni-home" onclick="goNav('home')"><div class="ni-ic">🏠</div><div class="ni-lb">ホーム</div></div>
+  <div class="ni" id="ni-booking" onclick="goNav('booking')"><div class="ni-ic">📅</div><div class="ni-lb">予約</div></div>
+  <div class="ni" id="ni-reports" onclick="goNav('reports')"><div class="ni-ic">📋</div><div class="ni-lb">レポート</div></div>
+  <div class="ni" id="ni-weeklyTel" style="display:none" onclick="goNav('weeklyTel')"><div class="ni-ic">📞</div><div class="ni-lb">週次TEL</div></div>
+  <div class="ni" id="ni-training" onclick="goNav('training')"><div class="ni-ic">🎬</div><div class="ni-lb">研修</div></div>
+  <div class="ni" id="ni-settings" onclick="goNav('settings')"><div class="ni-ic">⚙️</div><div class="ni-lb">設定</div></div>
+</div>
+
+<!-- トースト -->
+
+<!-- ══ モーダル：TEL後レポート（Leader兼務Mentee用） ══ -->
+<div class="modal" id="wtTelModal">
+  <div class="modal-content">
+    <div style="width:40px;height:4px;background:var(--bd2);border-radius:2px;margin:0 auto 16px;cursor:pointer" onclick="closeModal('wtTelModal')"></div>
+    <div class="modal-title">📝 TEL後レポート</div>
+    <div style="font-size:14px;margin-bottom:14px;color:var(--pr);font-weight:600" id="wtTelTarget"></div>
+    <div id="wtTelAiSection" style="display:none">
+      <div style="font-size:12px;font-weight:700;color:var(--pr);margin-bottom:8px">🤖 AI自動要約（録音から生成）</div>
+      <div style="font-size:12px;color:var(--tx2);margin-bottom:6px"><strong>通話サマリー：</strong><span id="wtTelAiSummary"></span></div>
+      <div style="font-size:12px;color:var(--tx2);margin-bottom:6px"><strong>メンティーの状況：</strong><span id="wtTelAiStatus"></span></div>
+      <div style="font-size:12px;color:var(--tx2)"><strong>フォローアクション：</strong><span id="wtTelAiAction"></span></div>
+      <div style="margin-top:10px"><a id="wtTelRecordingLink" href="#" target="_blank" style="font-size:12px;color:var(--pr);font-weight:600">🎙️ 録音ファイルを開く →</a></div>
+    </div>
+    <div style="margin-bottom:12px"><label class="form-label">今回はどんな話をしましたか？</label><textarea class="inp" rows="3" id="wtTelTalk" placeholder="話した内容..."></textarea></div>
+    <div style="margin-bottom:12px"><label class="form-label">悩みや課題、心配なことはありますか？</label><textarea class="inp" rows="3" id="wtTelConcerns" placeholder="課題や懸念点..."></textarea></div>
+    <div style="margin-bottom:12px"><label class="form-label">良かったことや成長はありますか？</label><textarea class="inp" rows="2" id="wtTelGood" placeholder="良かった点..."></textarea></div>
+    <div style="margin-bottom:16px"><label class="form-label">そのほか、メモなど</label><textarea class="inp" rows="2" id="wtTelMemo" placeholder="メモ..."></textarea></div>
+    <div class="f-foot">
+      <button class="btn" style="background:var(--bg3);color:var(--tx2);border:1px solid var(--bd)" onclick="closeModal('wtTelModal')">キャンセル</button>
+      <button class="btn" style="background:var(--pr);color:#fff" id="wtTelSubmitBtn" onclick="submitWtTelReport()">レポート提出</button>
+    </div>
+  </div>
+</div>
+
+<!-- TEL録音アップロードガイドモーダル -->
+<div class="modal" id="wtUploadGuideModal">
+  <div class="modal-content">
+    <span class="modal-close" onclick="document.getElementById('wtUploadGuideModal').classList.remove('open')">✕</span>
+    <div style="font-size:18px;font-weight:700;margin-bottom:12px">🎙 ハドル録音のアップロード</div>
+    <div style="font-size:13px;color:var(--tx2);margin-bottom:16px">ハドル（Google Meet）の録音をフォルダにアップロードすると、<br><strong>文字起こし → AI要約（4項目）→ レポート自動生成</strong>が行われます。</div>
+    <div style="background:var(--bg3);border-radius:12px;padding:16px;margin-bottom:16px">
+      <div style="font-size:12px;font-weight:700;color:var(--tx3);margin-bottom:10px">📋 アップロード手順</div>
+      <ol style="font-size:13px;color:var(--tx2);padding-left:18px;margin:0;line-height:2.2">
+        <li>ハドル終了後、録音ファイルをダウンロード<br><span style="font-size:11px;color:var(--tx3)">（マイドライブ → Meet Recordings）</span></li>
+        <li>下のボタンから録音フォルダを開く</li>
+        <li>ファイルをフォルダにドラッグ＆ドロップ</li>
+        <li>10分以内に自動処理開始 ✅</li>
+      </ol>
+    </div>
+    <div style="background:var(--pr-light);border-radius:10px;padding:12px;margin-bottom:14px;font-size:12px;color:var(--tx2);line-height:1.9">
+      <div style="font-weight:700;color:var(--pr);margin-bottom:4px">🤖 アップロード後に自動処理</div>
+      ① ファイル名を自動リネーム（yymm_名前_TEL.m4a）<br>
+      ② メンティー名フォルダに自動格納<br>
+      ③ 文字起こし → AI4項目レポート自動生成<br>
+      ④ 週次TEL画面に下書きとして表示
+    </div>
+    <a href="https://drive.google.com/drive/folders/1JcnHWPQq1mV6NZeDWNZ4s7fLfS9vOBQE" target="_blank" style="display:block;background:var(--pr);color:#fff;text-align:center;padding:14px;border-radius:12px;text-decoration:none;font-weight:700;font-size:15px">📁 録音フォルダを開く →</a>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzdwzQYNRRHO5S7Fq1qBE7qYoMEYoJTjqU1MoQivOWxFpzt4w5NcuICTOYROISn6KYpmQ/exec';
+
+// ── HTMLエスケープユーティリティ（XSS防止）──
+function esc(s) {
+  var t = String(s || '');
+  t = t.replace(/&/g, '&amp;');
+  t = t.replace(/</g, '&lt;');
+  t = t.replace(/>/g, '&gt;');
+  t = t.replace(/"/g, '&quot;');
+  return t;
+}
+
+// ── 在籍期間計算ユーティリティ ──
+function calcTenure(hireDateStr) {
+  if (!hireDateStr) return null;
+  const hire = new Date(hireDateStr);
+  if (isNaN(hire)) return null;
+  const now = new Date();
+  let months = (now.getFullYear() - hire.getFullYear()) * 12 + (now.getMonth() - hire.getMonth());
+  if (now.getDate() < hire.getDate()) months--;
+  if (months < 0) months = 0;
+  const y = Math.floor(months / 12);
+  const m = months % 12;
+  if (y === 0) return { months, label: m + 'ヶ月' };
+  if (m === 0) return { months, label: y + '年' };
+  return { months, label: y + '年' + m + 'ヶ月' };
+}
+
+// ── ホームデータキャッシュ（重複リクエスト防止）──
+var _homeDataCache = null;
+var _homeDataPromise = null;
+
+async function fetchHomeData() {
+  if (_homeDataCache) return _homeDataCache;
+  if (_homeDataPromise) return _homeDataPromise; // 同時リクエストを1つに統合
+  _homeDataPromise = apiRequest('/api/mentee/home').then(function(data) {
+    if (data) _homeDataCache = data;
+    _homeDataPromise = null;
+    return data;
+  });
+  return _homeDataPromise;
+}
+
+// GASウォームアップ（コールドスタート対策）
+function warmupGAS() {
+  fetch(GAS_URL, { method:'POST', body:JSON.stringify({ path:'health', _method:'GET' }) })
+    .catch(() => {});
+}
+
+// ── クライアントサイドキャッシュ ──
+const Cache = {
+  set(k, d, ttl) { try { localStorage.setItem('c_'+k, JSON.stringify({d, exp: Date.now()+ttl*1000})); } catch(e){} },
+  get(k) {
+    try {
+      var v = JSON.parse(localStorage.getItem('c_'+k));
+      if (!v || Date.now() > v.exp) { localStorage.removeItem('c_'+k); return null; }
+      return v.d;
+    } catch(e) { return null; }
+  },
+  bust(prefix) { Object.keys(localStorage).filter(k=>k.startsWith('c_'+prefix)).forEach(k=>localStorage.removeItem(k)); }
+};
+
+// ══════════════════════════════════════════════════════════
+//  設定値（本番時は環境変数 or ビルド時に埋め込む）
+// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════
+//  認証モジュール
+// ══════════════════════════════════════════════════════════
+const Auth = {
+  getToken:  () => localStorage.getItem('1on1_token'),
+  getUser:   () => { try { return JSON.parse(localStorage.getItem('1on1_user') || 'null'); } catch { return null; } },
+  setAuth:   (token, user) => { localStorage.setItem('1on1_token', token); localStorage.setItem('1on1_user', JSON.stringify(user)); },
+  clearAuth: () => { localStorage.removeItem('1on1_token'); localStorage.removeItem('1on1_user'); },
+  isLoggedIn:() => !!localStorage.getItem('1on1_token'),
+};
+// GAS共通リクエスト（Content-Type省略でCORSプリフライト回避）
+async function apiRequest(endpoint, options) {
+  options = options || {};
+  var method = (options.method || 'GET').toUpperCase();
+  var token  = Auth.getToken();
+  var path   = endpoint.replace(/^\//, '');
+  var body   = {};
+  try { Object.assign(body, JSON.parse(options.body || '{}')); } catch(e) {}
+  body._method = method;
+  body._auth   = token ? 'Bearer ' + token : '';
+  body.path    = path;
+
+  // タイムアウト付きfetch（30秒）
+  const fetchWithTimeout = (url, opts, ms) => {
+    const ctrl = new AbortController();
+    const tid  = setTimeout(() => ctrl.abort(), ms);
+    return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(tid));
+  };
+
+  // リトライ処理（最大2回）
+  for (var attempt = 0; attempt < 2; attempt++) {
+    try {
+      var res  = await fetchWithTimeout(GAS_URL, { method: 'POST', body: JSON.stringify(body) }, 30000);
+      var text = await res.text();
+      var data;
+      try { data = JSON.parse(text); } catch(pe) { console.error('[mentee] JSON parse error', text.slice(0,200)); return null; }
+      if (data && (data.error === 'TOKEN_MISSING' || data.error === 'INVALID_TOKEN')) {
+        Auth.clearAuth();
+        window.location.href = 'https://koheiumeda-arch.github.io/SS1on1/login.html';
+        return null;
+      }
+      return data;
+    } catch(e) {
+      console.error('[mentee] fetch error attempt ' + (attempt+1), e);
+      if (attempt === 1) return null;
+      await new Promise(r => setTimeout(r, 1000));
+    }
+  }
+  return null;
+}
+
+// GASウォームアップ
+function warmupGAS() {
+  fetch(GAS_URL, { method:'POST', body:JSON.stringify({ path:'health', _method:'GET' }) })
+    .catch(() => {});
+}
+
+function logout() {
+  Auth.clearAuth();
+  window.location.href = 'https://koheiumeda-arch.github.io/SS1on1/login.html';
+}
+
+// ══════════════════════════════════════════════════════════
+//  初期化
+// ══════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', async () => {
+
+  const _wtModal = document.getElementById('wtTelModal');
+  if (_wtModal) _wtModal.addEventListener('click', e => { if (e.target === _wtModal) closeModal('wtTelModal'); });
+
+  // ① 認証チェック
+  if (!Auth.isLoggedIn()) { window.location.href = 'https://koheiumeda-arch.github.io/SS1on1/login.html'; return; }
+
+  // ② ロールチェック（mentee のみ許可。admin は管理目的で閲覧可）
+  const _role = (Auth.getUser() || {}).role;
+  if (_role && _role !== 'mentee' && _role !== 'admin') { window.location.href = 'https://koheiumeda-arch.github.io/SS1on1/login.html'; return; }
+
+  // ③ ページビュー記録（F-07）+ GASウォームアップを並列実行
+  warmupGAS();
+  apiRequest('/api/analytics/page-view', {
+    method: 'POST',
+    body: JSON.stringify({ page: 'mentee', action: 'load' })
+  }).catch(() => {});
+
+  // ④ ユーザー情報表示（デモ用フォールバック付き）
+  const user = Auth.getUser() || { name: '木村 さくら', role: 'mentee' };
+
+  // has_leader_role が TRUE なら週次TELタブを表示
+  var hasLeader = user.has_leader_role === true || user.has_leader_role === 'true' || user.has_leader_role === 'TRUE';
+  if (hasLeader) {
+    var wtTab = document.getElementById('ni-weeklyTel');
+    if (wtTab) wtTab.style.display = '';
+    loadWeeklyTelMentee();
+  }
+  const firstName = (user.name || '').slice(0, 1);
+  document.getElementById('userAva').textContent = firstName || '木';
+  document.getElementById('greetName').textContent = (user.name || '') + ' さん';
+  // 時間帯別あいさつ
+  var h0=new Date().getHours();
+  var greetSub=document.getElementById('greetSub');
+  if(greetSub) greetSub.textContent = h0<11?'おはようございます':h0<18?'こんにちは':'こんばんは';
+  const userAvaEl = document.getElementById('userAva');
+  if (userAvaEl) userAvaEl.textContent = (user.name || '').slice(0, 1) || '木';
+
+  // ③ クイックリンク・ホームデータ・リーダー情報を並列取得
+  const [home] = await Promise.all([
+    fetchHomeData(),
+    loadQuickLinks(),
+    loadLeaderInfo(),
+  ]);
+  if (home) { renderHome(home); updatePreReportMentor(); }
+
+  // ⑤ レポート一覧読み込み
+  loadReports();
+
+  // ⑥ 設定画面にユーザー情報を反映（表示専用）
+  var setDisp = function(id, val) { var el=document.getElementById(id); if(el) el.textContent = val||'—'; };
+  setDisp('set-name-disp',  user.name);
+  setDisp('set-email-disp', user.email);
+  setDisp('set-tel-disp',   user.phone_number);
+  setDisp('set-mentor',     (home && home.mentor) ? home.mentor.name : '未設定');
+  setDisp('set-leader',     (home && home.leader) ? home.leader.name : '—');
+  setDisp('set-workplace',  user.workplace || '—');
+  setDisp('set-workstatus', user.work_status || '—');
+  setDisp('set-wage',       user.hourly_wage ? '¥'+Number(user.hourly_wage).toLocaleString()+'/h' : '—');
+  // ★ 入社日表示
+  var hireDateRow2 = document.getElementById('set-hire-date-row');
+  var hireDateEl2  = document.getElementById('set-hire-date');
+  if (user.hire_date && hireDateRow2 && hireDateEl2) {
+    var hd = new Date(user.hire_date);
+    hireDateEl2.textContent = isNaN(hd) ? user.hire_date : hd.getFullYear()+'年'+(hd.getMonth()+1)+'月'+hd.getDate()+'日';
+    hireDateRow2.style.display = 'flex';
+  } else if (hireDateRow2) {
+    hireDateRow2.style.display = 'none';
+  }
+  // ★ 在籍期間表示
+  var tenureRow = document.getElementById('set-tenure-row');
+  var tenureEl  = document.getElementById('set-tenure');
+  var tenure    = calcTenure(user.hire_date);
+  if (tenure && tenureRow && tenureEl) {
+    tenureRow.style.display = 'flex';
+    tenureEl.textContent    = tenure.label;
+  } else if (tenureRow) {
+    tenureRow.style.display = 'none';
+  }
+  // 研修コンテンツ
+  loadTraining();
+
+  // ⑤ 事前レポートフォーム初期値
+  const today = new Date();
+  const ym = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+  const ymd = today.toISOString().slice(0,10);
+  document.getElementById('pr-targetMonth').value = ym;
+  document.getElementById('pr-sessionDate').value = ymd;
+  // pr-mentorはrenderHome後にupdatePreReportMentor()で更新
+
+  // ⑥ 星評価の初期表示
+  ['progress','mental'].forEach(key => {
+    const el = document.getElementById(`stars-${key}`);
+    const val = Number(el.dataset.val);
+    el.querySelectorAll('span').forEach((s,i) => {
+      s.style.color = i < val ? 'var(--am)' : 'var(--bd)';
+    });
+  });
+});
+
+// ══ Mentee兼Leader: 週次TEL管理 ══
+var _wtCurrentMentee = { userId: null, name: null, callId: null };
+
+async function loadWeeklyTelMentee() {
+  try {
+    const [assignData, reportsData] = await Promise.all([
+      apiRequest('/api/leader/my-assignments'),
+      apiRequest('/api/mentor/call-reports')
+    ]);
+    const mentees = (assignData && assignData.mentees) ? assignData.mentees : [];
+    const reports = (reportsData && reportsData.reports) ? reportsData.reports : [];
+    const kpiCount = document.getElementById('wt-kpi-count');
+    if (kpiCount) kpiCount.textContent = mentees.length + '名';
+    const now = new Date();
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - (now.getDay() || 7) + 1);
+    weekStart.setHours(0, 0, 0, 0);
+    const thisWeekReports = reports.filter(r => new Date(r.created_at) >= weekStart);
+    const reportedIds = new Set(thisWeekReports.map(r => r.mentee_id));
+    const doneCount = mentees.filter(m => reportedIds.has(m.user_id)).length;
+    const rate = mentees.length > 0 ? Math.round(doneCount / mentees.length * 100) : 0;
+    const kpiRate = document.getElementById('wt-kpi-rate');
+    const kpiReport = document.getElementById('wt-kpi-report');
+    if (kpiRate) kpiRate.textContent = rate + '%';
+    if (kpiReport) kpiReport.textContent = thisWeekReports.length + '件';
+    const cardsEl = document.getElementById('wt-mentee-cards');
+    if (!cardsEl) return;
+    if (mentees.length === 0) {
+      cardsEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--tx3);font-size:13px">担当Menteeが設定されていません</div>';
+      return;
+    }
+    // 録音未アップロードチェック（バナー表示）
+    const missingRec = reports.filter(r => !r.recording_url);
+    const bannerEl = document.getElementById('wtRecordingBanner');
+    if (bannerEl) {
+      if (missingRec.length > 0) {
+        bannerEl.style.display = '';
+        bannerEl.innerHTML =
+          '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">'
+          + '<div>🎙 <strong>' + missingRec.length + '件</strong>のハドル録音がアップロードされていません</div>'
+          + '<button class="btn" style="background:var(--am);color:#fff;border:none;font-size:12px;padding:7px 14px;flex-shrink:0" onclick="openWtUploadGuide()">録音をアップロード →</button>'
+          + '</div>';
+      } else {
+        bannerEl.style.display = 'none';
+      }
+    }
+
+    // カードをDOM構築（クォート問題回避・チャット/録音UPボタン追加）
+    cardsEl.innerHTML = '';
+    mentees.forEach(m => {
+      const isDone   = reportedIds.has(m.user_id);
+      const myReps   = reports.filter(r => r.mentee_id === m.user_id)
+        .sort((a,b) => (b.created_at||'').localeCompare(a.created_at||''));
+      const latest   = myReps[0];
+      const latestDate = latest
+        ? (() => { const dt = new Date(latest.created_at); return (dt.getMonth()+1)+'/'+dt.getDate(); })()
+        : '記録なし';
+      const needsRecUpload = !latest || !latest.recording_url;
+
+      // カード本体
+      const card = document.createElement('div');
+      card.style.cssText = 'background:var(--bg2);border:1px solid var(--bd);border-radius:14px;padding:16px;position:relative';
+
+      // 今週済バッジ
+      const badge = document.createElement('div');
+      badge.style.cssText = 'position:absolute;top:12px;right:12px;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;'
+        + (isDone ? 'background:var(--gr-light);color:var(--gr)' : 'background:var(--am-light);color:var(--am)');
+      badge.textContent = isDone ? '✅ 今週済' : '⏳ 未実施';
+      card.appendChild(badge);
+
+      // ヘッダー行（アバター・名前・最終日・チャット）
+      const hdr = document.createElement('div');
+      hdr.style.cssText = 'display:flex;align-items:center;gap:12px;margin-bottom:12px';
+      const ava = document.createElement('div');
+      ava.style.cssText = 'width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--pr),var(--pr2));display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;font-weight:700;flex-shrink:0';
+      ava.textContent = (m.name||'').slice(0,1);
+      const info = document.createElement('div');
+      info.style.cssText = 'flex:1';
+      info.innerHTML = '<div style="font-size:15px;font-weight:700">' + (m.name||'') + '</div>'
+        + '<div style="font-size:12px;color:var(--tx3)">最終: ' + latestDate + ' / Meet: '
+        + myReps.filter(r=>r.recording_url||r.meet_url).length + '回</div>';
+
+      hdr.appendChild(ava);
+      hdr.appendChild(info);
+
+      // チャットボタン（chat_urlがある場合）
+      if (m.chat_url) {
+        const chatBtn = document.createElement('button');
+        chatBtn.className = 'btn';
+        chatBtn.style.cssText = 'background:linear-gradient(135deg,#1a73e8,#0d62d1);color:#fff;border:none;font-size:12px;padding:8px 12px;flex-shrink:0';
+        chatBtn.title = 'チャットを開く';
+        chatBtn.textContent = '💬';
+        chatBtn.onclick = () => window.open(m.chat_url, '_blank');
+        hdr.appendChild(chatBtn);
+      }
+      card.appendChild(hdr);
+
+      // AI要約プレビュー
+      if (latest && latest.ai_summary) {
+        const preview = document.createElement('div');
+        preview.style.cssText = 'background:var(--bg3);border-radius:9px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:var(--tx2);line-height:1.6';
+        preview.textContent = latest.ai_summary.substring(0,80) + (latest.ai_summary.length>80?'…':'');
+        card.appendChild(preview);
+      }
+
+      // アクションボタン行
+      const acts = document.createElement('div');
+      acts.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap';
+
+      // レポートボタン
+      const repBtn = document.createElement('button');
+      repBtn.className = 'btn';
+      repBtn.style.cssText = 'flex:1;font-size:12px;background:var(--pr);color:#fff;min-width:80px';
+      repBtn.textContent = '📝 レポート';
+      repBtn.onclick = () => openWtTelModal(m.name, m.user_id);
+      acts.appendChild(repBtn);
+
+      // 履歴ボタン
+      if (myReps.length > 0) {
+        const histBtn = document.createElement('button');
+        histBtn.className = 'btn';
+        histBtn.style.cssText = 'flex:1;font-size:12px;background:var(--bg3);color:var(--tx2);border:1px solid var(--bd);min-width:80px';
+        histBtn.textContent = '📋 履歴';
+        histBtn.onclick = () => showWtTelHistory(m.user_id, m.name);
+        acts.appendChild(histBtn);
+      }
+
+      // 録音UPボタン（未アップロードの場合・点滅）
+      if (needsRecUpload) {
+        const upBtn = document.createElement('button');
+        upBtn.className = 'btn';
+        upBtn.style.cssText = 'font-size:12px;background:var(--am-light);color:var(--am);border:1px solid var(--am);animation:pulse-am 2s infinite;flex-shrink:0';
+        upBtn.title = 'ハドル録音をアップロードしてください';
+        upBtn.textContent = '🎙 録音UP';
+        upBtn.onclick = () => openWtUploadGuide();
+        acts.appendChild(upBtn);
+      }
+
+      card.appendChild(acts);
+      cardsEl.appendChild(card);
+    });
+  } catch(e) { console.log('loadWeeklyTelMentee error:', e); }
+}
+
+function openWtTelModal(name, userId) {
+  _wtCurrentMentee = { userId, name, callId: null };
+  document.getElementById('wtTelTarget').textContent = '対象：' + name + ' さん';
+  ['wtTelTalk','wtTelConcerns','wtTelGood','wtTelMemo'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('wtTelAiSection').style.display = 'none';
+  apiRequest('/api/mentor/call-reports').then(data => {
+    if (!data || !data.reports) return;
+    const myReports = data.reports.filter(r => r.mentee_id === userId).sort((a,b) => (b.created_at||'').localeCompare(a.created_at||''));
+    const latest = myReports[0];
+    if (latest && (latest.ai_summary || latest.recording_url)) {
+      _wtCurrentMentee.callId = latest.call_id;
+      document.getElementById('wtTelAiSummary').textContent = latest.ai_summary || '—';
+      document.getElementById('wtTelAiStatus').textContent = latest.ai_mentee_status || '—';
+      document.getElementById('wtTelAiAction').textContent = latest.next_action || '—';
+      const recLink = document.getElementById('wtTelRecordingLink');
+      recLink.href = latest.recording_url || '#';
+      recLink.style.display = latest.recording_url ? 'inline' : 'none';
+      document.getElementById('wtTelAiSection').style.display = 'block';
+    }
+  }).catch(() => {});
+  document.getElementById('wtTelModal').classList.add('open');
+}
+
+async function submitWtTelReport() {
+  const btn = document.getElementById('wtTelSubmitBtn');
+  btn.textContent = '送信中...'; btn.disabled = true;
+  const payload = {
+    call_id: _wtCurrentMentee.callId || '',
+    mentee_id: _wtCurrentMentee.userId || '',
+    talk_content: document.getElementById('wtTelTalk').value,
+    concerns: document.getElementById('wtTelConcerns').value,
+    good_points: document.getElementById('wtTelGood').value,
+    memo: document.getElementById('wtTelMemo').value,
+    ai_summary: document.getElementById('wtTelAiSummary').textContent || '',
+    ai_mentee_status: document.getElementById('wtTelAiStatus').textContent || '',
+    next_action: document.getElementById('wtTelAiAction').textContent || '',
+    recording_url: document.getElementById('wtTelRecordingLink').href !== location.href ? document.getElementById('wtTelRecordingLink').href : ''
+  };
+  try {
+    const result = await apiRequest('/api/mentor/call-reports', { method: 'POST', body: JSON.stringify(payload) });
+    if (result) { showToast('✅ レポートを提出しました'); closeModal('wtTelModal'); loadWeeklyTelMentee(); }
+    else showToast('❌ 送信に失敗しました');
+  } catch(e) { showToast('❌ エラー: ' + e.message); }
+  finally { btn.textContent = 'レポート提出'; btn.disabled = false; }
+}
+
+function showWtTelHistory(userId, name) { showToast('📋 ' + name + ' さんのTEL履歴'); }
+
+var _myTelMeetUrl = ''; // メンティー自身のTEL用Meet URL
+
+async function loadLeaderInfo() {
+  try {
+    const data = await apiRequest('/api/mentee/leader-info');
+    if (!data || !data.leader) return;
+    const nameEl = document.getElementById('leaderName');
+    const chipEl = document.getElementById('leaderChip');
+    if (nameEl) nameEl.textContent = data.leader.name || '—';
+    if (chipEl) chipEl.style.display = 'inline-flex';
+
+    // TEL開始ボタン（tel_meet_urlが設定されている場合のみ表示）
+    _myTelMeetUrl = data.tel_meet_url || '';
+    var telChip = document.getElementById('telStartChip');
+    if (telChip) telChip.style.display = _myTelMeetUrl ? 'block' : 'none';
+  } catch(e) {}
+}
+
+// ── メンティーからリーダーへのTEL開始 ──
+async function startMenteeTelCall() {
+  if (!_myTelMeetUrl) { return; }
+
+  var btn = document.getElementById('telStartBtn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span>📞</span><span>発信中…</span>'; }
+
+  try {
+    const user = Auth.getUser();
+    var r = await apiRequest('/api/mentee/tel-start', {
+      method: 'POST',
+      body: JSON.stringify({ mentee_id: user ? user.user_id : '' })
+    });
+
+    if (r && r.ok) {
+      // MeetをスマホMeetアプリ or ブラウザで開く
+      window.open(r.tel_meet_url, '_blank');
+      // リーダーへのメール通知結果
+      if (r.mail_result && r.mail_result.ok) {
+        showToast('リーダーにメールで通知しました 📧');
+      } else {
+        showToast('Meetを開きました');
+      }
+    } else {
+      var errMsg = r && (r.error || r.message) || 'エラーが発生しました';
+      showToast(errMsg, true);
+    }
+  } catch(e) {
+    showToast('通信エラー: ' + e.message, true);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<span>📞</span><span>リーダーにTEL</span>'; }
+  }
+}
+
+// ══ 画面遷移 ══
+function goScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const s = document.getElementById('s-' + id);
+  if (s) s.classList.add('active');
+  if (id === 'preReport') updatePreReportNextMonthGoals();
+  // ★ アンケート画面を開くたびに星をリセット＆booking_idをセット
+  if (id === 'survey') {
+    _ratings = { progress: 0, mental: 0 };
+    rateStar(0, 'progress');
+    rateStar(0, 'mental');
+    document.getElementById('survey-comment').value = '';
+    loadSurveyData();
+  }
+}
+
+function updatePreReportNextMonthGoals() {
+  // 最新の公開済みメンターレポートから next_month goals を取得
+  var latest = _myMentorReports.find(function(r) {
+    return r.is_published === 'TRUE' && (r.next_month_project_goal || r.next_month_study_goal);
+  });
+  var projEl  = document.getElementById('pr-prevNextProject');
+  var studyEl = document.getElementById('pr-prevNextStudy');
+  var refBox  = document.getElementById('pr-prevNextGoalBox');
+  if (!refBox) return;
+  if (latest) {
+    if (projEl)  projEl.textContent  = latest.next_month_project_goal || '—';
+    if (studyEl) studyEl.textContent = latest.next_month_study_goal   || '—';
+    refBox.style.display = '';
+  } else {
+    refBox.style.display = 'none';
+  }
+}
+
+function goNav(id) {
+  goScreen(id);
+  document.querySelectorAll('.ni').forEach(n => n.classList.remove('active'));
+  const ni = document.getElementById('ni-' + id);
+  if (ni) ni.classList.add('active');
+  if (id === 'booking')  loadAvailableSlots();
+  if (id === 'training') loadTraining();
+  if (id === 'booking') { loadMyBookings(); }
+  if (id === 'settings') { loadHomeData(); }
+}
+
+
+// ══ モーダル ══
+function closeModal(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.remove('open');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ══ Meet参加 ══
+function openMeet(link) {
+  if (link) window.open(link, '_blank');
+  else alert('Meet リンクが設定されていません');
+}
+
+// ══ 星評価 ══
+var _ratings = { progress: 0, mental: 0 };
+function rateStar(val, type) {
+  _ratings[type] = val;
+  var container = document.getElementById('stars-' + type);
+  if (!container) return;
+  Array.from(container.querySelectorAll('span')).forEach(function(s, i) {
+    // ★ className + style両方を更新して確実に色を変える
+    if (i < val) {
+      s.className = 'star-f';
+      s.style.color = 'var(--am, #f9ca24)';
+    } else {
+      s.className = 'star-e';
+      s.style.color = 'var(--bd, #ddd)';
+    }
+  });
+}
+
+// ══ アンケート送信 ══
+var _pendingSurveyBookingId = ''; // ホームバナーから設定される
+async function submitSurvey() {
+  // survey-booking-id フィールドか、ホームバナーから設定されたIDを使用
+  const bookingId = (document.getElementById('survey-booking-id')?.value || _pendingSurveyBookingId || '').trim();
+  if (!bookingId) { showToast('❌ 対象の予約がありません'); return; }
+  if (!_ratings.progress || !_ratings.mental) {
+    showToast('❌ 進捗とメンタルを選択してください'); return;
+  }
+  const comment = document.getElementById('survey-comment')?.value || '';
+  const result = await apiRequest('/api/survey/submit', {
+    method: 'POST',
+    body: JSON.stringify({
+      booking_id:      bookingId,
+      progress_rating: _ratings.progress,
+      mental_rating:   _ratings.mental,
+      comment:         comment,
+      role:            'mentee'
+    })
+  });
+  if (result && result.ok) {
+    showToast('✅ 回答を送信しました');
+    _ratings = { progress: 0, mental: 0 };
+    _pendingSurveyBookingId = '';
+    // ★ ホームデータキャッシュをクリアして再取得（バナーを消すため）
+    _homeDataCache = null;
+    // ★ バナーを即時非表示
+    var banner = document.getElementById('surveyBanner');
+    if (banner) banner.style.display = 'none';
+    loadSurveyData();
+    // ホーム画面に戻ってデータを再読み込み
+    goNav('home');
+  } else {
+    showToast('❌ 送信に失敗しました');
+  }
+}
+
+async function loadSurveyData() {
+  const data = await fetchHomeData();
+  // ★ pending_survey（completed & 未回答）を優先、なければ next_booking
+  const survey  = data?.pending_survey;
+  const booking = survey || data?.next_booking;
+  const bookingInput = document.getElementById('survey-booking-id');
+  if (bookingInput) bookingInput.value = booking?.booking_id || '';
+  if (survey) _pendingSurveyBookingId = survey.booking_id || '';
+  const titleEl = document.getElementById('survey-title');
+  if (titleEl) {
+    if (survey) {
+      var dt = new Date(survey.scheduled_at);
+      var label = isNaN(dt) ? '' : (dt.getMonth()+1) + '月' + dt.getDate() + '日';
+      titleEl.textContent = '📋 ' + label + ' の1on1アンケート（未回答）';
+    } else if (booking) {
+      titleEl.textContent = '📋 次回1on1のアンケート';
+    } else {
+      titleEl.textContent = '📋 アンケート（対象の予約なし）';
+    }
+  }
+  // surveySubtitle にも反映
+  var subEl = document.getElementById('surveySubtitle');
+  if (subEl) {
+    subEl.textContent = survey
+      ? '回答待ちのアンケートがあります ⚠️'
+      : (booking ? '次回1on1の後に回答できます' : '— 回答待ちのアンケートなし');
+  }
+}
+
+// ══ 事前レポート送信 ══
+async function submitPreReport() {
+  var g = function(id){ var el=document.getElementById(id); return el ? (el.value||el.textContent||'') : ''; };
+  var gTxt = function(id){ var el=document.getElementById(id); return el ? (el.textContent||'').replace(/^—$/,'') : ''; };
+  if (!g('pr-targetMonth') || !g('pr-projectResult') || !g('pr-goodPoints') || !g('pr-nextMonthProjectGoal')) {
+    showToast('❌ 必須項目を入力してください'); return;
+  }
+  var body = {
+    target_month:            g('pr-targetMonth'),
+    session_date:            g('pr-sessionDate'),
+    current_project:         gTxt('pr-currentProject'),
+    goal_work_6m:            gTxt('pr-goalWork6m-disp'),
+    goal_skill_6m:           gTxt('pr-goalSkill6m-disp'),
+    project_result:          g('pr-projectResult'),
+    study_hours:             parseInt(g('pr-studyHours')) || 0,
+    study_content:           g('pr-studyContent'),
+    good_points:             g('pr-goodPoints'),
+    improvement_points:      g('pr-improvementPoints'),
+    next_month_project_goal: g('pr-nextMonthProjectGoal'),
+    next_month_study_goal:   g('pr-nextMonthStudyGoal'),
+  };
+  var result = await apiRequest('/api/mentee/pre-report', { method: 'POST', body: JSON.stringify(body) });
+  if (result && result.ok) { showToast('✅ 事前レポートを提出しました'); goNav('home'); }
+  else showToast('❌ 提出に失敗しました');
+}
+
+// ══ プロフィール保存 ══
+async function saveProfile() {
+  var name  = (document.getElementById('set-name')  || {value:''}).value;
+  var email = (document.getElementById('set-email') || {value:''}).value;
+  var phone = (document.getElementById('set-tel')   || {value:''}).value;
+  var result = await apiRequest('/api/mentee/profile', {
+    method: 'POST', body: JSON.stringify({ name: name, email: email, phone_number: phone })
+  });
+  if (result && result.ok) showToast('✅ プロフィールを保存しました');
+  else showToast('❌ 保存に失敗しました');
+}
+
+// ══ 予約 ══
+// 予約関連変数
+var _availSlots   = {};
+var _selectedDate = '';
+var _selectedTime = '';
+
+async function loadAvailableSlots() {
+  var calEl = document.getElementById('bookCal');
+  if (calEl) calEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  document.getElementById('timeCard').style.display = 'none';
+  document.getElementById('bookBtn').style.display  = 'none';
+  _selectedDate = ''; _selectedTime = '';
+
+  var data = await apiRequest('/api/mentee/available-slots');
+  if (!data) {
+    if (calEl) calEl.innerHTML = '<div style="text-align:center;color:var(--rd);padding:12px;font-size:12px">取得に失敗しました</div>';
+    return;
+  }
+  if (data.error === 'NO_MENTOR') {
+    if (calEl) calEl.innerHTML = '<div style="text-align:center;color:var(--tx3);padding:12px;font-size:12px">担当メンターが設定されていません</div>';
+    return;
+  }
+  _availSlots = data.slots || {};
+  renderBookingCalendar();
+}
+
+function renderBookingCalendar() {
+  var calEl   = document.getElementById('bookCal');
+  var labelEl = document.getElementById('calMonthLabel');
+  if (!calEl) return;
+  var now   = new Date();
+  var today = now.toISOString().slice(0,10);
+  if (labelEl) labelEl.textContent = now.getFullYear() + '年' + (now.getMonth()+1) + '月';
+
+  var days = [];
+  for (var i = 0; i < 14; i++) {
+    var d = new Date(now); d.setDate(now.getDate()+i); d.setHours(0,0,0,0);
+    days.push(d.toISOString().slice(0,10));
+  }
+  var firstDow = new Date(days[0]).getDay();
+  var cells = [];
+  for (var j = 0; j < firstDow; j++) cells.push('');
+  days.forEach(function(d){ cells.push(d); });
+  while (cells.length % 7 !== 0) cells.push('');
+
+  calEl.innerHTML = cells.map(function(d) {
+    if (!d) return '<div></div>';
+    var hasSlots = _availSlots[d] && _availSlots[d].some(function(s){ return s.available; });
+    var isSel    = (d === _selectedDate);
+    var isToday  = (d === today);
+    var dayNum   = parseInt(d.slice(8));
+    var dotHtml  = hasSlots ? '<div style="width:5px;height:5px;border-radius:50%;background:'+(isSel?'#fff':'var(--pr)')+';margin:1px auto 0"></div>' : '';
+    var st = isSel    ? 'background:var(--pr);color:#fff;border-color:var(--pr)' :
+             isToday  ? 'background:var(--pr-light);border-color:var(--pr)' :
+             !hasSlots? 'opacity:.3;pointer-events:none' : '';
+    return '<div class="cal-day" style="'+st+';flex-direction:column;gap:1px;font-size:13px"'
+      +(hasSlots?' data-date="'+d+'" onclick="selectDate(this.dataset.date)"':'')+'>'+dayNum+dotHtml+'</div>';
+  }).join('');
+}
+
+function selectDate(date) {
+  _selectedDate = date; _selectedTime = '';
+  document.getElementById('bookBtn').style.display = 'none';
+  renderBookingCalendar();
+  var slots    = (_availSlots[date]||[]).filter(function(s){ return s.available; });
+  var timeCard = document.getElementById('timeCard');
+  var timeGrid = document.getElementById('timeGrid');
+  var label    = document.getElementById('selectedDateLabel');
+  var d  = new Date(date);
+  var wd = ['日','月','火','水','木','金','土'][d.getDay()];
+  if (label) label.textContent = (d.getMonth()+1)+'月'+d.getDate()+'日（'+wd+'）';
+  // available:true のスロットと false のスロット両方を表示（falseはグレーアウト）
+  var allSlots = _availSlots[date] || [];
+  if (allSlots.length === 0) {
+    timeGrid.innerHTML = '<div style="text-align:center;color:var(--tx3);font-size:13px;padding:12px">この日は空きがありません</div>';
+  } else {
+    timeGrid.innerHTML = allSlots.map(function(s) {
+      if (s.available) {
+        return '<div class="time-slot" data-time="'+s.time+'" data-dt="'+s.datetime+'" onclick="selectTime(this.dataset.time,this.dataset.dt,this)">'+s.time+'</div>';
+      } else {
+        // 予約済み・カレンダー埋まり → グレーアウト表示
+        return '<div class="time-slot full" title="この時間は予約済みです" style="cursor:not-allowed;position:relative">'+
+          '<span style="text-decoration:line-through;opacity:.5">'+s.time+'</span>'+
+          '<span style="position:absolute;top:2px;right:4px;font-size:9px;color:var(--rd)">✕</span></div>';
+      }
+    }).join('');
+  }
+  timeCard.style.display = '';
+  timeCard.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+function selectTime(time, datetime, el) {
+  _selectedTime = datetime;
+  document.querySelectorAll('.time-slot').forEach(function(t){ t.classList.remove('sel'); });
+  el.classList.add('sel');
+  document.getElementById('bookBtn').style.display = '';
+}
+
+async function bookSlot() {
+  if (!_selectedTime) { showToast('❌ 時間を選択してください'); return; }
+  // _myMentorId（homeAPIから取得）を優先、なければlocalStorageのuser.mentor_idを使用
+  var user     = Auth.getUser();
+  var mentorId = _myMentorId || (user && user.mentor_id) || '';
+  if (!mentorId) { showToast('❌ 担当メンターが設定されていません'); return; }
+  var btn = document.getElementById('bookBtn');
+  btn.disabled = true; btn.textContent = '予約中…';
+  var result = await apiRequest('/api/mentee/booking', {
+    method: 'POST',
+    body: JSON.stringify({ mentor_id: mentorId, scheduled_at: _selectedTime, duration_minutes: 30 })
+  });
+  btn.disabled = false; btn.textContent = '✅ この日時で予約する';
+  if (result && result.ok) {
+    showToast('✅ 予約が完了しました！');
+    _selectedDate = ''; _selectedTime = '';
+    document.getElementById('timeCard').style.display = 'none';
+    document.getElementById('bookBtn').style.display  = 'none';
+    _allUpcomingBookings = [];
+    await loadAvailableSlots();
+    loadHomeData();
+  } else {
+    showToast('❌ ' + ((result && (result.error||result.message)) || '予約に失敗しました'));
+  }
+}
+
+
+// ══ ホームデータ読み込み ══
+async function loadHomeData() {
+  const data = await fetchHomeData();
+  if (!data) return;
+  renderHome(data);
+  loadLeaderInfo();
+  updatePreReportMentor();
+}
+
+function updatePreReportMentor() {
+  var el = document.getElementById('pr-mentor').value = _myMentorName || '';
+  if (el && _myMentorName) el.value = _myMentorName;
+}
+
+var _myChatUrl    = '';
+var _leaderChatUrl = '';
+var _leaderPhone  = '';
+var _myMentorId   = '';  // bookSlot で使用
+var _myMentorName = '';  // 事前レポートで使用
+var _allUpcomingBookings = []; // 全予定予約キャッシュ
+var _bookingsPage = 1;
+var BOOKINGS_PER_PAGE = 5;
+
+function renderHome(data) {
+  if (data.mentor) {
+    var el = document.getElementById('mentorName');
+    if (el) el.textContent = data.mentor.name || '未設定';
+    _myMentorId   = data.mentor.user_id || '';  // 予約時に使用
+    _myMentorName = data.mentor.name    || '';  // 事前レポートで使用
+  }
+  if (data.leader) {
+    var nameEl = document.getElementById('leaderName');
+    var chipEl = document.getElementById('leaderChip');
+    if (nameEl) nameEl.textContent = data.leader.name || '未設定';
+    if (chipEl) chipEl.style.display = 'inline-flex';
+    _leaderPhone   = data.leader.phone_number || '';
+    _leaderChatUrl = data.leader.chat_url || '';
+    if (_leaderPhone) {
+      var phoneChip = document.getElementById('leaderPhoneChip');
+      var phoneLink = document.getElementById('leaderPhoneLink');
+      var phoneTxt  = document.getElementById('leaderPhoneText');
+      if (phoneChip) phoneChip.style.display = '';
+      if (phoneLink) phoneLink.href = 'tel:' + _leaderPhone.replace(/[^+\d]/g,'');
+      if (phoneTxt)  phoneTxt.textContent = _leaderPhone;
+    }
+    if (_leaderChatUrl) {
+      var lcBtn = document.getElementById('leaderChatBtn');
+      if (lcBtn) lcBtn.style.display = '';
+    }
+  }
+  if (data.user) {
+    // チャットURL
+    if (data.user.chat_url) {
+      _myChatUrl = data.user.chat_url;
+      var chatBtn = document.getElementById('chatBtn');
+      if (chatBtn) chatBtn.style.display = '';
+    }
+    // マイページ設定画面の各要素に値をセット
+    var u = data.user;
+    var setEl = function(id, val) {
+      var el = document.getElementById(id);
+      if (el) el.textContent = val || '—';
+    };
+    setEl('set-name-disp',    u.name);
+    setEl('set-email-disp',   u.email);
+    setEl('set-tel-disp',     u.phone_number);
+    setEl('set-workplace',    u.workplace);
+    setEl('set-workstatus',   u.work_status);
+    setEl('set-wage',         u.hourly_wage ? '¥' + Number(u.hourly_wage).toLocaleString() + '/h' : '');
+    // ★ 入社日更新
+    var hireDateRowEl2 = document.getElementById('set-hire-date-row');
+    var hireDateValEl2 = document.getElementById('set-hire-date');
+    if (u.hire_date && hireDateRowEl2 && hireDateValEl2) {
+      var hd2 = new Date(u.hire_date);
+      hireDateValEl2.textContent = isNaN(hd2) ? u.hire_date : hd2.getFullYear()+'年'+(hd2.getMonth()+1)+'月'+hd2.getDate()+'日';
+      hireDateRowEl2.style.display = 'flex';
+    } else if (hireDateRowEl2) {
+      hireDateRowEl2.style.display = 'none';
+    }
+    // ★ 在籍期間更新
+    var tenureRowEl = document.getElementById('set-tenure-row');
+    var tenureValEl = document.getElementById('set-tenure');
+    var t = calcTenure(u.hire_date);
+    if (t && tenureRowEl && tenureValEl) {
+      tenureRowEl.style.display = 'flex';
+      tenureValEl.textContent   = t.label;
+    } else if (tenureRowEl) {
+      tenureRowEl.style.display = 'none';
+    }
+    // greeting
+    var greetName = document.getElementById('greetName');
+    if (greetName) greetName.textContent = u.name || 'さん';
+  }
+  if (data.next_booking) {
+    var b  = data.next_booking;
+    var dt = new Date(b.scheduled_at);
+    var month = dt.getMonth() + 1;
+    var day   = dt.getDate();
+    var weekdays = ['日','月','火','水','木','金','土'];
+    var wd   = weekdays[dt.getDay()];
+    var hour = String(dt.getHours()).padStart(2,'0');
+    var min  = String(dt.getMinutes()).padStart(2,'0');
+    var dateEl = document.getElementById('nextDate');
+    var timeEl = document.getElementById('nextTime');
+    var meetBtn = document.getElementById('meetBtn');
+    if (dateEl) dateEl.textContent = month + '月' + day + '日（' + wd + '）';
+    if (timeEl) timeEl.textContent = '🕐 ' + hour + ':' + min + '〜　' + (data.mentor ? data.mentor.name : '');
+    // キャンセルボタン追加
+    var cancelArea = document.getElementById('homeCancelArea');
+    if (cancelArea) {
+      cancelArea.style.display = '';
+      var cBtn = document.createElement('button');
+      cBtn.className = 'sub-btn';
+      cBtn.style.cssText = 'color:var(--rd);font-size:12px';
+      cBtn.textContent = '🗑 この予約をキャンセル';
+      (function(bid){ cBtn.onclick = function(){ cancelMyBooking(bid); }; })(b.booking_id);
+      cancelArea.innerHTML = '';
+      cancelArea.appendChild(cBtn);
+    }
+    if (meetBtn) {
+      if (b.meet_link) {
+        meetBtn.style.display = '';
+        meetBtn.onclick = function(){ openMeet(b.meet_link); };
+        meetBtn.innerHTML = '<span>▶</span> Google Meetに参加する';
+      } else {
+        // meet_linkなし：Googleカレンダーの招待から参加を案内
+        meetBtn.style.display = '';
+        meetBtn.style.opacity = '0.6';
+        meetBtn.innerHTML = '<span>📅</span> カレンダー招待から参加';
+        meetBtn.onclick = function(){ showToast('Googleカレンダーの招待メールからMeetに参加してください'); };
+      }
+    }
+    // 事前レポートのサブタイトル更新
+    var prSub = document.getElementById('preReportSubtitle');
+    var svSub = document.getElementById('surveySubtitle');
+    if (prSub) {
+      var dtStr = month + '/' + day + '（' + wd + '）' + hour + ':' + min;
+      prSub.textContent = dtStr + ' ' + (_myMentorName||'メンター');
+    }
+    if (svSub) svSub.textContent = (month+'月'+day+'日'+'（'+wd+'）') + '実施分 — ' + (_myMentorName||'メンター');
+  } else {
+    var nc = document.querySelector('.next-card');
+    if (nc) nc.innerHTML = '<div class="next-hd"><div class="next-hd-t">📅 次回の1on1</div></div><div class="next-bd" style="padding:16px;color:var(--tx3);font-size:13px">予約がありません。<br><button class="sub-btn accent" style="margin-top:10px" onclick="goNav(&quot;booking&quot;)">📅 1on1を予約する</button></div>';
+    // 事前レポート・アンケートのサブタイトルもクリア
+    var prs = document.getElementById('preReportSubtitle');
+    var svs = document.getElementById('surveySubtitle');
+    if (prs) prs.textContent = (_myMentorName||'メンター') + ' — 次回の予約なし';
+    if (svs) svs.textContent = '— 回答待ちのアンケートなし';
+  }
+
+  // 半年目標・案件情報を3箇所に反映
+  var setGoalEl = function(id, val, fallback) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = (val && val.trim()) ? val : (fallback || '—');
+  };
+  var goalWork  = data.goal_work_6m    || '';
+  var goalSkill = data.goal_skill_6m   || '';
+  var curProj   = data.current_project || '';
+  var startMonth= data.goal_start_month || '';
+  var endMonth  = data.goal_end_month   || '';
+  var GOAL_PLACEHOLDER = '半期目標を設定してください';
+
+  // 期間ラベル生成（"yy年m月〜yy年m月の目標"）
+  function fmtGoalPeriodMentee(start, end) {
+    function parseYM(val) {
+      if (!val) return null;
+      var s = String(val).trim();
+      var m1 = s.match(/^(\d{4})-(\d{2})$/);
+      if (m1) return { y: m1[1], m: parseInt(m1[2]) };
+      var m2 = s.match(/^(\d{4})\/(\d{1,2})/);
+      if (m2) return { y: m2[1], m: parseInt(m2[2]) };
+      try {
+        var d = new Date(s);
+        if (!isNaN(d.getTime())) {
+          var jst = new Date(d.getTime() + 9*60*60*1000);
+          return { y: String(jst.getUTCFullYear()), m: jst.getUTCMonth()+1 };
+        }
+      } catch(e2) {}
+      return null;
+    }
+    function fmt(val) {
+      var p = parseYM(val);
+      if (!p) return '';
+      return String(p.y).slice(-2) + '年' + p.m + '月';
+    }
+    var sf = fmt(start), ef = fmt(end);
+    if (!sf) return '';
+    return ef ? sf + '〜' + ef + 'の目標' : sf + '〜の目標';
+  }
+  var periodLabel = fmtGoalPeriodMentee(startMonth, endMonth);
+
+  // ① ホーム画面
+  setGoalEl('home-goal-work',  goalWork,  GOAL_PLACEHOLDER);
+  setGoalEl('home-goal-skill', goalSkill, GOAL_PLACEHOLDER);
+  var homePeriodEl = document.getElementById('home-goal-period');
+  if (homePeriodEl) {
+    if (periodLabel) {
+      homePeriodEl.textContent = '📅 ' + periodLabel;
+      homePeriodEl.style.display = '';
+    } else {
+      homePeriodEl.style.display = 'none';
+    }
+  }
+  // ② 事前アンケート（読み取り専用div）
+  setGoalEl('pr-goalWork6m-disp',  goalWork,  GOAL_PLACEHOLDER);
+  setGoalEl('pr-goalSkill6m-disp', goalSkill, GOAL_PLACEHOLDER);
+  setGoalEl('pr-currentProject',   curProj);
+  // ③ 設定画面
+  setGoalEl('set-goal-work',  goalWork);
+  setGoalEl('set-goal-skill', goalSkill);
+  var setPeriodRow = document.getElementById('set-goal-period-row');
+  var setPeriodEl  = document.getElementById('set-goal-period');
+  if (setPeriodEl && setPeriodRow) {
+    if (periodLabel) {
+      setPeriodEl.textContent    = periodLabel;
+      setPeriodRow.style.display = 'flex'; // ★ flex で表示（display:none→flex）
+    } else {
+      setPeriodRow.style.display = 'none';
+    }
+  }
+
+  // ★ アンケートバナー表示（未回答の completed 予約がある場合）
+  var banner   = document.getElementById('surveyBanner');
+  var bannerDt = document.getElementById('surveyBannerDate');
+  if (banner) {
+    if (data.pending_survey) {
+      var dt = new Date(data.pending_survey.scheduled_at);
+      var dtLabel = isNaN(dt) ? '' : (dt.getMonth()+1) + '月' + dt.getDate() + '日の1on1が終了しました';
+      if (bannerDt) bannerDt.textContent = dtLabel;
+      // booking_idをsurvey画面に渡すためにグローバル変数に保存
+      _pendingSurveyBookingId = data.pending_survey.booking_id;
+      banner.style.display = '';
+    } else {
+      banner.style.display = 'none';
+    }
+  }
+
+  // 直近のスケジュール（ホーム）
+  _allUpcomingBookings = (data.all_upcoming_bookings || []).slice();
+  renderHomeSchedule();
+}
+
+// ── ホーム: 直近のスケジュール（最大3件、近い順） ──
+function renderHomeSchedule() {
+  var el = document.getElementById('homeScheduleList');
+  if (!el) return;
+  var now = new Date();
+  var upcoming = _allUpcomingBookings
+    .filter(function(b) { return new Date(b.scheduled_at) > now; })
+    .sort(function(a, b) { return a.scheduled_at.localeCompare(b.scheduled_at); }); // 昇順（近い順）
+  if (upcoming.length === 0) {
+    el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--tx3);font-size:13px">予約がありません</div>';
+    return;
+  }
+  var show = upcoming.slice(0, 3);
+  var wds = ['日','月','火','水','木','金','土'];
+  el.innerHTML = show.map(function(b) {
+    var dt  = new Date(b.scheduled_at);
+    var jst = new Date(dt.getTime() + 9 * 60 * 60 * 1000);
+    var mo  = jst.getUTCMonth() + 1;
+    var d   = jst.getUTCDate();
+    var wd  = wds[jst.getUTCDay()];
+    var h   = ('0'+jst.getUTCHours()).slice(-2);
+    var m   = ('0'+jst.getUTCMinutes()).slice(-2);
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--bd)">'
+      + '<div><div style="font-size:14px;font-weight:600">' + mo + '月' + d + '日（' + wd + '）</div>'
+      + '<div style="font-size:12px;color:var(--tx3)">🕐 ' + h + ':' + m + ' (' + (b.duration_minutes||30) + '分)</div></div>'
+      + (b.meet_link ? '<a href="' + b.meet_link + '" target="_blank" style="font-size:11px;color:var(--pr);text-decoration:none;font-weight:600">▶ Meet</a>' : '')
+      + '</div>';
+  }).join('') + (upcoming.length > 3 ? '<div style="padding:8px 16px;text-align:center;font-size:12px;color:var(--tx3)">他' + (upcoming.length - 3) + '件</div>' : '');
+}
+
+function openMyChat() {
+  if (_myChatUrl) window.open(_myChatUrl, '_blank');
+  else showToast('⚠️ チャットURLが設定されていません');
+}
+function openLeaderChat() {
+  if (_leaderChatUrl) window.open(_leaderChatUrl, '_blank');
+  else if (_leaderPhone) window.location.href = 'tel:' + _leaderPhone.replace(/[^+\d]/g,'');
+  else showToast('⚠️ リーダーの連絡先が設定されていません');
+}
+
+// ══ クイックリンク ══
+async function loadQuickLinks() {
+  var cached = Cache.get('links');
+  const data = cached ? cached : await apiRequest('/api/mentee/links');
+  if (!cached && data) Cache.set('links', data, 600);
+  if (!data || !data.links) return;
+  const container = document.getElementById('quickLinksBar');
+  if (!container) return;
+  const activeLinks = data.links.filter(l => l.is_active === 'true' || l.is_active === 'TRUE');
+  if (activeLinks.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+  container.innerHTML = activeLinks.map(function(l) {
+    var icon  = l.icon  || '🔗';
+    var title = l.title || '';
+    var url   = l.url   || '#';
+    return '<a href="' + url + '" target="_blank" class="ql-item">'
+      + '<span class="ql-icon">' + icon + '</span>'
+      + '<span class="ql-label">' + title + '</span>'
+      + '</a>';
+  }).join('');
+}
+
+// ══ レポート一覧 ══
+var _myMentorReports = []; // 公開済みメンターレポートのキャッシュ
+
+async function loadReports() {
+  const data = await apiRequest('/api/mentee/reports');
+  if (!data) return;
+  const reports = data.reports || [];
+  _myMentorReports = reports; // キャッシュ
+
+  // ★ ホーム画面「今月の目標」を最新の公開済みレポートの next_goal から更新
+  var latestWithGoal = reports.find(function(r) {
+    return r.is_published === 'TRUE' && r.next_goal;
+  });
+  var goalEl   = document.getElementById('currentGoal');
+  var fromEl   = document.getElementById('goalFrom');
+  if (goalEl) {
+    if (latestWithGoal) {
+      goalEl.textContent = latestWithGoal.next_goal;
+      if (fromEl) {
+        var dt = new Date(latestWithGoal.created_at);
+        var label = isNaN(dt) ? '' : (dt.getMonth()+1) + '/' + dt.getDate();
+        fromEl.textContent = '📋 ' + label + ' の1on1レポートより';
+      }
+    } else if (reports.length === 0) {
+      goalEl.textContent = 'まだ目標が設定されていません';
+      if (fromEl) fromEl.textContent = 'メンターが1on1レポートを公開すると表示されます';
+    }
+    // レポートはあるが next_goal がない場合はハードコードのまま上書きしない
+  }
+
+  // レポート一覧画面
+  const container = document.getElementById('reportsList');
+  if (container) {
+    if (reports.length === 0) {
+      container.innerHTML = '<div style="padding:24px;text-align:center;color:var(--tx3)">レポートがありません</div>';
+    } else {
+      // DOM構築方式（クォートのネスト問題を回避）
+      container.innerHTML = '';
+      reports.forEach(function(r) {
+        var dt  = new Date(r.created_at);
+        var div = document.createElement('div');
+        div.className = 'rep-item';
+        div.setAttribute('data-rid', r.report_id || '');
+        div.onclick   = function(){ showReport(this.getAttribute('data-rid')); };
+        var pdfIcon = r.pdf_url
+          ? '<a href="' + r.pdf_url + '" target="_blank" onclick="event.stopPropagation()" style="font-size:16px;margin-left:6px" title="PDFを開く">📄</a>'
+          : '';
+        div.innerHTML = '<div class="rep-date"><div class="rep-d">' + dt.getDate() + '</div>' +
+          '<div class="rep-m">' + (dt.getMonth()+1) + '月</div></div>' +
+          '<div class="rep-info"><div class="rep-title" style="display:flex;align-items:center">' + (r.ai_summary||'レポート').substring(0,40) + pdfIcon + '</div>' +
+          '<div class="rep-sub">' + r.created_at.slice(0,10) + ' / ' + (_myMentorName||'メンター') + '</div></div>' +
+          '<div class="rep-arr">›</div>';
+        container.appendChild(div);
+      });
+    }
+  }
+
+  // ホーム画面の直近レポート（最大2件）
+  const recentEl = document.getElementById('recentReports');
+  if (recentEl) {
+    if (reports.length === 0) {
+      recentEl.innerHTML = '<div style="padding:16px;text-align:center;color:var(--tx3);font-size:13px">レポートがありません</div>';
+    } else {
+      // DOM構築方式
+      recentEl.innerHTML = '';
+      reports.slice(0,2).forEach(function(r) {
+        var dt  = new Date(r.created_at);
+        var div = document.createElement('div');
+        div.className = 'rep-item';
+        div.setAttribute('data-rid', r.report_id || '');
+        div.onclick   = function(){ showReport(this.getAttribute('data-rid')); };
+        div.innerHTML = '<div class="rep-date"><div class="rd">' + dt.getDate() + '</div>' +
+          '<div class="rm">' + (dt.getMonth()+1) + '月</div></div>' +
+          '<div class="ri"><div class="ri-t">' + (r.ai_summary||'レポート').substring(0,20) + '</div>' +
+          '<div class="ri-s">' + (_myMentorName||'メンター') + ' ／ 確定済み</div></div>' +
+          '<div class="arr">›</div>';
+        recentEl.appendChild(div);
+      });
+    }
+  }
+}
+
+function showReport(reportId) {
+  goScreen('reportDetail');
+}
+
+// 研修コンテンツ読み込み
+var _allTrainingContents = [];
+var _trainingCat = '';
+var CAT_ICON_MENTEE = {'入社時研修':'📚','マニュアル':'📋','就業規則':'📜','社内ナレッジ':'💡','AWARD/配信':'🏆'};
+
+async function loadTraining() {
+  var container = document.getElementById('trainingList');
+  if (!container) return;
+  var data = await apiRequest('/api/mentee/contents');
+  if (!data || !data.contents) data = await apiRequest('/api/admin/contents');
+  if (!data || !data.contents || data.contents.length === 0) {
+    container.innerHTML = '<div style="padding:24px;text-align:center;color:var(--tx3)">コンテンツがありません</div>';
+    return;
+  }
+  _allTrainingContents = data.contents;
+  filterTraining();
+}
+
+function selectTrainingCat(btn, cat) {
+  _trainingCat = cat;
+  document.querySelectorAll('.training-cat-btn').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  filterTraining();
+}
+
+function filterTraining() {
+  var container = document.getElementById('trainingList');
+  if (!container) return;
+  var kw = ((document.getElementById('training-search')||{}).value || '').toLowerCase();
+  var filtered = _allTrainingContents.filter(function(c) {
+    var matchKw  = !kw
+      || (c.title||'').toLowerCase().indexOf(kw) >= 0
+      || (c.description||'').toLowerCase().indexOf(kw) >= 0;
+    var matchCat = !_trainingCat || (c.category||'') === _trainingCat;
+    return matchKw && matchCat;
+  });
+  if (filtered.length === 0) {
+    container.innerHTML = '<div style="padding:24px;text-align:center;color:var(--tx3)">該当するコンテンツがありません</div>';
+    return;
+  }
+  var iconMap = {video:'📹', document:'📄', link:'🔗'};
+  container.innerHTML = filtered.map(function(c) {
+    var icon    = iconMap[c.type] || '🔗';
+    var catIcon = c.category ? (CAT_ICON_MENTEE[c.category] || '') : '';
+    var catTag  = c.category
+      ? '<span style="display:inline-block;background:var(--cy-light);color:var(--cy);font-size:10px;padding:2px 8px;border-radius:5px;font-weight:700;margin-bottom:7px">'+ catIcon+' '+esc(c.category)+'</span>'
+      : '';
+    var typeTag = '<span class="cc-tag">' + icon + ' ' + (c.type||'') + '</span>';
+    var url = c.url ? ' onclick="window.open(\'' + c.url.replace(/'/g,"\\'") + '\',\'_blank\')"' : '';
+    return '<div class="content-card"' + url + '>'
+      + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">' + catTag + typeTag + '</div>'
+      + '<div class="cc-title">' + esc(c.title||'') + '</div>'
+      + '<div class="cc-meta">' + (c.duration ? c.duration+'分 — ' : '') + esc(c.level||'')
+      + (c.description ? ' — ' + esc(c.description.slice(0,60)) : '') + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+
+// ══ お知らせパネル ══
+async function toggleNoticePanel() {
+  var panel = document.getElementById('noticePanel');
+  if (!panel) return;
+  if (panel.style.display !== 'none') {
+    panel.style.display = 'none';
+    return;
+  }
+  panel.style.display = 'block';
+  var content = document.getElementById('noticePanelContent');
+  content.innerHTML = '<div style="text-align:center;color:var(--tx3)">読み込み中…</div>';
+
+  // apiRequest と同じ形式で送信（デバッグしやすいよう直接実装）
+  var token = Auth.getToken();
+  var payload = {
+    path:    'api/mentee/notices',
+    _method: 'GET',
+    _auth:   token ? 'Bearer ' + token : ''
+  };
+  var data = null;
+  try {
+    var res  = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
+    var text = await res.text();
+    try { data = JSON.parse(text); } catch(pe) {
+      console.error('[notices] JSON parse error:', text.slice(0, 200));
+    }
+  } catch(fetchErr) {
+    console.error('[notices] fetch error:', fetchErr);
+  }
+
+  if (!data) {
+    content.innerHTML = '<div style="text-align:center;color:var(--tx3)">取得に失敗しました</div>';
+    return;
+  }
+  if (!data.notices || data.notices.length === 0) {
+    content.innerHTML = '<div style="text-align:center;color:var(--tx3)">お知らせはありません</div>';
+    return;
+  }
+  content.innerHTML = '';
+  data.notices.forEach(function(n) {
+    var item = document.createElement('div');
+    item.style.cssText = 'padding:10px 0;border-bottom:1px solid var(--bd)';
+    var dt = document.createElement('div');
+    dt.style.cssText = 'font-size:12px;color:var(--tx3);margin-bottom:3px';
+    dt.textContent = (n.created_at || '').slice(0, 10);
+    var body_el = document.createElement('div');
+    body_el.style.cssText = 'font-size:13px;white-space:pre-wrap;line-height:1.6';
+    body_el.textContent = n.content || '';
+    item.appendChild(dt);
+    item.appendChild(body_el);
+    content.appendChild(item);
+  });
+}
+function openWtUploadGuide() {
+  var m = document.getElementById('wtUploadGuideModal');
+  if (m) m.classList.add('open');
+}
+
+// ── 予約キャンセル ──────────────────────────────────────
+async function cancelMyBooking(bookingId) {
+  if (!confirm('この予約をキャンセルしますか？\nメンターにキャンセル通知メールが送信されます。')) return;
+  var result = await apiRequest('/api/mentee/booking/cancel', {
+    method: 'POST',
+    body: JSON.stringify({ booking_id: bookingId, reason: 'メンティーによるキャンセル' })
+  });
+  if (result && result.ok) {
+    showToast('✅ 予約をキャンセルしました');
+    // キャッシュをクリアしてホームデータ再取得（_allUpcomingBookings も更新される）
+    _allUpcomingBookings = [];
+    loadHomeData();
+    loadAvailableSlots();
+    loadMyBookings();
+  } else {
+    showToast('❌ キャンセルに失敗しました: ' + ((result && (result.error||result.message)) || ''));
+  }
+}
+
+// 自分の予約一覧を取得してs-booking画面に表示（降順・過去非表示・5件ページネーション）
+async function loadMyBookings() {
+  var listEl = document.getElementById('myBookingsList');
+  if (!listEl) return;
+  // _allUpcomingBookings がまだ空の場合はAPIから取得
+  if (_allUpcomingBookings.length === 0) {
+    var data = await fetchHomeData();
+    if (data) {
+      _allUpcomingBookings = (data.all_upcoming_bookings || []).slice();
+    }
+  }
+  _bookingsPage = 1;
+  renderMyBookings();
+}
+
+function renderMyBookings() {
+  var listEl  = document.getElementById('myBookingsList');
+  var pagerEl = document.getElementById('myBookingsPager');
+  if (!listEl) return;
+
+  var now = new Date();
+  var upcoming = _allUpcomingBookings
+    .filter(function(b) { return new Date(b.scheduled_at) > now; })
+    .sort(function(a, b) { return a.scheduled_at.localeCompare(b.scheduled_at); }); // 昇順（近い順）
+
+  if (upcoming.length === 0) {
+    listEl.innerHTML = '<div style="text-align:center;color:var(--tx3);padding:20px;font-size:13px">予約がありません</div>';
+    if (pagerEl) pagerEl.style.display = 'none';
+    return;
+  }
+
+  var total     = upcoming.length;
+  var totalPage = Math.ceil(total / BOOKINGS_PER_PAGE);
+  var start     = (_bookingsPage - 1) * BOOKINGS_PER_PAGE;
+  var pageItems = upcoming.slice(start, start + BOOKINGS_PER_PAGE);
+
+  var wds = ['日','月','火','水','木','金','土'];
+  listEl.innerHTML = pageItems.map(function(b) {
+    var dt  = new Date(b.scheduled_at);
+    var jst = new Date(dt.getTime() + 9 * 60 * 60 * 1000);
+    var mo  = jst.getUTCMonth() + 1;
+    var d   = jst.getUTCDate();
+    var wd  = wds[jst.getUTCDay()];
+    var h   = ('0'+jst.getUTCHours()).slice(-2);
+    var mi  = ('0'+jst.getUTCMinutes()).slice(-2);
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--bd)">'
+      + '<div>'
+      + '<div style="font-size:14px;font-weight:700">' + mo + '月' + d + '日（' + wd + '）</div>'
+      + '<div style="font-size:12px;color:var(--tx3)">🕐 ' + h + ':' + mi + '〜（' + (b.duration_minutes||30) + '分）</div>'
+      + '</div>'
+      + '<div style="display:flex;gap:6px;align-items:center">'
+      + (b.meet_link ? '<a href="' + b.meet_link + '" target="_blank" style="font-size:11px;color:var(--pr);text-decoration:none;font-weight:600;padding:4px 8px;border:1px solid var(--pr);border-radius:6px">▶ Meet</a>' : '')
+      + '<button class="btn" style="background:var(--rd-light);color:var(--rd);border:1px solid var(--rd);font-size:11px;padding:4px 10px" onclick="cancelMyBooking(\'' + b.booking_id + '\')">🗑</button>'
+      + '</div></div>';
+  }).join('');
+
+  // ページネーション
+  if (pagerEl) {
+    if (totalPage <= 1) {
+      pagerEl.style.display = 'none';
+    } else {
+      pagerEl.style.display = 'flex';
+      var pages = '';
+      for (var i = 1; i <= totalPage; i++) {
+        pages += '<button onclick="jumpBookingsPage(' + i + ')" style="padding:5px 10px;border-radius:6px;border:1px solid var(--bd);font-size:12px;cursor:pointer;'
+          + (i === _bookingsPage ? 'background:var(--pr);color:#fff;border-color:var(--pr)' : 'background:var(--bg3);color:var(--tx2)')
+          + '">' + i + '</button>';
+      }
+      if (_bookingsPage > 1) pages = '<button onclick="jumpBookingsPage(' + (_bookingsPage-1) + ')" style="padding:5px 10px;border-radius:6px;border:1px solid var(--bd);font-size:12px;cursor:pointer;background:var(--bg3);color:var(--tx2)">‹</button>' + pages;
+      if (_bookingsPage < totalPage) pages += '<button onclick="jumpBookingsPage(' + (_bookingsPage+1) + ')" style="padding:5px 10px;border-radius:6px;border:1px solid var(--bd);font-size:12px;cursor:pointer;background:var(--bg3);color:var(--tx2)">›</button>';
+      pagerEl.innerHTML = pages;
+    }
+  }
+}
+
+function jumpBookingsPage(p) {
+  _bookingsPage = p;
+  renderMyBookings();
+}
+</script>
+</body>
+</html>
