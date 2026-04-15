@@ -401,6 +401,7 @@
     <table>
       <thead>
         <tr>
+          <th style="width:36px"><input type="checkbox" id="chk-all" onchange="toggleAllChecks(this)" title="全選択"></th>
           <th onclick="setSort('name')">名前</th>
           <th>ロール</th>
           <th onclick="setSort('employment_type')">雇用形態</th>
@@ -412,9 +413,32 @@
         </tr>
       </thead>
       <tbody id="tbody">
-        <tr><td colspan="8" class="loading-cell"><span class="spinner"></span>読み込み中…</td></tr>
+        <tr><td colspan="9" class="loading-cell"><span class="spinner"></span>読み込み中…</td></tr>
       </tbody>
     </table>
+    <!-- ★ 一括編集ツールバー -->
+    <div id="bulk-toolbar" style="display:none;padding:10px 16px;background:var(--primary-light);border-top:1px solid var(--border);display:none">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span id="bulk-count-label" style="font-size:13px;font-weight:600;color:var(--primary);white-space:nowrap">0件選択中</span>
+        <select id="bulk-mentor-sel" class="filter-sel" style="min-width:150px;font-size:13px">
+          <option value="">担当メンターを変更…</option>
+        </select>
+        <select id="bulk-leader-sel" class="filter-sel" style="min-width:150px;font-size:13px">
+          <option value="">担当リーダーを変更…</option>
+        </select>
+        <select id="bulk-emptype-sel" class="filter-sel" style="min-width:130px;font-size:13px">
+          <option value="">雇用形態を変更…</option>
+          <option value="正社員">正社員</option>
+          <option value="アルバイト">アルバイト</option>
+          <option value="パート">パート</option>
+          <option value="契約社員">契約社員</option>
+          <option value="業務委託">業務委託</option>
+        </select>
+        <button class="filter-btn active" onclick="execBulkUpdate()" id="bulk-exec-btn">✅ 一括更新</button>
+        <button class="filter-btn" onclick="clearBulkSelection()">✕ 解除</button>
+      </div>
+      <div id="bulk-result" style="font-size:12px;margin-top:6px;min-height:14px"></div>
+    </div>
     <div class="pagination">
       <span class="page-info" id="pageInfo">—</span>
       <div class="page-btns" id="pageBtns"></div>
@@ -702,7 +726,7 @@ function render() {
   const tb=document.getElementById('tbody');
   tb.innerHTML = chunk.length
     ? chunk.map(buildRow).join('')
-    : `<tr><td colspan="7" class="empty-cell">該当するユーザーがいません</td></tr>`;
+    : `<tr><td colspan="9" class="empty-cell">該当するユーザーがいません</td></tr>`;
   renderPager(pages);
 }
 
@@ -716,6 +740,7 @@ function buildRow(u) {
   const tenureLabel = calcTenure(u.hire_date||'');
   const safeU  = esc(JSON.stringify(u));
   return `<tr>
+    <td style="text-align:center;width:36px"><input type="checkbox" class="row-chk" data-uid="${u.user_id}" onchange="onRowCheckChange()"></td>
     <td>
       <div class="user-info">
         <div class="avatar ${ac}">${(u.name||'?').charAt(0)}</div>
@@ -742,6 +767,108 @@ function buildRow(u) {
       </div>
     </td>
   </tr>`;
+}
+
+// ═══ 一括編集機能 ═══
+function initBulkSelects() {
+  // メンター選択肢
+  const ms = document.getElementById('bulk-mentor-sel');
+  if (ms && ms.options.length <= 1) {
+    mentorList.forEach(function(m){
+      ms.innerHTML += `<option value="${m.user_id}">${esc(m.name)}</option>`;
+    });
+  }
+  // リーダー選択肢（has_leader_role=TRUE のユーザー）
+  const ls = document.getElementById('bulk-leader-sel');
+  if (ls && ls.options.length <= 1) {
+    const leaders = allUsers.filter(u => u.has_leader_role === true || u.has_leader_role === 'TRUE' || u.has_leader_role === 'true');
+    leaders.forEach(function(l){
+      ls.innerHTML += `<option value="${l.user_id}">${esc(l.name)}</option>`;
+    });
+  }
+}
+
+function toggleAllChecks(master) {
+  document.querySelectorAll('.row-chk').forEach(cb => { cb.checked = master.checked; });
+  onRowCheckChange();
+}
+
+function onRowCheckChange() {
+  const checked = document.querySelectorAll('.row-chk:checked');
+  const toolbar = document.getElementById('bulk-toolbar');
+  const label   = document.getElementById('bulk-count-label');
+  if (toolbar) toolbar.style.display = checked.length > 0 ? '' : 'none';
+  if (label)   label.textContent = checked.length + '件選択中';
+  // 全選択チェックボックスの状態を同期
+  const all = document.querySelectorAll('.row-chk');
+  const allChk = document.getElementById('chk-all');
+  if (allChk) allChk.indeterminate = checked.length > 0 && checked.length < all.length;
+  if (allChk) allChk.checked = all.length > 0 && checked.length === all.length;
+  initBulkSelects();
+}
+
+function clearBulkSelection() {
+  document.querySelectorAll('.row-chk').forEach(cb => cb.checked = false);
+  const allChk = document.getElementById('chk-all');
+  if (allChk) { allChk.checked = false; allChk.indeterminate = false; }
+  onRowCheckChange();
+}
+
+async function execBulkUpdate() {
+  const checked   = Array.from(document.querySelectorAll('.row-chk:checked'));
+  if (checked.length === 0) return;
+  const mentorId  = document.getElementById('bulk-mentor-sel').value;
+  const leaderId  = document.getElementById('bulk-leader-sel').value;
+  const empType   = document.getElementById('bulk-emptype-sel').value;
+  if (!mentorId && !leaderId && !empType) {
+    document.getElementById('bulk-result').textContent = '⚠ 変更項目を1つ以上選択してください';
+    return;
+  }
+  const userIds = checked.map(cb => cb.dataset.uid);
+  const updates = userIds.map(uid => {
+    const u = {};
+    u.user_id = uid;
+    if (mentorId) u.mentor_id = mentorId;
+    if (leaderId) u.leader_id = leaderId;
+    if (empType)  u.employment_type = empType;
+    return u;
+  });
+
+  const btn = document.getElementById('bulk-exec-btn');
+  btn.disabled = true;
+  document.getElementById('bulk-result').textContent = '更新中…';
+
+  const body = JSON.stringify({ path: 'api/admin/users/bulk-update', _method: 'POST', updates });
+  try {
+    const r   = await fetch(GAS_URL, { method: 'POST', body });
+    const res = await r.json();
+    if (res.ok) {
+      document.getElementById('bulk-result').style.color = 'var(--success)';
+      document.getElementById('bulk-result').textContent = `✅ ${res.updated}件更新しました`;
+      // ローカルデータを反映
+      updates.forEach(u => {
+        const idx = allUsers.findIndex(x => x.user_id === u.user_id);
+        if (idx >= 0) {
+          if (u.mentor_id)        allUsers[idx].mentor_id        = u.mentor_id;
+          if (u.leader_id)        allUsers[idx].leader_id        = u.leader_id;
+          if (u.employment_type)  allUsers[idx].employment_type  = u.employment_type;
+        }
+      });
+      clearBulkSelection();
+      // mentor_name も更新してから再描画
+      allUsers.forEach(u => {
+        const m = allUsers.find(x => x.user_id === u.mentor_id);
+        u.mentor_name = m ? m.name : '';
+      });
+      setTimeout(() => { render(); }, 300);
+    } else {
+      document.getElementById('bulk-result').style.color = 'red';
+      document.getElementById('bulk-result').textContent = '❌ 更新失敗: ' + (res.error || '');
+    }
+  } catch(e) {
+    document.getElementById('bulk-result').textContent = '❌ 通信エラー';
+  }
+  btn.disabled = false;
 }
 
 function renderPager(pages) {

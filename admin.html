@@ -400,6 +400,7 @@ body.login-mode .main { display:none !important; }
       </div>
     </div>
     <table><thead><tr><th>氏名</th><th>ステータス</th><th>担当メンター</th><th>稼働場所</th><th>雇用形態</th></tr></thead><tbody id="membersTbody"><tr><td colspan="5" class="loading">読み込み中…</td></tr></tbody></table>
+    <div id="membersPager" style="display:none;padding:10px 16px;display:flex;align-items:center;justify-content:center;gap:6px;border-top:1px solid var(--bd)"></div>
   </div>
 </div>
 
@@ -626,12 +627,36 @@ body.login-mode .main { display:none !important; }
     <div class="kpi-card"><div class="kpi-lb">割り当て済み</div><div class="kpi-v" id="ts-kpi-assigned" style="color:var(--pr)">—</div></div>
   </div>
   <div class="card" style="margin-bottom:16px">
-    <div class="ch"><div class="ct">📦 未割り当てストック</div></div>
+    <div class="ch">
+      <div class="ct">📦 未割り当てストック</div>
+      <button class="btn btn-p btn-sm" id="tel-bulk-assign-btn" style="display:none" onclick="openBulkAssignPanel()">✅ 選択して一括割り当て</button>
+    </div>
+    <!-- 一括割り当てパネル -->
+    <div id="tel-bulk-panel" style="display:none;padding:12px 16px;background:var(--pr-light);border-bottom:1px solid var(--bd)">
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:var(--pr)">📋 選択したストックを一括割り当て</div>
+      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--tx3);margin-bottom:4px">割り当て先メンティー</div>
+          <select id="tel-bulk-mentee-sel" class="inp" style="width:200px;font-size:13px;padding:6px 10px">
+            <option value="">メンティーを選択…</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--tx3);margin-bottom:4px">選択件数</div>
+          <div id="tel-bulk-count" style="font-size:16px;font-weight:700;color:var(--pr);padding:5px 0">0件</div>
+        </div>
+        <button class="btn btn-p" id="tel-bulk-exec-btn" onclick="execBulkAssign()">✅ 割り当て実行</button>
+        <button class="btn btn-g" onclick="closeBulkAssignPanel()">キャンセル</button>
+      </div>
+      <div id="tel-bulk-result" style="font-size:12px;margin-top:8px;min-height:14px"></div>
+    </div>
     <div id="telStockTable"><div class="loading">読み込み中…</div></div>
+    <div id="telAvailPager" style="display:none;padding:10px 16px;display:flex;align-items:center;justify-content:center;gap:6px;border-top:1px solid var(--bd)"></div>
   </div>
   <div class="card">
     <div class="ch"><div class="ct">✅ 割り当て済み</div></div>
     <div id="telAssignedTable"><div class="loading">読み込み中…</div></div>
+    <div id="telAssignedPager" style="display:none;padding:10px 16px;display:flex;align-items:center;justify-content:center;gap:6px;border-top:1px solid var(--bd)"></div>
   </div>
 </div>
 
@@ -1088,6 +1113,8 @@ document.addEventListener('DOMContentLoaded', () => {
 //  ダッシュボード
 // ══════════════════════════════════════════════════════════
 var _allMembers = [];
+var _membersPage = 1;
+var MEMBERS_PER_PAGE = 15;
 
 // 遅延ロード（_loaded フラグ）: 各タブは初回アクセス時のみデータ取得
 var _surveysLoaded = false;
@@ -1211,9 +1238,44 @@ function renderMembersTable() {
   filterMembersTable();
 }
 
+// ── 共通ページャー描画ヘルパー ──
+function renderPager(el, pages, current, onPage) {
+  el.innerHTML = '';
+  var btnStyle   = 'padding:5px 11px;border-radius:8px;border:1px solid var(--bd);background:var(--bg3);font-size:13px;cursor:pointer;';
+  var activeStyle= 'background:var(--pr);color:#fff;border-color:var(--pr);';
+  // 前へ
+  var prev = document.createElement('button');
+  prev.textContent = '‹'; prev.style.cssText = btnStyle; prev.disabled = (current <= 1);
+  prev.onclick = function(){ if(current > 1) onPage(current - 1); };
+  el.appendChild(prev);
+  // ページ番号
+  var from = Math.max(1, current - 2), to = Math.min(pages, current + 2);
+  if (from > 1) { var sp = document.createElement('span'); sp.textContent = '…'; sp.style.cssText='padding:0 4px;color:var(--tx3)'; el.appendChild(sp); }
+  for (var pg = from; pg <= to; pg++) {
+    (function(p){
+      var b = document.createElement('button');
+      b.textContent = p; b.style.cssText = btnStyle + (p === current ? activeStyle : '');
+      b.onclick = function(){ onPage(p); };
+      el.appendChild(b);
+    })(pg);
+  }
+  if (to < pages) { var sp2 = document.createElement('span'); sp2.textContent = '…'; sp2.style.cssText='padding:0 4px;color:var(--tx3)'; el.appendChild(sp2); }
+  // 次へ
+  var next = document.createElement('button');
+  next.textContent = '›'; next.style.cssText = btnStyle; next.disabled = (current >= pages);
+  next.onclick = function(){ if(current < pages) onPage(current + 1); };
+  el.appendChild(next);
+}
+
 function filterMembersTable() {
+  _membersPage = 1;
+  renderMembersPage();
+}
+
+function renderMembersPage() {
   var tbody    = document.getElementById('membersTbody');
   var countEl  = document.getElementById('memberCount');
+  var pagerEl  = document.getElementById('membersPager');
   if (!tbody) return;
   var q       = (document.getElementById('member-search')        || {value:''}).value.toLowerCase();
   var role    = (document.getElementById('member-role-filter')   || {value:''}).value;
@@ -1223,31 +1285,42 @@ function filterMembersTable() {
     if (q && !((m.name||'').toLowerCase().includes(q) || (m.email||'').toLowerCase().includes(q))) return false;
     if (role && m.role !== role) return false;
     if (leaderId) {
-      // リーダーIDでフィルタ：そのリーダーが担当するメンティーを表示
-      // （assignments情報がない場合は leader_id カラムで代替）
-      if (m.user_id === leaderId) return true; // リーダー自身も表示
+      if (m.user_id === leaderId) return true;
       var leaderMember = _allMembers.find(function(u){ return u.user_id === leaderId; });
       if (!leaderMember) return false;
-      // メンバーのmentor_idがleaderIdの場合も表示
       return m.mentor_id === leaderId || m.leader_id === leaderId;
     }
     return true;
   });
 
-  countEl.textContent = 'メンバー一覧（'+filtered.length+'名'+(filtered.length < _allMembers.length ? ' / 全'+_allMembers.length+'名' : '')+'）';
-  if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="loading">該当するメンバーがいません</td></tr>'; return;
+  var total = filtered.length;
+  countEl.textContent = 'メンバー一覧（'+total+'名'+(total < _allMembers.length ? ' / 全'+_allMembers.length+'名' : '')+'）';
+
+  var pages = Math.max(1, Math.ceil(total / MEMBERS_PER_PAGE));
+  if (_membersPage > pages) _membersPage = pages;
+  var start = (_membersPage - 1) * MEMBERS_PER_PAGE;
+  var paged = filtered.slice(start, start + MEMBERS_PER_PAGE);
+
+  if (paged.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="loading">該当するメンバーがいません</td></tr>';
+  } else {
+    tbody.innerHTML = paged.map(function(m) {
+      var s = statusOf(m.status);
+      return '<tr onclick="showMemberDetail('+JSON.stringify(m).replace(/"/g,'&quot;')+')">'
+        + '<td><div class="td-name"><div class="dot '+s.dot+'"></div>'+esc(m.name)+'</div></td>'
+        + '<td><span class="tag '+s.cls+'">'+s.label+'</span></td>'
+        + '<td class="td-m">'+esc(m.mentor_name||'—')+'</td>'
+        + '<td class="td-m">'+esc(m.workplace||'—')+'</td>'
+        + '<td class="td-m">'+esc(m.work_status||'—')+'</td>'
+        + '</tr>';
+    }).join('');
   }
-  tbody.innerHTML = filtered.map(function(m) {
-    var s = statusOf(m.status);
-    return '<tr onclick="showMemberDetail('+JSON.stringify(m).replace(/"/g,'\x26quot;')+')">'
-      + '<td><div class="td-name"><div class="dot '+s.dot+'"></div>'+esc(m.name)+'</div></td>'
-      + '<td><span class="tag '+s.cls+'">'+s.label+'</span></td>'
-      + '<td class="td-m">'+esc(m.mentor_name||'—')+'</td>'
-      + '<td class="td-m">'+esc(m.workplace||'—')+'</td>'
-      + '<td class="td-m">'+esc(m.work_status||'—')+'</td>'
-      + '</tr>';
-  }).join('');
+
+  // ページャー
+  if (pagerEl) {
+    pagerEl.style.display = pages <= 1 ? 'none' : 'flex';
+    renderPager(pagerEl, pages, _membersPage, function(p){ _membersPage = p; renderMembersPage(); });
+  }
 }
 
 var _currentDetailUserId = null;
@@ -1417,6 +1490,9 @@ async function submitTelDirect() {
 //  TELスペース管理
 // ══════════════════════════════════════════════════════════
 var _telStocks = [];
+var _telAvailPage = 1;
+var _telAssignedPage = 1;
+var TEL_PER_PAGE = 15;
 
 async function loadTelStock() {
   document.getElementById('telStockTable').innerHTML    = '<div class="loading">読み込み中…</div>';
@@ -1434,39 +1510,170 @@ async function loadTelStock() {
   document.getElementById('ts-kpi-available').textContent = available.length + '件';
   document.getElementById('ts-kpi-assigned').textContent  = assigned.length + '件';
 
-  // 未割り当てテーブル
-  var stEl = document.getElementById('telStockTable');
-  if (available.length === 0) {
-    stEl.innerHTML = '<div class="loading">在庫がありません。「＋ ストック追加」から追加してください。</div>';
-  } else {
-    stEl.innerHTML = '<table><thead><tr><th>スペースURL</th><th>Webhook</th><th>登録日</th><th></th></tr></thead><tbody>'
-      + available.map(function(s) {
-          return '<tr>'
-            + '<td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><a href="' + esc(s.chat_url) + '" target="_blank" style="color:var(--pr)">' + esc(s.chat_url.replace('https://chat.google.com','').substring(0,40)) + '…</a></td>'
-            + '<td><span style="font-size:11px;padding:2px 8px;background:var(--gr-light);color:var(--gr);border-radius:6px">✅ 設定済</span></td>'
-            + '<td class="td-m">' + fmtDate(s.created_at) + '</td>'
-            + '<td><button class="btn btn-sm" style="background:var(--rd-light);color:var(--rd);border:none" onclick="deleteTelStock(\'' + s.stock_id + '\')">削除</button></td>'
-            + '</tr>';
-        }).join('')
-      + '</tbody></table>';
+  // 一括割り当てパネルのメンティー選択肢を更新（未割り当てメンティーのみ）
+  var assignedMenteeIds = assigned.map(function(s){ return s.assigned_to; });
+  var unassignedMentees = _allMembers.filter(function(m){
+    return m.role === 'mentee' && !assignedMenteeIds.includes(m.user_id);
+  });
+  var bulkSel = document.getElementById('tel-bulk-mentee-sel');
+  if (bulkSel) {
+    bulkSel.innerHTML = '<option value="">メンティーを選択…</option>'
+      + unassignedMentees.map(function(m){
+          return '<option value="' + esc(m.user_id) + '">' + esc(m.name) + '</option>';
+        }).join('');
   }
 
-  // 割り当て済みテーブル
-  var asEl = document.getElementById('telAssignedTable');
+  _telAvailPage = 1;
+  _telAssignedPage = 1;
+  renderTelAvailTable(available);
+  renderTelAssignedTable(assigned);
+}
+
+function renderTelAvailTable(available) {
+  var stEl    = document.getElementById('telStockTable');
+  var pagerEl = document.getElementById('telAvailPager');
+  var btnEl   = document.getElementById('tel-bulk-assign-btn');
+  if (!stEl) return;
+
+  if (available.length === 0) {
+    stEl.innerHTML = '<div class="loading">在庫がありません。「＋ ストック追加」から追加してください。</div>';
+    if (pagerEl) pagerEl.style.display = 'none';
+    if (btnEl) btnEl.style.display = 'none';
+    return;
+  }
+  if (btnEl) btnEl.style.display = '';
+
+  var pages = Math.max(1, Math.ceil(available.length / TEL_PER_PAGE));
+  if (_telAvailPage > pages) _telAvailPage = pages;
+  var start = (_telAvailPage - 1) * TEL_PER_PAGE;
+  var paged = available.slice(start, start + TEL_PER_PAGE);
+
+  stEl.innerHTML = '<table><thead><tr>'
+    + '<th style="width:32px"><input type="checkbox" id="tel-chk-all" onchange="toggleAllTelChecks(this)" title="全選択"></th>'
+    + '<th>スペースURL</th><th>Webhook</th><th>登録日</th><th></th>'
+    + '</tr></thead><tbody>'
+    + paged.map(function(s) {
+        return '<tr>'
+          + '<td><input type="checkbox" class="tel-stock-chk" data-id="' + esc(s.stock_id) + '" onchange="updateBulkCount()"></td>'
+          + '<td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><a href="' + esc(s.chat_url) + '" target="_blank" style="color:var(--pr)">' + esc(s.chat_url.replace('https://chat.google.com','').substring(0,40)) + '…</a></td>'
+          + '<td><span style="font-size:11px;padding:2px 8px;background:var(--gr-light);color:var(--gr);border-radius:6px">✅ 設定済</span></td>'
+          + '<td class="td-m">' + fmtDate(s.created_at) + '</td>'
+          + '<td><button class="btn btn-sm" style="background:var(--rd-light);color:var(--rd);border:none" onclick="deleteTelStock(\'' + s.stock_id + '\')">削除</button></td>'
+          + '</tr>';
+      }).join('')
+    + '</tbody></table>';
+
+  if (pagerEl) {
+    pagerEl.style.display = pages <= 1 ? 'none' : 'flex';
+    renderPager(pagerEl, pages, _telAvailPage, function(p){
+      _telAvailPage = p;
+      // 全選択チェックをリセット
+      closeBulkAssignPanel();
+      var available2 = _telStocks.filter(function(s){ return s.status === 'available'; });
+      renderTelAvailTable(available2);
+    });
+  }
+}
+
+function renderTelAssignedTable(assigned) {
+  var asEl    = document.getElementById('telAssignedTable');
+  var pagerEl = document.getElementById('telAssignedPager');
+  if (!asEl) return;
+
   if (assigned.length === 0) {
     asEl.innerHTML = '<div class="loading">割り当て済みスペースはありません</div>';
-  } else {
-    asEl.innerHTML = '<table><thead><tr><th>メンティー</th><th>スペース</th><th>Meet URL</th><th>割り当て日</th></tr></thead><tbody>'
-      + assigned.map(function(s) {
-          return '<tr>'
-            + '<td style="font-weight:600">' + esc(s.assigned_name || s.assigned_to) + '</td>'
-            + '<td style="font-size:12px"><a href="' + esc(s.chat_url) + '" target="_blank" style="color:var(--pr)">Chat開く →</a></td>'
-            + '<td style="font-size:12px">' + (s.meet_url ? '<a href="' + esc(s.meet_url) + '" target="_blank" style="color:var(--pr)">Meet開く →</a>' : '—') + '</td>'
-            + '<td class="td-m">' + fmtDate(s.assigned_at) + '</td>'
-            + '</tr>';
-        }).join('')
-      + '</tbody></table>';
+    if (pagerEl) pagerEl.style.display = 'none';
+    return;
   }
+
+  var pages = Math.max(1, Math.ceil(assigned.length / TEL_PER_PAGE));
+  if (_telAssignedPage > pages) _telAssignedPage = pages;
+  var start = (_telAssignedPage - 1) * TEL_PER_PAGE;
+  var paged = assigned.slice(start, start + TEL_PER_PAGE);
+
+  asEl.innerHTML = '<table><thead><tr><th>メンティー</th><th>スペース</th><th>Meet URL</th><th>割り当て日</th></tr></thead><tbody>'
+    + paged.map(function(s) {
+        return '<tr>'
+          + '<td style="font-weight:600">' + esc(s.assigned_name || s.assigned_to) + '</td>'
+          + '<td style="font-size:12px"><a href="' + esc(s.chat_url) + '" target="_blank" style="color:var(--pr)">Chat開く →</a></td>'
+          + '<td style="font-size:12px">' + (s.meet_url ? '<a href="' + esc(s.meet_url) + '" target="_blank" style="color:var(--pr)">Meet開く →</a>' : '—') + '</td>'
+          + '<td class="td-m">' + fmtDate(s.assigned_at) + '</td>'
+          + '</tr>';
+      }).join('')
+    + '</tbody></table>';
+
+  if (pagerEl) {
+    pagerEl.style.display = pages <= 1 ? 'none' : 'flex';
+    renderPager(pagerEl, pages, _telAssignedPage, function(p){
+      _telAssignedPage = p;
+      var assigned2 = _telStocks.filter(function(s){ return s.status === 'assigned'; });
+      renderTelAssignedTable(assigned2);
+    });
+  }
+}
+
+// ── 一括割り当てパネル制御 ──
+function openBulkAssignPanel() {
+  document.getElementById('tel-bulk-panel').style.display = '';
+  updateBulkCount();
+}
+function closeBulkAssignPanel() {
+  var panel = document.getElementById('tel-bulk-panel');
+  if (panel) panel.style.display = 'none';
+  // チェックボックスをリセット
+  document.querySelectorAll('.tel-stock-chk').forEach(function(cb){ cb.checked = false; });
+  var allChk = document.getElementById('tel-chk-all');
+  if (allChk) allChk.checked = false;
+  updateBulkCount();
+}
+function toggleAllTelChecks(masterCb) {
+  document.querySelectorAll('.tel-stock-chk').forEach(function(cb){ cb.checked = masterCb.checked; });
+  updateBulkCount();
+}
+function updateBulkCount() {
+  var cnt = document.querySelectorAll('.tel-stock-chk:checked').length;
+  var cntEl = document.getElementById('tel-bulk-count');
+  if (cntEl) cntEl.textContent = cnt + '件選択中';
+}
+async function execBulkAssign() {
+  var menteeId = (document.getElementById('tel-bulk-mentee-sel') || {}).value;
+  if (!menteeId) { showToast('割り当て先メンティーを選択してください', 'err'); return; }
+  var checked = Array.from(document.querySelectorAll('.tel-stock-chk:checked'));
+  if (checked.length === 0) { showToast('ストックを1件以上選択してください', 'err'); return; }
+  var stockIds = checked.map(function(cb){ return cb.dataset.id; });
+  var mentee   = _allMembers.find(function(m){ return m.user_id === menteeId; });
+  if (!mentee) { showToast('メンティー情報が見つかりません', 'err'); return; }
+
+  var resEl = document.getElementById('tel-bulk-result');
+  if (resEl) resEl.textContent = '処理中…';
+  var btn = document.getElementById('tel-bulk-exec-btn');
+  if (btn) btn.disabled = true;
+
+  var ok = 0; var ng = 0;
+  // 1件ずつ順番に割り当て（GAS同時実行対策）
+  for (var i = 0; i < stockIds.length; i++) {
+    var stock = _telStocks.find(function(s){ return s.stock_id === stockIds[i]; });
+    if (!stock) { ng++; continue; }
+    var r = await gasReq('api/admin/tel-stock/assign', 'POST', {
+      stock_id:    stock.stock_id,
+      mentee_id:   menteeId,
+      mentee_name: mentee.name,
+      chat_url:    stock.chat_url,
+      webhook_url: stock.chat_webhook_url || stock.webhook_url || '',
+      meet_url:    stock.tel_meet_url     || stock.meet_url    || ''
+    });
+    if (r && (r.ok || !r.error)) { ok++; } else { ng++; }
+    if (resEl) resEl.textContent = (i+1) + '/' + stockIds.length + ' 処理中…';
+  }
+
+  if (btn) btn.disabled = false;
+  var msg = ok + '件割り当て完了' + (ng > 0 ? '（' + ng + '件失敗）' : '');
+  if (resEl) { resEl.style.color = ng > 0 ? 'var(--rd)' : 'var(--gr)'; resEl.textContent = '✅ ' + msg; }
+  showToast(msg);
+  setTimeout(function(){
+    closeBulkAssignPanel();
+    loadTelStock();
+  }, 1200);
 }
 
 function openTelStockAddModal() {
