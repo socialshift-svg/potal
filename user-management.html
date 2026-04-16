@@ -920,7 +920,12 @@ async function execBulkUpdate() {
   if (progBar)   { progBar.style.background = 'var(--accent)'; progBar.style.width = '0%'; }
   if (resEl)     { resEl.textContent = ''; resEl.style.color = ''; }
 
-  const body = JSON.stringify({ path: 'api/admin/users/bulk-update', _method: 'POST', updates });
+  const body = JSON.stringify({
+    path: 'api/admin/users/bulk-update',
+    _method: 'POST',
+    _auth: 'Bearer ' + getToken(),  // ★ 認証トークンを付与
+    updates
+  });
   var ok = false;
   var errMsg = '';
 
