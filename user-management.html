@@ -406,9 +406,9 @@
           <th>ロール</th>
           <th onclick="setSort('employment_type')">雇用形態</th>
           <th>担当メンター</th>
+          <th>担当リーダー</th>
           <th onclick="setSort('hire_date')">在籍期間</th>
           <th>電話番号</th>
-          <th onclick="setSort('hourly_wage')">時給</th>
           <th>操作</th>
         </tr>
       </thead>
@@ -720,44 +720,55 @@ function render() {
 var _pendingEdits = {};
 
 function buildRow(u) {
-  const m      = mentorList.find(x=>x.user_id===u.mentor_id);
-  const ac     = `av-${u.role}`;
-  const rc     = {admin:'rb-admin',mentor:'rb-mentor',mentee:'rb-mentee'}[u.role]||'rb-mentee';
-  const rl     = {admin:'管理者',mentor:'メンター',mentee:'メンティー'}[u.role]||u.role;
-  const leader = u.has_leader_role ? `<span class="leader-tag">⭐ リーダー</span>` : '';
-  const wage   = u.hourly_wage ? `¥${Number(u.hourly_wage).toLocaleString()}` : '—';
-  const tenureLabel = calcTenure(u.hire_date||'');
-  const safeU  = esc(JSON.stringify(u));
-  const isEditing = !!_pendingEdits[u.user_id];
+  const m          = mentorList.find(x=>x.user_id===u.mentor_id);
+  const ldr        = allUsers.find(x=>x.user_id===u.leader_id);
+  const ac         = `av-${u.role}`;
+  const rc         = {admin:'rb-admin',mentor:'rb-mentor',mentee:'rb-mentee'}[u.role]||'rb-mentee';
+  const rl         = {admin:'管理者',mentor:'メンター',mentee:'メンティー'}[u.role]||u.role;
+  const leaderBadge= u.has_leader_role ? `<span class="leader-tag">⭐ リーダー</span>` : '';
+  const tenureLabel= calcTenure(u.hire_date||'');
+  const safeU      = esc(JSON.stringify(u));
+  const isEditing  = !!_pendingEdits[u.user_id];
 
-  // 編集中の値（ペンディングがあればそれを優先）
-  const pending    = _pendingEdits[u.user_id] || {};
-  const curMentorId = pending.mentor_id !== undefined ? pending.mentor_id : (u.mentor_id || '');
-  const curLeaderId = pending.leader_id !== undefined ? pending.leader_id : (u.leader_id || '');
-  const curEmpType  = pending.employment_type !== undefined ? pending.employment_type : (u.employment_type || '');
+  const pending      = _pendingEdits[u.user_id] || {};
+  const curRole      = pending.role             !== undefined ? pending.role             : (u.role||'');
+  const curEmpType   = pending.employment_type  !== undefined ? pending.employment_type  : (u.employment_type||'');
+  const curMentorId  = pending.mentor_id        !== undefined ? pending.mentor_id        : (u.mentor_id||'');
+  const curLeaderId  = pending.leader_id        !== undefined ? pending.leader_id        : (u.leader_id||'');
+  const curPhone     = pending.phone            !== undefined ? pending.phone            : (u.phone||'');
 
-  // メンター選択肢
+  // 選択肢
   const mentorOpts = mentorList.map(x =>
     `<option value="${x.user_id}"${x.user_id===curMentorId?' selected':''}>${esc(x.name)}</option>`
   ).join('');
-  // リーダー選択肢
-  const leaders = allUsers.filter(x => x.has_leader_role===true||x.has_leader_role==='TRUE'||x.has_leader_role==='true');
+  const leaders = allUsers.filter(x=>x.has_leader_role===true||x.has_leader_role==='TRUE'||x.has_leader_role==='true');
   const leaderOpts = leaders.map(x =>
     `<option value="${x.user_id}"${x.user_id===curLeaderId?' selected':''}>${esc(x.name)}</option>`
   ).join('');
-  // 雇用形態
   const empTypes = ['正社員','アルバイト','パート','契約社員','業務委託'];
-  const empOpts  = empTypes.map(t => `<option${t===curEmpType?' selected':''}>${t}</option>`).join('');
+  const empOpts  = empTypes.map(t=>`<option${t===curEmpType?' selected':''}>${t}</option>`).join('');
+  const roleTypes = ['admin','mentor','mentee'];
+  const roleLabels= {admin:'管理者',mentor:'メンター',mentee:'メンティー'};
+  const roleOpts  = roleTypes.map(r=>`<option value="${r}"${r===curRole?' selected':''}>${roleLabels[r]}</option>`).join('');
 
-  const selStyle = 'font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:6px;background:#fff;min-width:100px';
+  const ss = 'font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:6px;background:#fff;width:100%;min-width:90px';
+  const is = 'font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:6px;background:#fff;width:100%';
 
-  const mentorCell = isEditing
-    ? `<select class="inline-sel" style="${selStyle}" data-uid="${u.user_id}" data-field="mentor_id" onchange="onInlineChange(this)"><option value="">—</option>${mentorOpts}</select>`
-    : `<span style="color:var(--text2);font-size:12px">${m?esc(m.name):'—'}</span>`;
-
-  const empCell = isEditing
-    ? `<select class="inline-sel" style="${selStyle}" data-uid="${u.user_id}" data-field="employment_type" onchange="onInlineChange(this)"><option value="">—</option>${empOpts}</select>`
+  const roleCell    = isEditing
+    ? `<select class="inline-sel" style="${ss}" data-uid="${u.user_id}" data-field="role" onchange="onInlineChange(this)">${roleOpts}</select>${leaderBadge}`
+    : `<span class="role-badge ${rc}">${rl}</span>${leaderBadge}`;
+  const empCell     = isEditing
+    ? `<select class="inline-sel" style="${ss}" data-uid="${u.user_id}" data-field="employment_type" onchange="onInlineChange(this)"><option value="">—</option>${empOpts}</select>`
     : `<span style="color:var(--text2);font-size:12px">${esc(u.employment_type||'—')}</span>`;
+  const mentorCell  = isEditing
+    ? `<select class="inline-sel" style="${ss}" data-uid="${u.user_id}" data-field="mentor_id" onchange="onInlineChange(this)"><option value="">—</option>${mentorOpts}</select>`
+    : `<span style="color:var(--text2);font-size:12px">${m?esc(m.name):'—'}</span>`;
+  const leaderCell  = isEditing
+    ? `<select class="inline-sel" style="${ss}" data-uid="${u.user_id}" data-field="leader_id" onchange="onInlineChange(this)"><option value="">—</option>${leaderOpts}</select>`
+    : `<span style="color:var(--text2);font-size:12px">${ldr?esc(ldr.name):'—'}</span>`;
+  const phoneCell   = isEditing
+    ? `<input class="inline-sel" type="tel" style="${is}" value="${esc(curPhone)}" data-uid="${u.user_id}" data-field="phone" oninput="onInlineChange(this)">`
+    : `<span style="font-family:var(--mono);font-size:12px;color:var(--text2)">${esc(u.phone||'—')}</span>`;
 
   const rowBg = isEditing ? 'background:var(--primary-light)' : '';
 
@@ -772,12 +783,12 @@ function buildRow(u) {
         </div>
       </div>
     </td>
-    <td><span class="role-badge ${rc}">${rl}</span>${leader}</td>
+    <td>${roleCell}</td>
     <td>${empCell}</td>
     <td>${mentorCell}</td>
+    <td>${leaderCell}</td>
     <td style="font-size:12px;text-align:center">${tenureLabel !== '—' ? `<span style="background:var(--primary-light);color:var(--primary);padding:2px 8px;border-radius:12px;font-weight:600;font-size:11px">${tenureLabel}</span>` : '<span style="color:var(--text3)">—</span>'}</td>
-    <td style="font-family:var(--mono);font-size:12px;color:var(--text2)">${esc(u.phone||'—')}</td>
-    <td style="font-family:var(--mono);font-size:12px;color:var(--text2)">${wage}</td>
+    <td>${phoneCell}</td>
     <td>
       <div class="actions">
         <button class="icon-btn" title="編集" onclick='editUser(${safeU})'>
@@ -858,9 +869,11 @@ async function execBulkUpdate() {
   var updates = entries.map(function(e) {
     var uid = e[0], fields = e[1];
     var u = { user_id: uid };
+    if (fields.role             !== undefined) u.role             = fields.role;
+    if (fields.employment_type  !== undefined) u.employment_type  = fields.employment_type;
     if (fields.mentor_id        !== undefined) u.mentor_id        = fields.mentor_id;
     if (fields.leader_id        !== undefined) u.leader_id        = fields.leader_id;
-    if (fields.employment_type  !== undefined) u.employment_type  = fields.employment_type;
+    if (fields.phone            !== undefined) u.phone            = fields.phone;
     return u;
   });
 
@@ -880,9 +893,11 @@ async function execBulkUpdate() {
       updates.forEach(u => {
         const idx = allUsers.findIndex(x => x.user_id === u.user_id);
         if (idx >= 0) {
+          if (u.role            !== undefined) allUsers[idx].role            = u.role;
+          if (u.employment_type !== undefined) allUsers[idx].employment_type = u.employment_type;
           if (u.mentor_id       !== undefined) allUsers[idx].mentor_id       = u.mentor_id;
           if (u.leader_id       !== undefined) allUsers[idx].leader_id       = u.leader_id;
-          if (u.employment_type !== undefined) allUsers[idx].employment_type = u.employment_type;
+          if (u.phone           !== undefined) allUsers[idx].phone           = u.phone;
         }
       });
       allUsers.forEach(u => {
