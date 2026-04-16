@@ -417,13 +417,33 @@
       </tbody>
     </table>
     <!-- ★ 一括編集ツールバー（確定ボタン方式） -->
-    <div id="bulk-toolbar" style="display:none;padding:10px 16px;background:var(--primary-light);border-top:1px solid var(--border)">
+    <div id="bulk-toolbar" style="display:none;padding:12px 18px;background:var(--accent-light);border-top:2px solid var(--accent)">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <span id="bulk-count-label" style="font-size:13px;font-weight:600;color:var(--primary);white-space:nowrap">0件編集中</span>
-        <button class="filter-btn active" onclick="execBulkUpdate()" id="bulk-exec-btn">✅ 一括更新を確定</button>
-        <button class="filter-btn" onclick="clearBulkSelection()">✕ 選択解除</button>
+        <span id="bulk-count-label" style="font-size:13px;font-weight:700;color:var(--accent);white-space:nowrap">0件編集中</span>
+        <button class="btn btn-primary" onclick="execBulkUpdate()" id="bulk-exec-btn"
+          style="font-size:13px;padding:7px 18px;display:flex;align-items:center;gap:6px">
+          <span id="bulk-btn-icon">✅</span>
+          <span id="bulk-btn-label">一括更新を確定</span>
+        </button>
+        <button class="btn btn-ghost" onclick="clearBulkSelection()" id="bulk-cancel-btn"
+          style="font-size:13px;padding:7px 14px">
+          ✕ 選択解除
+        </button>
       </div>
-      <div id="bulk-result" style="font-size:12px;margin-top:6px;min-height:14px"></div>
+      <!-- 進捗メッセージ -->
+      <div id="bulk-progress" style="display:none;margin-top:10px;padding:10px 14px;background:#fff;border-radius:8px;border:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div id="bulk-spinner" style="width:16px;height:16px;border:2px solid var(--accent-light);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0"></div>
+          <div>
+            <div id="bulk-progress-msg" style="font-size:13px;font-weight:600;color:var(--text)">更新中…</div>
+            <div id="bulk-progress-sub" style="font-size:11px;color:var(--text3);margin-top:2px"></div>
+          </div>
+        </div>
+        <div id="bulk-progress-bar-wrap" style="margin-top:8px;height:4px;background:var(--surface2);border-radius:4px;overflow:hidden">
+          <div id="bulk-progress-bar" style="height:100%;background:var(--accent);border-radius:4px;transition:width .3s;width:0%"></div>
+        </div>
+      </div>
+      <div id="bulk-result" style="font-size:13px;margin-top:8px;min-height:14px;font-weight:600"></div>
     </div>
     <div class="pagination">
       <span class="page-info" id="pageInfo">—</span>
@@ -862,6 +882,7 @@ function clearBulkSelection() {
   updateBulkToolbar();
 }
 
+// ═══ 一括更新 ═══
 async function execBulkUpdate() {
   var entries = Object.entries(_pendingEdits);
   if (entries.length === 0) return;
@@ -877,18 +898,49 @@ async function execBulkUpdate() {
     return u;
   });
 
-  var btn = document.getElementById('bulk-exec-btn');
-  var res_el = document.getElementById('bulk-result');
+  var btn        = document.getElementById('bulk-exec-btn');
+  var cancelBtn  = document.getElementById('bulk-cancel-btn');
+  var resEl      = document.getElementById('bulk-result');
+  var progWrap   = document.getElementById('bulk-progress');
+  var progMsg    = document.getElementById('bulk-progress-msg');
+  var progSub    = document.getElementById('bulk-progress-sub');
+  var progBar    = document.getElementById('bulk-progress-bar');
+  var btnIcon    = document.getElementById('bulk-btn-icon');
+  var btnLabel   = document.getElementById('bulk-btn-label');
+  var total      = updates.length;
+
+  // ── 開始状態 ──
   btn.disabled = true;
-  res_el.textContent = '更新中…';
+  if (cancelBtn) cancelBtn.disabled = true;
+  if (btnIcon)   btnIcon.textContent  = '⏳';
+  if (btnLabel)  btnLabel.textContent = '更新中…';
+  if (progWrap)  progWrap.style.display = '';
+  if (progMsg)   progMsg.textContent = `更新中です。画面を移動しないでください（0 / ${total}件）`;
+  if (progSub)   progSub.textContent = '';
+  if (progBar)   { progBar.style.background = 'var(--accent)'; progBar.style.width = '0%'; }
+  if (resEl)     { resEl.textContent = ''; resEl.style.color = ''; }
 
   const body = JSON.stringify({ path: 'api/admin/users/bulk-update', _method: 'POST', updates });
+  var ok = false;
+  var errMsg = '';
+
   try {
+    if (progMsg) progMsg.textContent = `GASに送信中… しばらくお待ちください（${total}件）`;
+    if (progBar) progBar.style.width = '30%';
+
     const r   = await fetch(GAS_URL, { method: 'POST', body });
+    if (progBar) progBar.style.width = '70%';
+    if (progMsg) progMsg.textContent = `応答を処理中…`;
+
     const res = await r.json();
+    if (progBar) progBar.style.width = '100%';
+
     if (res.ok) {
-      res_el.style.color = 'var(--success)';
-      res_el.textContent = `✅ ${res.updated}件更新しました`;
+      ok = true;
+      if (progMsg) progMsg.textContent = `✅ ${res.updated}件の更新が完了しました！`;
+      if (progSub) progSub.textContent = (res.errors && res.errors.length > 0)
+        ? `⚠ ${res.errors.length}件エラー: ${res.errors.slice(0,2).join(' / ')}`
+        : '全件正常に更新されました';
       // ローカルデータを反映
       updates.forEach(u => {
         const idx = allUsers.findIndex(x => x.user_id === u.user_id);
@@ -904,76 +956,30 @@ async function execBulkUpdate() {
         const m = allUsers.find(x => x.user_id === u.mentor_id);
         u.mentor_name = m ? m.name : '';
       });
-      _pendingEdits = {};
-      setTimeout(() => { render(); updateBulkToolbar(); }, 300);
     } else {
-      res_el.style.color = 'red';
-      res_el.textContent = '❌ 更新失敗: ' + (res.error || '');
+      errMsg = res.error || '不明なエラー';
     }
   } catch(e) {
-    res_el.textContent = '❌ 通信エラー';
+    errMsg = '通信エラー: ' + e.message;
   }
+
+  // ── 完了状態 ──
   btn.disabled = false;
-}
+  if (cancelBtn) cancelBtn.disabled = false;
+  if (btnIcon)   btnIcon.textContent  = '✅';
+  if (btnLabel)  btnLabel.textContent = '一括更新を確定';
 
-// ═══ 一括編集機能 ═══
-
-
-async function execBulkUpdate() {
-  const checked   = Array.from(document.querySelectorAll('.row-chk:checked'));
-  if (checked.length === 0) return;
-  const mentorId  = document.getElementById('bulk-mentor-sel').value;
-  const leaderId  = document.getElementById('bulk-leader-sel').value;
-  const empType   = document.getElementById('bulk-emptype-sel').value;
-  if (!mentorId && !leaderId && !empType) {
-    document.getElementById('bulk-result').textContent = '⚠ 変更項目を1つ以上選択してください';
-    return;
+  if (ok) {
+    if (resEl) { resEl.style.color = 'var(--success)'; resEl.textContent = `✅ ${total}件を更新しました`; }
+    setTimeout(function() { if (progWrap) progWrap.style.display = 'none'; }, 2500);
+    _pendingEdits = {};
+    setTimeout(function() { render(); updateBulkToolbar(); }, 400);
+  } else {
+    if (progMsg) progMsg.textContent = '❌ 更新に失敗しました';
+    if (progSub) progSub.textContent = errMsg;
+    if (progBar) { progBar.style.background = 'var(--danger)'; progBar.style.width = '100%'; }
+    if (resEl)   { resEl.style.color = 'var(--danger, red)'; resEl.textContent = '❌ 更新失敗: ' + errMsg; }
   }
-  const userIds = checked.map(cb => cb.dataset.uid);
-  const updates = userIds.map(uid => {
-    const u = {};
-    u.user_id = uid;
-    if (mentorId) u.mentor_id = mentorId;
-    if (leaderId) u.leader_id = leaderId;
-    if (empType)  u.employment_type = empType;
-    return u;
-  });
-
-  const btn = document.getElementById('bulk-exec-btn');
-  btn.disabled = true;
-  document.getElementById('bulk-result').textContent = '更新中…';
-
-  const body = JSON.stringify({ path: 'api/admin/users/bulk-update', _method: 'POST', updates });
-  try {
-    const r   = await fetch(GAS_URL, { method: 'POST', body });
-    const res = await r.json();
-    if (res.ok) {
-      document.getElementById('bulk-result').style.color = 'var(--success)';
-      document.getElementById('bulk-result').textContent = `✅ ${res.updated}件更新しました`;
-      // ローカルデータを反映
-      updates.forEach(u => {
-        const idx = allUsers.findIndex(x => x.user_id === u.user_id);
-        if (idx >= 0) {
-          if (u.mentor_id)        allUsers[idx].mentor_id        = u.mentor_id;
-          if (u.leader_id)        allUsers[idx].leader_id        = u.leader_id;
-          if (u.employment_type)  allUsers[idx].employment_type  = u.employment_type;
-        }
-      });
-      clearBulkSelection();
-      // mentor_name も更新してから再描画
-      allUsers.forEach(u => {
-        const m = allUsers.find(x => x.user_id === u.mentor_id);
-        u.mentor_name = m ? m.name : '';
-      });
-      setTimeout(() => { render(); }, 300);
-    } else {
-      document.getElementById('bulk-result').style.color = 'red';
-      document.getElementById('bulk-result').textContent = '❌ 更新失敗: ' + (res.error || '');
-    }
-  } catch(e) {
-    document.getElementById('bulk-result').textContent = '❌ 通信エラー';
-  }
-  btn.disabled = false;
 }
 
 function renderPager(pages) {
