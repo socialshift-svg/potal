@@ -1346,15 +1346,7 @@ function showToast(msg) {
 // 優先2: calendar_event_id から eid を生成（eventId@google.com をBase64エンコード）
 // フォールバック: カレンダーホーム
 function buildCalendarEventUrl(calendarUrl, eventId) {
-  if (calendarUrl) return calendarUrl;
-  if (eventId) {
-    try {
-      // calendar_event_id は既に @google.com 付きフルID
-      // そのままBase64エンコードし = パディングを除去
-      var eid = btoa(eventId).replace(/=/g, '');
-      return 'https://calendar.google.com/calendar/event?eid=' + eid;
-    } catch(e) { /* fallthrough */ }
-  }
+  // カレンダーホーム画面に遷移（メンティーのカレンダーに予約が表示される）
   return 'https://calendar.google.com/calendar/r';
 }
 
