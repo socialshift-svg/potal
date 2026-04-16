@@ -1342,17 +1342,19 @@ function showToast(msg) {
 
 // ══ Meet参加 ══
 // Googleカレンダーのイベントページに遷移するURL生成
-function buildCalendarEventUrl(eventId) {
-  if (!eventId) return 'https://calendar.google.com/calendar/r';
-  try {
-    // eventId + ' ' をbase64エンコードしてURLセーフに変換
-    var raw = eventId + ' ';
-    var b64 = btoa(unescape(encodeURIComponent(raw)))
-      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-    return 'https://calendar.google.com/calendar/event?eid=' + b64;
-  } catch(e) {
-    return 'https://calendar.google.com/calendar/r';
+// 優先1: GASから返された calendar_url をそのまま使用
+// 優先2: calendar_event_id から eid を生成（eventId@google.com をBase64エンコード）
+// フォールバック: カレンダーホーム
+function buildCalendarEventUrl(calendarUrl, eventId) {
+  if (calendarUrl) return calendarUrl;
+  if (eventId) {
+    try {
+      var fullId = eventId + '@google.com';
+      var eid = btoa(fullId);
+      return 'https://calendar.google.com/calendar/event?eid=' + eid;
+    } catch(e) { /* fallthrough */ }
   }
+  return 'https://calendar.google.com/calendar/r';
 }
 
 function openMeet(link) {
@@ -1736,12 +1738,12 @@ function renderHome(data) {
         meetBtn.style.display = '';
         meetBtn.style.opacity = '1';
         meetBtn.innerHTML = '<span>📅</span> カレンダーで確認する';
-        (function(evId) {
+        (function(calUrl, evId) {
           meetBtn.onclick = function() {
-            var url = buildCalendarEventUrl(evId);
+            var url = buildCalendarEventUrl(calUrl, evId);
             window.open(url, '_blank');
           };
-        })(b.calendar_event_id || '');
+        })(b.calendar_url || '', b.calendar_event_id || '');
       }
     }
     // 事前レポートのサブタイトル更新
