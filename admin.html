@@ -1654,7 +1654,7 @@ function cancelTelEdit() {
 // 確定：ペンディングをすべてAPIに送信
 async function confirmTelAssignments() {
   var entries = Object.entries(_telPendingAssign).filter(function(e){ return e[1]; });
-  if (entries.length === 0) { showToast('メンティーが割り当てられていません。各行でメンティーを選択してください。', 'err'); return; }
+  if (entries.length === 0) { toast('メンティーが割り当てられていません。各行でメンティーを選択してください。','err'); return; }
 
   var unset = Object.keys(_telPendingAssign).filter(function(sid){ return !_telPendingAssign[sid]; });
   if (unset.length > 0) {
@@ -1684,7 +1684,7 @@ async function confirmTelAssignments() {
 
   if (btn) { btn.disabled = false; btn.textContent = '✅ 割り当て確定'; }
   var msg = ok + '件割り当て完了' + (ng > 0 ? '（' + ng + '件失敗）' : '');
-  showToast(msg);
+  toast(msg);
   _telPendingAssign = {};
   loadTelStock();
 }
