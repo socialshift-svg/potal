@@ -629,26 +629,11 @@ body.login-mode .main { display:none !important; }
   <div class="card" style="margin-bottom:16px">
     <div class="ch">
       <div class="ct">📦 未割り当てストック</div>
-      <button class="btn btn-p btn-sm" id="tel-bulk-assign-btn" style="display:none" onclick="openBulkAssignPanel()">✅ 選択して一括割り当て</button>
-    </div>
-    <!-- 一括割り当てパネル -->
-    <div id="tel-bulk-panel" style="display:none;padding:12px 16px;background:var(--pr-light);border-bottom:1px solid var(--bd)">
-      <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:var(--pr)">📋 選択したストックを一括割り当て</div>
-      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
-        <div>
-          <div style="font-size:11px;font-weight:600;color:var(--tx3);margin-bottom:4px">割り当て先メンティー</div>
-          <select id="tel-bulk-mentee-sel" class="inp" style="width:200px;font-size:13px;padding:6px 10px">
-            <option value="">メンティーを選択…</option>
-          </select>
-        </div>
-        <div>
-          <div style="font-size:11px;font-weight:600;color:var(--tx3);margin-bottom:4px">選択件数</div>
-          <div id="tel-bulk-count" style="font-size:16px;font-weight:700;color:var(--pr);padding:5px 0">0件</div>
-        </div>
-        <button class="btn btn-p" id="tel-bulk-exec-btn" onclick="execBulkAssign()">✅ 割り当て実行</button>
-        <button class="btn btn-g" onclick="closeBulkAssignPanel()">キャンセル</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span id="tel-edit-count" style="font-size:12px;color:var(--tx3);display:none"></span>
+        <button class="btn btn-p btn-sm" id="tel-confirm-btn" style="display:none" onclick="confirmTelAssignments()">✅ 割り当て確定</button>
+        <button class="btn btn-g btn-sm" id="tel-cancel-btn" style="display:none" onclick="cancelTelEdit()">✕ キャンセル</button>
       </div>
-      <div id="tel-bulk-result" style="font-size:12px;margin-top:8px;min-height:14px"></div>
     </div>
     <div id="telStockTable"><div class="loading">読み込み中…</div></div>
     <div id="telAvailPager" style="display:none;padding:10px 16px;display:flex;align-items:center;justify-content:center;gap:6px;border-top:1px solid var(--bd)"></div>
@@ -1529,35 +1514,71 @@ async function loadTelStock() {
   renderTelAssignedTable(assigned);
 }
 
+// ── TELストック割り当てペンディングマップ: { stock_id -> mentee_id } ──
+var _telPendingAssign = {};
+
 function renderTelAvailTable(available) {
   var stEl    = document.getElementById('telStockTable');
   var pagerEl = document.getElementById('telAvailPager');
-  var btnEl   = document.getElementById('tel-bulk-assign-btn');
   if (!stEl) return;
 
   if (available.length === 0) {
     stEl.innerHTML = '<div class="loading">在庫がありません。「＋ ストック追加」から追加してください。</div>';
     if (pagerEl) pagerEl.style.display = 'none';
-    if (btnEl) btnEl.style.display = 'none';
+    updateTelEditBar();
     return;
   }
-  if (btnEl) btnEl.style.display = '';
 
   var pages = Math.max(1, Math.ceil(available.length / TEL_PER_PAGE));
   if (_telAvailPage > pages) _telAvailPage = pages;
   var start = (_telAvailPage - 1) * TEL_PER_PAGE;
   var paged = available.slice(start, start + TEL_PER_PAGE);
 
+  // 割り当て済みメンティーIDセット（割り当て済みストック＋ペンディング）
+  var assignedMenteeIds = _telStocks
+    .filter(function(s){ return s.status === 'assigned'; })
+    .map(function(s){ return s.assigned_to; });
+
   stEl.innerHTML = '<table><thead><tr>'
     + '<th style="width:32px"><input type="checkbox" id="tel-chk-all" onchange="toggleAllTelChecks(this)" title="全選択"></th>'
-    + '<th>スペースURL</th><th>Webhook</th><th>登録日</th><th></th>'
+    + '<th>スペースURL</th><th>Webhook</th><th>登録日</th><th style="min-width:160px">割り当て先</th><th></th>'
     + '</tr></thead><tbody>'
     + paged.map(function(s) {
-        return '<tr>'
-          + '<td><input type="checkbox" class="tel-stock-chk" data-id="' + esc(s.stock_id) + '" onchange="updateBulkCount()"></td>'
-          + '<td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><a href="' + esc(s.chat_url) + '" target="_blank" style="color:var(--pr)">' + esc(s.chat_url.replace('https://chat.google.com','').substring(0,40)) + '…</a></td>'
+        var isChecked = !!_telPendingAssign.hasOwnProperty(s.stock_id);
+        // このストックにペンディングで選ばれたメンティー
+        var pendingId = _telPendingAssign[s.stock_id] || '';
+        // 他のペンディングで使用済みのメンティーID
+        var usedIds = Object.values(_telPendingAssign);
+        // メンティー選択肢（割り当て済み＋他のペンディングで使用中は除外、自分の選択は含める）
+        var menteeOpts = _allMembers.filter(function(m){
+          if (m.role !== 'mentee') return false;
+          if (assignedMenteeIds.indexOf(m.user_id) >= 0) return false;
+          // 他ストックのペンディングで使用中は除外（自分のは除外しない）
+          var otherUsed = Object.entries(_telPendingAssign)
+            .filter(function(e){ return e[0] !== s.stock_id; })
+            .map(function(e){ return e[1]; });
+          return otherUsed.indexOf(m.user_id) < 0;
+        });
+        var selectHtml = '<select class="inp tel-mentee-sel" data-sid="' + esc(s.stock_id) + '"'
+          + ' style="font-size:12px;padding:4px 8px;width:100%"'
+          + ' onchange="onTelMenteeChange(this)">'
+          + '<option value="">選択…</option>'
+          + menteeOpts.map(function(m){
+              return '<option value="' + esc(m.user_id) + '"' + (m.user_id === pendingId ? ' selected' : '') + '>'
+                + esc(m.name) + '</option>';
+            }).join('')
+          + '</select>';
+        return '<tr id="tel-row-' + esc(s.stock_id) + '"'
+          + ' style="background:' + (isChecked ? 'var(--pr-light)' : '') + '">'
+          + '<td><input type="checkbox" class="tel-stock-chk" data-sid="' + esc(s.stock_id) + '"'
+          + (isChecked ? ' checked' : '')
+          + ' onchange="onTelChkChange(this)"></td>'
+          + '<td style="font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
+          +   '<a href="' + esc(s.chat_url) + '" target="_blank" style="color:var(--pr)">'
+          +   esc(s.chat_url.replace('https://chat.google.com','').substring(0,38)) + '…</a></td>'
           + '<td><span style="font-size:11px;padding:2px 8px;background:var(--gr-light);color:var(--gr);border-radius:6px">✅ 設定済</span></td>'
           + '<td class="td-m">' + fmtDate(s.created_at) + '</td>'
+          + '<td>' + (isChecked ? selectHtml : '<span style="font-size:12px;color:var(--tx3)">— チェックで編集</span>') + '</td>'
           + '<td><button class="btn btn-sm" style="background:var(--rd-light);color:var(--rd);border:none" onclick="deleteTelStock(\'' + s.stock_id + '\')">削除</button></td>'
           + '</tr>';
       }).join('')
@@ -1567,12 +1588,105 @@ function renderTelAvailTable(available) {
     pagerEl.style.display = pages <= 1 ? 'none' : 'flex';
     renderPager(pagerEl, pages, _telAvailPage, function(p){
       _telAvailPage = p;
-      // 全選択チェックをリセット
-      closeBulkAssignPanel();
       var available2 = _telStocks.filter(function(s){ return s.status === 'available'; });
       renderTelAvailTable(available2);
     });
   }
+  updateTelEditBar();
+}
+
+// チェック変更：ペンディングに追加/削除してテーブル再描画
+function onTelChkChange(cb) {
+  var sid = cb.dataset.sid;
+  if (cb.checked) {
+    if (!_telPendingAssign.hasOwnProperty(sid)) _telPendingAssign[sid] = '';
+  } else {
+    delete _telPendingAssign[sid];
+  }
+  var available = _telStocks.filter(function(s){ return s.status === 'available'; });
+  renderTelAvailTable(available);
+}
+
+// 全選択チェック
+function toggleAllTelChecks(masterCb) {
+  var paged = document.querySelectorAll('.tel-stock-chk');
+  paged.forEach(function(cb){
+    var sid = cb.dataset.sid;
+    if (masterCb.checked) {
+      if (!_telPendingAssign.hasOwnProperty(sid)) _telPendingAssign[sid] = '';
+    } else {
+      delete _telPendingAssign[sid];
+    }
+  });
+  var available = _telStocks.filter(function(s){ return s.status === 'available'; });
+  renderTelAvailTable(available);
+}
+
+// メンティー選択変更
+function onTelMenteeChange(sel) {
+  var sid = sel.dataset.sid;
+  _telPendingAssign[sid] = sel.value;
+  updateTelEditBar();
+  // 他行のセレクトから選択済みメンティーを除外するため再描画
+  var available = _telStocks.filter(function(s){ return s.status === 'available'; });
+  renderTelAvailTable(available);
+}
+
+// 編集バー（確定/キャンセルボタン）の表示制御
+function updateTelEditBar() {
+  var cnt     = Object.keys(_telPendingAssign).length;
+  var confirmBtn = document.getElementById('tel-confirm-btn');
+  var cancelBtn  = document.getElementById('tel-cancel-btn');
+  var countLabel = document.getElementById('tel-edit-count');
+  var show = cnt > 0;
+  if (confirmBtn) confirmBtn.style.display = show ? '' : 'none';
+  if (cancelBtn)  cancelBtn.style.display  = show ? '' : 'none';
+  if (countLabel) { countLabel.style.display = show ? '' : 'none'; countLabel.textContent = cnt + '件編集中'; }
+}
+
+// キャンセル：ペンディングをクリアして再描画
+function cancelTelEdit() {
+  _telPendingAssign = {};
+  var available = _telStocks.filter(function(s){ return s.status === 'available'; });
+  renderTelAvailTable(available);
+}
+
+// 確定：ペンディングをすべてAPIに送信
+async function confirmTelAssignments() {
+  var entries = Object.entries(_telPendingAssign).filter(function(e){ return e[1]; });
+  if (entries.length === 0) { showToast('メンティーが割り当てられていません。各行でメンティーを選択してください。', 'err'); return; }
+
+  var unset = Object.keys(_telPendingAssign).filter(function(sid){ return !_telPendingAssign[sid]; });
+  if (unset.length > 0) {
+    if (!confirm(unset.length + '件はメンティー未選択のため除外されます。' + entries.length + '件を確定しますか？')) return;
+  }
+
+  var btn = document.getElementById('tel-confirm-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '処理中…'; }
+
+  var ok = 0; var ng = 0;
+  for (var i = 0; i < entries.length; i++) {
+    var sid      = entries[i][0];
+    var menteeId = entries[i][1];
+    var stock    = _telStocks.find(function(s){ return s.stock_id === sid; });
+    var mentee   = _allMembers.find(function(m){ return m.user_id === menteeId; });
+    if (!stock || !mentee) { ng++; continue; }
+    var r = await gasReq('api/admin/tel-stock/assign', 'POST', {
+      stock_id:    stock.stock_id,
+      mentee_id:   menteeId,
+      mentee_name: mentee.name,
+      chat_url:    stock.chat_url,
+      webhook_url: stock.chat_webhook_url || stock.webhook_url || '',
+      meet_url:    stock.tel_meet_url     || stock.meet_url    || ''
+    });
+    if (r && (r.ok || !r.error)) { ok++; } else { ng++; }
+  }
+
+  if (btn) { btn.disabled = false; btn.textContent = '✅ 割り当て確定'; }
+  var msg = ok + '件割り当て完了' + (ng > 0 ? '（' + ng + '件失敗）' : '');
+  showToast(msg);
+  _telPendingAssign = {};
+  loadTelStock();
 }
 
 function renderTelAssignedTable(assigned) {
@@ -1610,70 +1724,6 @@ function renderTelAssignedTable(assigned) {
       renderTelAssignedTable(assigned2);
     });
   }
-}
-
-// ── 一括割り当てパネル制御 ──
-function openBulkAssignPanel() {
-  document.getElementById('tel-bulk-panel').style.display = '';
-  updateBulkCount();
-}
-function closeBulkAssignPanel() {
-  var panel = document.getElementById('tel-bulk-panel');
-  if (panel) panel.style.display = 'none';
-  // チェックボックスをリセット
-  document.querySelectorAll('.tel-stock-chk').forEach(function(cb){ cb.checked = false; });
-  var allChk = document.getElementById('tel-chk-all');
-  if (allChk) allChk.checked = false;
-  updateBulkCount();
-}
-function toggleAllTelChecks(masterCb) {
-  document.querySelectorAll('.tel-stock-chk').forEach(function(cb){ cb.checked = masterCb.checked; });
-  updateBulkCount();
-}
-function updateBulkCount() {
-  var cnt = document.querySelectorAll('.tel-stock-chk:checked').length;
-  var cntEl = document.getElementById('tel-bulk-count');
-  if (cntEl) cntEl.textContent = cnt + '件選択中';
-}
-async function execBulkAssign() {
-  var menteeId = (document.getElementById('tel-bulk-mentee-sel') || {}).value;
-  if (!menteeId) { showToast('割り当て先メンティーを選択してください', 'err'); return; }
-  var checked = Array.from(document.querySelectorAll('.tel-stock-chk:checked'));
-  if (checked.length === 0) { showToast('ストックを1件以上選択してください', 'err'); return; }
-  var stockIds = checked.map(function(cb){ return cb.dataset.id; });
-  var mentee   = _allMembers.find(function(m){ return m.user_id === menteeId; });
-  if (!mentee) { showToast('メンティー情報が見つかりません', 'err'); return; }
-
-  var resEl = document.getElementById('tel-bulk-result');
-  if (resEl) resEl.textContent = '処理中…';
-  var btn = document.getElementById('tel-bulk-exec-btn');
-  if (btn) btn.disabled = true;
-
-  var ok = 0; var ng = 0;
-  // 1件ずつ順番に割り当て（GAS同時実行対策）
-  for (var i = 0; i < stockIds.length; i++) {
-    var stock = _telStocks.find(function(s){ return s.stock_id === stockIds[i]; });
-    if (!stock) { ng++; continue; }
-    var r = await gasReq('api/admin/tel-stock/assign', 'POST', {
-      stock_id:    stock.stock_id,
-      mentee_id:   menteeId,
-      mentee_name: mentee.name,
-      chat_url:    stock.chat_url,
-      webhook_url: stock.chat_webhook_url || stock.webhook_url || '',
-      meet_url:    stock.tel_meet_url     || stock.meet_url    || ''
-    });
-    if (r && (r.ok || !r.error)) { ok++; } else { ng++; }
-    if (resEl) resEl.textContent = (i+1) + '/' + stockIds.length + ' 処理中…';
-  }
-
-  if (btn) btn.disabled = false;
-  var msg = ok + '件割り当て完了' + (ng > 0 ? '（' + ng + '件失敗）' : '');
-  if (resEl) { resEl.style.color = ng > 0 ? 'var(--rd)' : 'var(--gr)'; resEl.textContent = '✅ ' + msg; }
-  showToast(msg);
-  setTimeout(function(){
-    closeBulkAssignPanel();
-    loadTelStock();
-  }, 1200);
 }
 
 function openTelStockAddModal() {
