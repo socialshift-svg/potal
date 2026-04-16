@@ -1349,8 +1349,9 @@ function buildCalendarEventUrl(calendarUrl, eventId) {
   if (calendarUrl) return calendarUrl;
   if (eventId) {
     try {
-      var fullId = eventId + '@google.com';
-      var eid = btoa(fullId);
+      // calendar_event_id は既に @google.com 付きフルID
+      // そのままBase64エンコードし = パディングを除去
+      var eid = btoa(eventId).replace(/=/g, '');
       return 'https://calendar.google.com/calendar/event?eid=' + eid;
     } catch(e) { /* fallthrough */ }
   }
