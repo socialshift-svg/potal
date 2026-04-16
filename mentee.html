@@ -1341,6 +1341,20 @@ function showToast(msg) {
 }
 
 // ══ Meet参加 ══
+// Googleカレンダーのイベントページに遷移するURL生成
+function buildCalendarEventUrl(eventId) {
+  if (!eventId) return 'https://calendar.google.com/calendar/r';
+  try {
+    // eventId + ' ' をbase64エンコードしてURLセーフに変換
+    var raw = eventId + ' ';
+    var b64 = btoa(unescape(encodeURIComponent(raw)))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    return 'https://calendar.google.com/calendar/event?eid=' + b64;
+  } catch(e) {
+    return 'https://calendar.google.com/calendar/r';
+  }
+}
+
 function openMeet(link) {
   if (link) window.open(link, '_blank');
   else alert('Meet リンクが設定されていません');
@@ -1718,11 +1732,16 @@ function renderHome(data) {
         meetBtn.onclick = function(){ openMeet(b.meet_link); };
         meetBtn.innerHTML = '<span>▶</span> Google Meetに参加する';
       } else {
-        // meet_linkなし：Googleカレンダーの招待から参加を案内
+        // meet_linkなし → Googleカレンダーの当該イベントページへ遷移
         meetBtn.style.display = '';
-        meetBtn.style.opacity = '0.6';
-        meetBtn.innerHTML = '<span>📅</span> カレンダー招待から参加';
-        meetBtn.onclick = function(){ showToast('Googleカレンダーの招待メールからMeetに参加してください'); };
+        meetBtn.style.opacity = '1';
+        meetBtn.innerHTML = '<span>📅</span> カレンダーで確認する';
+        (function(evId) {
+          meetBtn.onclick = function() {
+            var url = buildCalendarEventUrl(evId);
+            window.open(url, '_blank');
+          };
+        })(b.calendar_event_id || '');
       }
     }
     // 事前レポートのサブタイトル更新
