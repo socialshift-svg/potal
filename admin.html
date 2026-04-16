@@ -226,19 +226,6 @@ body.login-mode .main { display:none !important; }
   </div>
 </div>
 
-<div class="modal" id="assignModal">
-  <div class="modal-content" style="max-width:480px">
-    <span class="modal-close" onclick="closeModal('assignModal')">✕</span>
-    <div class="modal-title">🤝 担当割り当て追加</div>
-    <div class="form-group"><label class="form-label">Leader</label><select class="inp" id="assign-leader-select"><option value="">選択してください</option></select></div>
-    <div class="form-group"><label class="form-label">担当Mentee</label><select class="inp" id="assign-mentee-select"><option value="">選択してください</option></select></div>
-    <div class="f-foot">
-      <button class="btn btn-g" onclick="closeModal('assignModal')">キャンセル</button>
-      <button class="btn btn-p" id="assignSubmitBtn" onclick="submitAssignment()">割り当て追加</button>
-    </div>
-  </div>
-</div>
-
 <!-- TEL直接登録モーダル（既存チャット引き継ぎ用） -->
 <div class="modal" id="telDirectModal">
   <div class="modal-content" style="max-width:520px">
@@ -320,8 +307,6 @@ body.login-mode .main { display:none !important; }
     <div class="nav-item" onclick="nav('notices',this)"><span class="ic">📢</span>お知らせ配信</div>
     <div class="nav-sec">電話レポート</div>
     <div class="nav-item" onclick="nav('callReports',this)"><span class="ic">📞</span>電話レポート</div>
-    <div class="nav-sec">Leader管理</div>
-    <div class="nav-item" onclick="nav('leaderAssignments',this)"><span class="ic">🤝</span>担当割り当て</div>
     <div class="nav-sec">TEL設定</div>
     <div class="nav-item" onclick="nav('telStock',this)"><span class="ic">📞</span>TELスペース管理</div>
     <div class="nav-sec">データ管理</div>
@@ -601,18 +586,6 @@ body.login-mode .main { display:none !important; }
       </div>
     </div>
   </div>
-</div>
-
-<!-- Leader担当割り当て -->
-<div class="screen" id="s-leaderAssignments">
-  <div class="topbar"><div><div class="page-title">🤝 Leader担当割り当て</div><div class="page-sub">LeaderとMenteeの週次TEL担当関係を管理</div></div><div class="topbar-r"><button class="btn btn-p" onclick="openAssignModal()">＋ 新規割り当て</button></div></div>
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px">
-    <div class="kpi-card"><div class="kpi-lb">Leader数</div><div class="kpi-v" id="la-kpi-leaders">—</div></div>
-    <div class="kpi-card"><div class="kpi-lb">割り当て済みMentee</div><div class="kpi-v" id="la-kpi-mentees" style="color:var(--gr)">—</div></div>
-    <div class="kpi-card"><div class="kpi-lb">総割り当て数</div><div class="kpi-v" id="la-kpi-total">—</div></div>
-  </div>
-  <div class="card"><div class="ch"><div class="ct">担当割り当て一覧</div></div><div id="assignmentsTable"><div class="loading">読み込み中…</div></div></div>
-  <div style="margin-top:16px"><div style="font-size:14px;font-weight:700;margin-bottom:12px">Leader別担当状況</div><div id="leaderSummary" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px"></div></div>
 </div>
 
 <!-- TELスペース管理 -->
@@ -1107,7 +1080,6 @@ var _contentsLoaded = false;
 var _linksLoaded = false;
 var _noticesLoaded = false;
 var _callReportsLoaded = false;
-var _leaderAssignmentsLoaded = false;
 
 async function loadDashboard() {
   var cachedMembers = Cache.get('allusers');
@@ -2683,101 +2655,7 @@ function showCallReportDetail(r){
   nav('callReportDetail');
 }
 
-// ══════════════════════════════════════════════════════════
-//  Leader担当割り当て
-// ══════════════════════════════════════════════════════════
-var _allAssignments=[], _leaderList=[], _menteeList=[];
 
-async function loadLeaderAssignments(){
-  document.getElementById('assignmentsTable').innerHTML='<div class="loading">読み込み中…</div>';
-  const data=await gasReq('api/admin/leader-assignments');
-  if(!data){document.getElementById('assignmentsTable').innerHTML='<div class="loading" style="color:var(--rd)">取得に失敗しました</div>';return;}
-  _allAssignments=data.assignments||[];_leaderList=data.leaders||[];_menteeList=data.mentees||[];
-
-  const lIds=[...new Set(_allAssignments.map(a=>a.leader_id))];
-  const mIds=[...new Set(_allAssignments.map(a=>a.mentee_id))];
-  document.getElementById('la-kpi-leaders').textContent=lIds.length+'名';
-  document.getElementById('la-kpi-mentees').textContent=mIds.length+'名';
-  document.getElementById('la-kpi-total').textContent  =_allAssignments.length+'件';
-
-  const tableEl=document.getElementById('assignmentsTable');
-  if(_allAssignments.length===0){tableEl.innerHTML='<div class="loading">割り当てがありません</div>';}
-  else{tableEl.innerHTML=`<table><thead><tr><th>Leader</th><th>担当Mentee</th><th>割り当て日</th><th></th></tr></thead><tbody>
-    ${_allAssignments.map(a=>`<tr>
-      <td><strong>${esc(a.leader_name||a.leader_id)}</strong></td>
-      <td>${esc(a.mentee_name||a.mentee_id)}</td>
-      <td class="td-m">${fmtDate(a.created_at)}</td>
-      <td><button class="btn btn-sm" style="background:var(--rd-light);color:var(--rd);border:none" onclick="deleteAssignment('${a.assignment_id}')">削除</button></td>
-    </tr>`).join('')}
-  </tbody></table>`;}
-
-  const sumEl=document.getElementById('leaderSummary');
-  const byL={};
-  _allAssignments.forEach(a=>{if(!byL[a.leader_id])byL[a.leader_id]={name:a.leader_name||a.leader_id,mentees:[]};byL[a.leader_id].mentees.push(a.mentee_name||a.mentee_id);});
-  sumEl.innerHTML=Object.values(byL).map(l=>`
-    <div class="card" style="padding:14px">
-      <div style="font-size:14px;font-weight:700;margin-bottom:8px">📞 ${esc(l.name)}</div>
-      <div style="font-size:12px;color:var(--tx2)">担当: ${l.mentees.map(esc).join('、')}</div>
-      <div style="font-size:11px;color:var(--tx3);margin-top:4px">${l.mentees.length}名担当</div>
-    </div>`).join('');
-}
-
-function openAssignModal(){
-  document.getElementById('assign-leader-select').innerHTML='<option value="">選択してください</option>'+_leaderList.map(u=>`<option value="${u.user_id}">${esc(u.name)}</option>`).join('');
-  document.getElementById('assign-mentee-select').innerHTML='<option value="">選択してください</option>'+_menteeList.map(u=>`<option value="${u.user_id}">${esc(u.name)}</option>`).join('');
-  openModal('assignModal');
-}
-
-async function submitAssignment(){
-  const lId=document.getElementById('assign-leader-select').value;
-  const mId=document.getElementById('assign-mentee-select').value;
-  if(!lId||!mId){toast('LeaderとMenteeを両方選択してください','err');return;}
-  if(_allAssignments.find(a=>a.leader_id===lId&&a.mentee_id===mId)){toast('この組み合わせはすでに割り当て済みです','err');return;}
-  const btn=document.getElementById('assignSubmitBtn');
-  btn.textContent='追加中…';btn.disabled=true;
-  const r=await gasReq('api/admin/leader-assignments','POST',{leader_id:lId,mentee_id:mId});
-  btn.textContent='割り当て追加';btn.disabled=false;
-  if(r&&(r.ok||r.assignment_id)){closeModal('assignModal');await loadLeaderAssignments();toast('割り当てを追加しました');}
-  else toast('追加に失敗: '+(r&&(r.error||r.message)||'GAS応答なし'),'err');
-}
-
-async function deleteAssignment(id){
-  if(!confirm('この割り当てを削除しますか？'))return;
-  const r=await gasReq('api/admin/leader-assignments/delete','POST',{assignment_id:id});
-  if(r&&!r.error){
-    // UI即時反映: 削除したIDの行をテーブルとサマリーから除去してから再描画
-    _allAssignments = _allAssignments.filter(function(a){ return a.assignment_id !== id; });
-    // KPI更新
-    const lIds=[...new Set(_allAssignments.map(a=>a.leader_id))];
-    const mIds=[...new Set(_allAssignments.map(a=>a.mentee_id))];
-    document.getElementById('la-kpi-leaders').textContent=lIds.length+'名';
-    document.getElementById('la-kpi-mentees').textContent=mIds.length+'名';
-    document.getElementById('la-kpi-total').textContent  =_allAssignments.length+'件';
-    // テーブル再描画
-    const tableEl=document.getElementById('assignmentsTable');
-    if(_allAssignments.length===0){tableEl.innerHTML='<div class="loading">割り当てがありません</div>';}
-    else{tableEl.innerHTML=`<table><thead><tr><th>Leader</th><th>担当Mentee</th><th>割り当て日</th><th></th></tr></thead><tbody>
-      ${_allAssignments.map(a=>`<tr>
-        <td><strong>${esc(a.leader_name||a.leader_id)}</strong></td>
-        <td>${esc(a.mentee_name||a.mentee_id)}</td>
-        <td class="td-m">${fmtDate(a.created_at)}</td>
-        <td><button class="btn btn-sm" style="background:var(--rd-light);color:var(--rd);border:none" onclick="deleteAssignment('${a.assignment_id}')">削除</button></td>
-      </tr>`).join('')}
-    </tbody></table>`;}
-    // サマリー再描画
-    const sumEl=document.getElementById('leaderSummary');
-    const byL={};
-    _allAssignments.forEach(a=>{if(!byL[a.leader_id])byL[a.leader_id]={name:a.leader_name||a.leader_id,mentees:[]};byL[a.leader_id].mentees.push(a.mentee_name||a.mentee_id);});
-    sumEl.innerHTML=Object.values(byL).map(l=>`
-      <div class="card" style="padding:14px">
-        <div style="font-size:14px;font-weight:700;margin-bottom:8px">📞 ${esc(l.name)}</div>
-        <div style="font-size:12px;color:var(--tx2)">担当: ${l.mentees.map(esc).join('、')}</div>
-        <div style="font-size:11px;color:var(--tx3);margin-top:4px">${l.mentees.length}名担当</div>
-      </div>`).join('');
-    toast('削除しました');
-  }
-  else toast('削除に失敗しました','err');
-}
 
 // ══════════════════════════════════════════════════════════
 //  画面遷移・モーダル
@@ -2920,7 +2798,6 @@ function nav(id, el) {
   if (id === 'links')             { if (!_linksLoaded) { _linksLoaded = true; loadLinks(); } }
   if (id === 'notices')           { if (!_noticesLoaded) { _noticesLoaded = true; loadNotices(); } else { refreshNoticeUserList(); } }
   if (id === 'callReports')       { if (!_callReportsLoaded) { _callReportsLoaded = true; loadCallReports(); } }
-  if (id === 'leaderAssignments') { if (!_leaderAssignmentsLoaded) { _leaderAssignmentsLoaded = true; loadLeaderAssignments(); } }
   if (id === 'telStock')         { loadTelStock(); }
   if (id === 'bulkIO')            { initBulkIO(); }
   if (id === 'aiPrompts')         { loadAiPrompts(); }
