@@ -1641,9 +1641,10 @@ async function bookSlot() {
   if (!mentorId) { showToast('❌ 担当メンターが設定されていません'); return; }
   var btn = document.getElementById('bookBtn');
   btn.disabled = true; btn.textContent = '予約中…';
+  // duration_minutes は省略→GASがメンターの default_1on1_duration を使用（デフォルト60分）
   var result = await apiRequest('/api/mentee/booking', {
     method: 'POST',
-    body: JSON.stringify({ mentor_id: mentorId, scheduled_at: _selectedTime, duration_minutes: 30 })
+    body: JSON.stringify({ mentor_id: mentorId, scheduled_at: _selectedTime })
   });
   btn.disabled = false; btn.textContent = '✅ この日時で予約する';
   if (result && result.ok) {
