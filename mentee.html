@@ -1561,20 +1561,37 @@ async function loadAvailableSlots() {
   renderBookingCalendar();
 }
 
+// JST基準で YYYY-MM-DD を返すユーティリティ
+function toJSTDateStr(date) {
+  var jst = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+  return jst.toISOString().slice(0, 10);
+}
+// JST基準で曜日を返す
+function getJSTDay(dateStr) {
+  // dateStr = 'YYYY-MM-DD'（JST基準の日付文字列）
+  // UTCの正午として解釈することでタイムゾーンズレを防ぐ
+  return new Date(dateStr + 'T12:00:00Z').getDay();
+}
+
 function renderBookingCalendar() {
   var calEl   = document.getElementById('bookCal');
   var labelEl = document.getElementById('calMonthLabel');
   if (!calEl) return;
   var now   = new Date();
-  var today = now.toISOString().slice(0,10);
-  if (labelEl) labelEl.textContent = now.getFullYear() + '年' + (now.getMonth()+1) + '月';
+  // ★ JST基準の今日の日付
+  var today = toJSTDateStr(now);
+  if (labelEl) {
+    var jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+    labelEl.textContent = jstNow.getUTCFullYear() + '年' + (jstNow.getUTCMonth()+1) + '月';
+  }
 
   var days = [];
   for (var i = 0; i < 14; i++) {
-    var d = new Date(now); d.setDate(now.getDate()+i); d.setHours(0,0,0,0);
-    days.push(d.toISOString().slice(0,10));
+    var d = new Date(now.getTime() + i * 24 * 60 * 60 * 1000);
+    days.push(toJSTDateStr(d));
   }
-  var firstDow = new Date(days[0]).getDay();
+  // ★ JST基準の曜日で週頭を計算
+  var firstDow = getJSTDay(days[0]);
   var cells = [];
   for (var j = 0; j < firstDow; j++) cells.push('');
   days.forEach(function(d){ cells.push(d); });
@@ -1603,9 +1620,11 @@ function selectDate(date) {
   var timeCard = document.getElementById('timeCard');
   var timeGrid = document.getElementById('timeGrid');
   var label    = document.getElementById('selectedDateLabel');
-  var d  = new Date(date);
+  // ★ UTCの正午として解釈しJSTでの曜日・日付を取得
+  var d  = new Date(date + 'T12:00:00Z');
   var wd = ['日','月','火','水','木','金','土'][d.getDay()];
-  if (label) label.textContent = (d.getMonth()+1)+'月'+d.getDate()+'日（'+wd+'）';
+  var parts = date.split('-');
+  if (label) label.textContent = parseInt(parts[1])+'月'+parseInt(parts[2])+'日（'+wd+'）';
   // available:true のスロットと false のスロット両方を表示（falseはグレーアウト）
   var allSlots = _availSlots[date] || [];
   if (allSlots.length === 0) {
