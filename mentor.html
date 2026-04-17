@@ -598,6 +598,7 @@ td{padding:10px 14px;font-size:13px}
     </div>
   </div>
   <div class="header-r">
+    <div class="nb" onclick="nav('support')" title="サポート" style="cursor:pointer;font-size:16px;font-weight:700;color:var(--primary)">?</div>
     <div class="nb" id="notifBtn" onclick="toggleMentorNoticePanel()" style="cursor:pointer">🔔<div class="nd" id="notifDot" style="display:none"></div></div>
     <div class="u-chip"><div class="ava" id="userAva">?</div><div class="u-name" id="userName">読み込み中…</div></div>
     <button onclick="logoutMentor()" style="padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--bd);background:var(--bg3);color:var(--tx2);transition:all .2s;white-space:nowrap;font-family:'Noto Sans JP',sans-serif" onmouseover="this.style.background='var(--rd-light)';this.style.color='var(--rd)';this.style.borderColor='var(--rd)'" onmouseout="this.style.background='var(--bg3)';this.style.color='var(--tx2)';this.style.borderColor='var(--bd)'">🚪 ログアウト</button>
@@ -945,6 +946,49 @@ td{padding:10px 14px;font-size:13px}
   <div class="card"><div id="mentorTrainingList"><div class="loading">読み込み中…</div></div></div>
 </div>
 
+<!-- ════ SUPPORT ════ -->
+<div class="screen" id="s-support">
+  <div class="topbar"><div><div class="page-title">🆘 サポート</div><div class="page-sub">不具合・トラブルの報告と対応状況の確認</div></div></div>
+  <div class="card" style="margin-bottom:14px">
+    <div style="padding:18px 16px">
+      <div style="font-size:14px;font-weight:700;margin-bottom:6px">🔴 不具合・トラブルを連絡する</div>
+      <div style="font-size:13px;color:var(--tx2);margin-bottom:14px;line-height:1.7">Googleチャットのサポートスペースに投稿してください。担当者が確認次第対応します。</div>
+      <button class="btn btn-p" style="width:100%;padding:13px;font-size:14px;font-weight:700"
+        onclick="window.open('https://chat.google.com/room/AAQArGxf8PQ?cls=1','_blank')">
+        💬 Googleチャットで報告する →
+      </button>
+    </div>
+  </div>
+  <div style="font-size:14px;font-weight:700;margin-bottom:10px">📋 対応状況一覧</div>
+  <div id="mentorSupportListWrap"><div class="loading">読み込み中…</div></div>
+</div>
+
+<!-- サポート詳細モーダル（mentor） -->
+<div class="modal" id="mentorSupportDetailModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.4);align-items:flex-end;justify-content:center">
+  <div style="background:var(--bg2);border-radius:16px 16px 0 0;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;padding:20px;position:relative">
+    <button onclick="closeMentorSupportModal()" style="position:absolute;right:16px;top:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--tx3)">✕</button>
+    <div style="font-size:16px;font-weight:700;margin-bottom:12px">🆘 <span id="msdm-id">—</span></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+      <span id="msdm-status-badge" style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:8px">—</span>
+      <span id="msdm-date" style="font-size:12px;color:var(--tx3)">—</span>
+      <span id="msdm-mine-badge" style="display:none;font-size:10px;padding:2px 8px;border-radius:8px;background:var(--pr-light);color:var(--pr);font-weight:600">自分の投稿</span>
+    </div>
+    <div id="msdm-message-wrap" style="display:none;background:var(--bg3);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px;line-height:1.7"></div>
+    <div id="msdm-response-wrap" style="display:none;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:var(--tx3);margin-bottom:6px">📝 対応内容</div>
+      <div id="msdm-response" style="font-size:13px;color:var(--tx2);line-height:1.7;background:var(--gr-light);border-radius:10px;padding:12px 14px"></div>
+      <div id="msdm-responded-at" style="font-size:11px;color:var(--tx3);margin-top:4px;text-align:right"></div>
+    </div>
+    <div id="msdm-history-wrap" style="display:none">
+      <div style="font-size:11px;font-weight:700;color:var(--tx3);margin-bottom:8px">🕐 変更履歴</div>
+      <div id="msdm-history"></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;padding-top:12px;border-top:1px solid var(--bd)">
+      <button class="btn btn-g" onclick="closeMentorSupportModal()">閉じる</button>
+    </div>
+  </div>
+</div>
+
 </main>
 </div>
 
@@ -1047,6 +1091,124 @@ async function gasReq(path, method, body) {
 var _allMentorTraining = [];
 var _mentorTrainingCat = '';
 var CAT_ICON_MENTOR = {'入社時研修':'📚','マニュアル':'📋','就業規則':'📜','社内ナレッジ':'💡','AWARD/配信':'🏆'};
+
+// ══ サポート機能（mentor） ══
+var _mentorSupportList   = [];
+var _mentorSupportLoaded = false;
+
+async function loadMentorSupportList() {
+  if (_mentorSupportLoaded) { renderMentorSupportList(); return; }
+  var wrap = document.getElementById('mentorSupportListWrap');
+  if (!wrap) return;
+  wrap.innerHTML = '<div class="loading">読み込み中…</div>';
+  var d = await gasReq('api/support/list');
+  if (!d || !d.list) {
+    wrap.innerHTML = '<div style="padding:20px;text-align:center;color:var(--tx3)">取得できませんでした</div>';
+    return;
+  }
+  _mentorSupportList   = d.list;
+  _mentorSupportLoaded = true;
+  renderMentorSupportList();
+}
+
+function renderMentorSupportList() {
+  var wrap = document.getElementById('mentorSupportListWrap');
+  if (!wrap) return;
+  var list = _mentorSupportList;
+  if (list.length === 0) {
+    wrap.innerHTML = '<div class="card" style="padding:20px;text-align:center;color:var(--tx3)">報告はまだありません</div>';
+    return;
+  }
+  var stStyle = {
+    '未対応':  { bg:'var(--bg3)',    color:'var(--tx3)', icon:'📥' },
+    '対応中':  { bg:'var(--am-light)', color:'var(--am)', icon:'⏳' },
+    '解決済み':{ bg:'var(--gr-light)', color:'var(--gr)', icon:'✅' },
+  };
+  wrap.innerHTML = list.map(function(s) {
+    var st    = stStyle[s.status] || stStyle['未対応'];
+    var dt    = s.received_at ? new Date(s.received_at) : null;
+    var dtStr = dt ? ((dt.getMonth()+1)+'/'+dt.getDate()+' '+('0'+dt.getHours()).slice(-2)+':'+('0'+dt.getMinutes()).slice(-2)) : '—';
+    var mine  = s.is_mine ? '<span style="font-size:10px;padding:2px 7px;border-radius:8px;background:var(--pr-light);color:var(--pr);font-weight:600;margin-left:6px">自分</span>' : '';
+    return '<div class="card" style="margin-bottom:8px;cursor:pointer'+(s.is_mine?';border-left:3px solid var(--pr)':'')+'" onclick="openMentorSupportDetail(\''+esc(s.support_id)+'\')">'
+      + '<div style="padding:12px 16px;display:flex;align-items:center;gap:10px">'
+      + '<div style="flex:1;min-width:0">'
+      +   '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">'
+      +     '<span style="font-size:11px;font-weight:700;color:var(--tx3)">'+esc(s.support_id)+'</span>'
+      +     '<span style="font-size:11px;padding:2px 8px;border-radius:6px;font-weight:600;background:'+st.bg+';color:'+st.color+'">'+st.icon+' '+esc(s.status)+'</span>'
+      +     mine
+      +   '</div>'
+      +   '<div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(s.message_excerpt)+'</div>'
+      +   '<div style="font-size:11px;color:var(--tx3);margin-top:3px">'+dtStr+'</div>'
+      + '</div>'
+      + '<div style="color:var(--tx3);font-size:18px">›</div>'
+      + '</div></div>';
+  }).join('');
+}
+
+async function openMentorSupportDetail(supportId) {
+  var d = await gasReq('api/support/detail', 'POST', { support_id: supportId });
+  if (!d || !d.ok) { toast('詳細の取得に失敗しました', 'err'); return; }
+
+  var stStyle = {
+    '未対応':  { bg:'var(--bg3)',    color:'var(--tx3)' },
+    '対応中':  { bg:'var(--am-light)', color:'var(--am)' },
+    '解決済み':{ bg:'var(--gr-light)', color:'var(--gr)' },
+  };
+  var st    = stStyle[d.status] || stStyle['未対応'];
+  var dt    = d.received_at ? new Date(d.received_at) : null;
+  var dtStr = dt ? ((dt.getMonth()+1)+'/'+dt.getDate()+' '+('0'+dt.getHours()).slice(-2)+':'+('0'+dt.getMinutes()).slice(-2)) : '—';
+
+  document.getElementById('msdm-id').textContent = d.support_id;
+  var badge = document.getElementById('msdm-status-badge');
+  badge.textContent = d.status; badge.style.background = st.bg; badge.style.color = st.color;
+  document.getElementById('msdm-date').textContent = dtStr;
+
+  var mineBadge = document.getElementById('msdm-mine-badge');
+  if (mineBadge) mineBadge.style.display = d.is_mine ? '' : 'none';
+
+  var msgWrap = document.getElementById('msdm-message-wrap');
+  if (msgWrap) {
+    if (d.is_mine && d.message) { msgWrap.style.display = ''; msgWrap.textContent = d.message; }
+    else msgWrap.style.display = 'none';
+  }
+
+  var resWrap = document.getElementById('msdm-response-wrap');
+  if (resWrap) {
+    if (d.response) {
+      resWrap.style.display = '';
+      document.getElementById('msdm-response').textContent = d.response;
+      var respAt = document.getElementById('msdm-responded-at');
+      if (respAt && d.responded_at) {
+        var rd = new Date(d.responded_at);
+        respAt.textContent = '対応日時: '+(rd.getMonth()+1)+'/'+rd.getDate()+' '+('0'+rd.getHours()).slice(-2)+':'+('0'+rd.getMinutes()).slice(-2);
+      }
+    } else resWrap.style.display = 'none';
+  }
+
+  var histWrap = document.getElementById('msdm-history-wrap');
+  var histEl   = document.getElementById('msdm-history');
+  if (histWrap && histEl && d.history && d.history.length > 0) {
+    histWrap.style.display = '';
+    var fl = { status:'ステータス', response:'対応内容' };
+    histEl.innerHTML = d.history.map(function(h) {
+      var hd = new Date(h.changed_at);
+      var hs = (hd.getMonth()+1)+'/'+hd.getDate()+' '+('0'+hd.getHours()).slice(-2)+':'+('0'+hd.getMinutes()).slice(-2);
+      return '<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--bd);font-size:12px">'
+        +'<div style="color:var(--tx3);white-space:nowrap">'+hs+'</div>'
+        +'<div style="color:var(--tx2)"><span style="font-weight:600">'+esc(fl[h.field]||h.field)+'</span>: '
+        +(h.field==='response'?'更新されました':esc(h.old_value||'—')+' → <strong>'+esc(h.new_value)+'</strong>')
+        +'</div></div>';
+    }).join('');
+  } else if (histWrap) histWrap.style.display = 'none';
+
+  var modal = document.getElementById('mentorSupportDetailModal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeMentorSupportModal() {
+  var modal = document.getElementById('mentorSupportDetailModal');
+  if (modal) modal.style.display = 'none';
+}
 
 async function loadMentorTraining() {
   var container = document.getElementById('mentorTrainingList');
@@ -2572,6 +2734,7 @@ function nav(id, el) {
   if (id === 'weeklyTel')  { loadWeeklyTel(); }
   if (id === 'survey')     { loadSurveys(); }
   if (id === 'training')   { loadMentorTraining(); }
+  if (id === 'support')    { loadMentorSupportList(); }
 }
 
 // ══════════════════════════════════════════════════════════

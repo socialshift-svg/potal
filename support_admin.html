@@ -285,7 +285,7 @@ async function openDetail(supportId) {
   document.getElementById('dm-id').textContent = supportId;
   document.getElementById('dm-message').textContent = '読み込み中…';
 
-  var d = await gasReq('api/support/detail?support_id=' + encodeURIComponent(supportId));
+  var d = await gasReq('api/support/detail', 'POST', { support_id: supportId });
   btn.disabled = false;
   if (!d || !d.ok) { document.getElementById('dm-message').textContent = '取得に失敗しました'; return; }
 

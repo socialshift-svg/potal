@@ -2426,7 +2426,7 @@ function renderSupportList() {
 }
 
 async function openSupportDetail(supportId) {
-  var data = await apiRequest('/api/support/detail?support_id=' + encodeURIComponent(supportId));
+  var data = await apiRequest('/api/support/detail', { method:'POST', body: JSON.stringify({ support_id: supportId }) });
   if (!data || !data.ok) { showToast('詳細の取得に失敗しました'); return; }
 
   var statusStyle = {

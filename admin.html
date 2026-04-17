@@ -311,6 +311,8 @@ body.login-mode .main { display:none !important; }
     <div class="nav-item" onclick="nav('telStock',this)"><span class="ic">📞</span>TELスペース管理</div>
     <div class="nav-sec">データ管理</div>
     <div class="nav-item" onclick="nav('bulkIO',this)"><span class="ic">📥</span>一括入出力</div>
+    <div class="nav-sec">サポート</div>
+    <div class="nav-item" onclick="nav('support',this)"><span class="ic">🆘</span>サポート管理</div>
     <div class="nav-sec">設定</div>
     <div class="nav-item" id="nav-userManagement" onclick="nav('userManagement',this)"><span class="ic">👤</span>ユーザー管理</div>
     <div class="nav-item" onclick="nav('aiPrompts',this)"><span class="ic">🤖</span>生成AI設定</div>
@@ -862,6 +864,63 @@ body.login-mode .main { display:none !important; }
   <div style="display:flex;align-items:center;gap:12px;justify-content:flex-end;margin-bottom:24px">
     <div id="ai-prompt-msg" style="font-size:13px"></div>
     <button class="btn btn-p" onclick="saveAiPrompts()">💾 保存する</button>
+  </div>
+</div>
+
+<!-- ════ SUPPORT ════ -->
+<div class="screen" id="s-support">
+  <div class="topbar">
+    <div><div class="page-title">🆘 サポート管理</div><div class="page-sub">報告一覧・ステータス更新・対応内容記入</div></div>
+    <div class="topbar-r">
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="admin-support-filter" class="inp" style="font-size:12px;padding:6px 10px;width:120px" onchange="renderAdminSupportList()">
+          <option value="">全ステータス</option>
+          <option value="未対応">📥 未対応</option>
+          <option value="対応中">⏳対応中</option>
+          <option value="解決済み">✅ 解決済み</option>
+        </select>
+        <button class="btn btn-g btn-sm" onclick="reloadAdminSupportList()">🔄 更新</button>
+        <span id="admin-support-count" style="font-size:12px;color:var(--tx3)"></span>
+      </div>
+    </div>
+  </div>
+  <div id="adminSupportListWrap"><div class="loading">読み込み中…</div></div>
+</div>
+
+<!-- サポート詳細・編集モーダル（admin） -->
+<div class="modal" id="adminSupportDetailModal">
+  <div class="modal-content" style="position:relative;max-width:580px">
+    <span class="modal-close" onclick="closeAdminSupportModal()">✕</span>
+    <div class="modal-title">🆘 <span id="asdm-id">—</span></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+      <span id="asdm-date" style="font-size:12px;color:var(--tx3)"></span>
+      <span id="asdm-email" style="font-size:12px;color:var(--tx3)"></span>
+    </div>
+    <div class="form-group">
+      <label class="form-label">📋 報告内容</label>
+      <div id="asdm-message" style="background:var(--bg3);border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.7;white-space:pre-wrap"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">ステータス</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap" id="asdm-status-btns">
+        <button class="btn btn-sm" data-status="未対応" onclick="selectAdminSupportStatus('未対応')" style="background:var(--bg3);color:var(--tx3);border:1.5px solid var(--tx3)">📥 未対応</button>
+        <button class="btn btn-sm" data-status="対応中" onclick="selectAdminSupportStatus('対応中')" style="background:var(--am-light);color:var(--am);border:1.5px solid var(--am)">⏳ 対応中</button>
+        <button class="btn btn-sm" data-status="解決済み" onclick="selectAdminSupportStatus('解決済み')" style="background:var(--gr-light);color:var(--gr);border:1.5px solid var(--gr)">✅ 解決済み</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">対応内容</label>
+      <textarea class="inp" id="asdm-response" rows="4" placeholder="対応内容を記入してください…" style="resize:vertical"></textarea>
+    </div>
+    <div id="asdm-history-wrap" style="display:none;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:var(--tx3);margin-bottom:8px">🕐 変更履歴</div>
+      <div id="asdm-history"></div>
+    </div>
+    <div class="f-foot">
+      <button class="btn btn-g" onclick="closeAdminSupportModal()">キャンセル</button>
+      <button class="btn btn-p" id="asdm-save-btn" onclick="saveAdminSupportDetail()">💾 更新する</button>
+    </div>
+    <div id="asdm-result" style="font-size:12px;text-align:center;margin-top:8px;min-height:14px"></div>
   </div>
 </div>
 
@@ -2801,12 +2860,175 @@ function nav(id, el) {
   if (id === 'telStock')         { loadTelStock(); }
   if (id === 'bulkIO')            { initBulkIO(); }
   if (id === 'aiPrompts')         { loadAiPrompts(); }
+  if (id === 'support')           { loadAdminSupportList(); }
 }
 
 // ══════════════════════════════════════════════════════════
 //  生成AI プロンプト管理
 // ══════════════════════════════════════════════════════════
 var _defaultPrompts = {};
+
+// ══════════════════════════════════════════════════════════
+//  サポート管理（admin）
+// ══════════════════════════════════════════════════════════
+var _adminSupportList   = [];
+var _adminSupportLoaded = false;
+var _adminSupportCurrentId     = null;
+var _adminSupportCurrentStatus = '';
+
+async function loadAdminSupportList() {
+  if (_adminSupportLoaded) { renderAdminSupportList(); return; }
+  await reloadAdminSupportList();
+}
+
+async function reloadAdminSupportList() {
+  var wrap = document.getElementById('adminSupportListWrap');
+  if (wrap) wrap.innerHTML = '<div class="loading">読み込み中…</div>';
+  var d = await gasReq('api/support/list');
+  if (!d || !d.list) {
+    if (wrap) wrap.innerHTML = '<div class="loading" style="color:var(--rd)">取得に失敗しました</div>';
+    return;
+  }
+  _adminSupportList   = d.list;
+  _adminSupportLoaded = true;
+  renderAdminSupportList();
+}
+
+function renderAdminSupportList() {
+  var wrap   = document.getElementById('adminSupportListWrap');
+  var filter = (document.getElementById('admin-support-filter') || {}).value || '';
+  var count  = document.getElementById('admin-support-count');
+  if (!wrap) return;
+
+  var list = _adminSupportList.filter(function(s) {
+    return !filter || s.status === filter;
+  });
+  if (count) count.textContent = list.length + '件';
+
+  if (list.length === 0) {
+    wrap.innerHTML = '<div class="loading">該当なし</div>';
+    return;
+  }
+
+  var stStyle = {
+    '未対応':  { bg:'var(--bg3)',    color:'var(--tx3)', icon:'📥' },
+    '対応中':  { bg:'var(--am-light)', color:'var(--am)', icon:'⏳' },
+    '解決済み':{ bg:'var(--gr-light)', color:'var(--gr)', icon:'✅' },
+  };
+  wrap.innerHTML = '<table><thead><tr>'
+    + '<th style="width:80px">ID</th>'
+    + '<th>内容</th>'
+    + '<th style="width:90px">ステータス</th>'
+    + '<th style="width:110px">受信日時</th>'
+    + '<th style="width:60px">操作</th>'
+    + '</tr></thead><tbody>'
+    + list.map(function(s) {
+        var st    = stStyle[s.status] || stStyle['未対応'];
+        var dt    = s.received_at ? new Date(s.received_at) : null;
+        var dtStr = dt ? ((dt.getMonth()+1)+'/'+dt.getDate()+' '+('0'+dt.getHours()).slice(-2)+':'+('0'+dt.getMinutes()).slice(-2)) : '—';
+        return '<tr>'
+          + '<td style="font-size:12px;font-weight:700;color:var(--tx3)">'+esc(s.support_id)+'</td>'
+          + '<td style="font-size:13px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(s.message_excerpt)+'</td>'
+          + '<td><span style="font-size:11px;padding:2px 8px;border-radius:6px;font-weight:600;background:'+st.bg+';color:'+st.color+'">'+st.icon+' '+esc(s.status)+'</span></td>'
+          + '<td class="td-m">'+dtStr+'</td>'
+          + '<td><button class="btn btn-sm btn-p" onclick="openAdminSupportDetail(\''+esc(s.support_id)+'\')">編集</button></td>'
+          + '</tr>';
+      }).join('')
+    + '</tbody></table>';
+}
+
+async function openAdminSupportDetail(supportId) {
+  _adminSupportCurrentId = supportId;
+  var resEl = document.getElementById('asdm-result');
+  if (resEl) resEl.textContent = '';
+  var saveBtn = document.getElementById('asdm-save-btn');
+  if (saveBtn) saveBtn.disabled = true;
+  openModal('adminSupportDetailModal');
+  document.getElementById('asdm-message').textContent = '読み込み中…';
+
+  var d = await gasReq('api/support/detail', 'POST', { support_id: supportId });
+  if (saveBtn) saveBtn.disabled = false;
+  if (!d || !d.ok) { document.getElementById('asdm-message').textContent = '取得に失敗しました'; return; }
+
+  var dt    = d.received_at ? new Date(d.received_at) : null;
+  var dtStr = dt ? ((dt.getMonth()+1)+'/'+dt.getDate()+' '+('0'+dt.getHours()).slice(-2)+':'+('0'+dt.getMinutes()).slice(-2)) : '—';
+  document.getElementById('asdm-id').textContent      = d.support_id;
+  document.getElementById('asdm-date').textContent    = dtStr;
+  document.getElementById('asdm-email').textContent   = '送信者: ' + (d.sender_email || '—');
+  document.getElementById('asdm-message').textContent = d.message || d.message_excerpt || '';
+  document.getElementById('asdm-response').value      = d.response || '';
+  _adminSupportCurrentStatus = d.status || '未対応';
+  updateAdminStatusBtns(_adminSupportCurrentStatus);
+
+  // 変更履歴
+  var histWrap = document.getElementById('asdm-history-wrap');
+  var histEl   = document.getElementById('asdm-history');
+  if (d.history && d.history.length > 0) {
+    histWrap.style.display = '';
+    var fl = { status:'ステータス', response:'対応内容' };
+    histEl.innerHTML = d.history.map(function(h) {
+      var hd = new Date(h.changed_at);
+      var hs = (hd.getMonth()+1)+'/'+hd.getDate()+' '+('0'+hd.getHours()).slice(-2)+':'+('0'+hd.getMinutes()).slice(-2);
+      return '<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--bd);font-size:12px">'
+        +'<div style="color:var(--tx3);white-space:nowrap">'+hs+'</div>'
+        +'<div style="color:var(--tx2)"><strong>'+esc(fl[h.field]||h.field)+'</strong>: '
+        +(h.field==='response'?'更新されました':esc(h.old_value||'—')+' → <strong>'+esc(h.new_value)+'</strong>')
+        +'</div></div>';
+    }).join('');
+  } else {
+    if (histWrap) histWrap.style.display = 'none';
+  }
+}
+
+function selectAdminSupportStatus(s) {
+  _adminSupportCurrentStatus = s;
+  updateAdminStatusBtns(s);
+}
+
+function updateAdminStatusBtns(s) {
+  var styleMap = {
+    '未対応':  'background:var(--bg3);color:var(--tx3);border:2px solid var(--tx3)',
+    '対応中':  'background:var(--am-light);color:var(--am);border:2px solid var(--am)',
+    '解決済み':'background:var(--gr-light);color:var(--gr);border:2px solid var(--gr)',
+  };
+  document.querySelectorAll('#asdm-status-btns .btn').forEach(function(b) {
+    var sel = b.dataset.status === s;
+    b.style.cssText = (styleMap[b.dataset.status] || '') + (sel ? ';box-shadow:0 0 0 3px rgba(0,0,0,.1)' : ';opacity:0.5');
+  });
+}
+
+function closeAdminSupportModal() {
+  closeModal('adminSupportDetailModal');
+  _adminSupportCurrentId = null;
+}
+
+async function saveAdminSupportDetail() {
+  if (!_adminSupportCurrentId) return;
+  var response = document.getElementById('asdm-response').value.trim();
+  var btn   = document.getElementById('asdm-save-btn');
+  var resEl = document.getElementById('asdm-result');
+  btn.disabled = true;
+  resEl.style.color = 'var(--tx3)'; resEl.textContent = '更新中…';
+
+  var d = await gasReq('api/admin/support/update', 'POST', {
+    support_id: _adminSupportCurrentId,
+    status:     _adminSupportCurrentStatus,
+    response:   response,
+  });
+
+  btn.disabled = false;
+  if (d && d.ok) {
+    resEl.style.color = 'var(--gr)'; resEl.textContent = '✅ 更新しました';
+    toast('✅ ' + _adminSupportCurrentId + ' を更新しました');
+    // ローカルリスト更新
+    var idx = _adminSupportList.findIndex(function(s){ return s.support_id === _adminSupportCurrentId; });
+    if (idx >= 0) { _adminSupportList[idx].status = _adminSupportCurrentStatus; _adminSupportList[idx].response = response; }
+    renderAdminSupportList();
+    setTimeout(function(){ closeAdminSupportModal(); }, 800);
+  } else {
+    resEl.style.color = 'var(--rd)'; resEl.textContent = '❌ 更新失敗: ' + ((d && d.error) || 'GAS応答なし');
+  }
+}
 
 async function loadAiPrompts() {
   var p1 = document.getElementById('prompt-1on1');
