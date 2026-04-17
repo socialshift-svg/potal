@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>サポート管理 | 1on1管理システム</title>
+<style>
+  :root {
+    --pr:#5dafa7;--pr2:#3d9188;--pr-light:#eef8f7;
+    --gr:#12b76a;--gr-light:#ecfdf3;
+    --am:#f59e0b;--am-light:#fffbeb;
+    --rd:#ef4444;--rd-light:#fef2f2;
+    --tx:#1a1a2e;--tx2:#4a5568;--tx3:#94a3b8;
+    --bg:#f8fafb;--bg2:#fff;--bg3:#f1f5f9;
+    --bd:#e2e8f0;--sh:0 2px 8px rgba(0,0,0,.07);
+    --radius:12px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh}
+  /* ── ログインオーバーレイ ── */
+  #loginOverlay{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center}
+  .login-box{background:var(--bg2);border-radius:16px;padding:32px 28px;width:90%;max-width:360px;box-shadow:var(--sh)}
+  .login-title{font-size:18px;font-weight:700;margin-bottom:20px;text-align:center;color:var(--pr)}
+  .inp{width:100%;padding:10px 13px;border:1.5px solid var(--bd);border-radius:10px;font-size:14px;background:var(--bg2);color:var(--tx);outline:none}
+  .inp:focus{border-color:var(--pr)}
+  .btn{padding:10px 20px;border-radius:10px;border:none;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;transition:.15s}
+  .btn-p{background:linear-gradient(135deg,var(--pr),var(--pr2));color:#fff}
+  .btn-g{background:var(--bg3);color:var(--tx2);border:1px solid var(--bd)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  /* ── レイアウト ── */
+  .topbar{background:var(--bg2);border-bottom:1px solid var(--bd);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:var(--sh)}
+  .topbar-title{font-size:16px;font-weight:700;color:var(--pr)}
+  .main{max-width:900px;margin:0 auto;padding:20px 16px}
+  /* ── フィルター ── */
+  .filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+  .filter-sel{padding:7px 12px;border:1.5px solid var(--bd);border-radius:8px;font-size:13px;background:var(--bg2);color:var(--tx);cursor:pointer}
+  .filter-sel:focus{border-color:var(--pr);outline:none}
+  /* ── カード ── */
+  .card{background:var(--bg2);border-radius:var(--radius);box-shadow:var(--sh);margin-bottom:10px;overflow:hidden}
+  .support-row{padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:background .1s}
+  .support-row:hover{background:var(--pr-light)}
+  .support-row.mine{border-left:3px solid var(--pr)}
+  .tag{font-size:11px;font-weight:600;padding:3px 9px;border-radius:6px;white-space:nowrap}
+  .tag-未対応{background:var(--bg3);color:var(--tx3)}
+  .tag-対応中{background:var(--am-light);color:var(--am)}
+  .tag-解決済み{background:var(--gr-light);color:var(--gr)}
+  /* ── モーダル ── */
+  .modal{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.4);align-items:flex-end;justify-content:center}
+  .modal.open{display:flex}
+  .modal-content{background:var(--bg2);border-radius:16px 16px 0 0;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;padding:20px}
+  .modal-title{font-size:16px;font-weight:700;margin-bottom:14px;color:var(--tx)}
+  .modal-close{position:absolute;right:16px;top:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--tx3)}
+  .form-label{font-size:12px;font-weight:600;color:var(--tx2);margin-bottom:5px;display:block}
+  .form-group{margin-bottom:14px}
+  .f-foot{display:flex;gap:8px;justify-content:flex-end;padding-top:12px;border-top:1px solid var(--bd);margin-top:12px}
+  /* ── ステータスボタン ── */
+  .status-btns{display:flex;gap:8px;flex-wrap:wrap}
+  .status-btn{padding:8px 14px;border-radius:8px;border:1.5px solid var(--bd);background:var(--bg3);font-size:12px;font-weight:600;cursor:pointer;color:var(--tx2)}
+  .status-btn.sel-未対応{background:var(--bg3);border-color:var(--tx3);color:var(--tx3)}
+  .status-btn.sel-対応中{background:var(--am-light);border-color:var(--am);color:var(--am)}
+  .status-btn.sel-解決済み{background:var(--gr-light);border-color:var(--gr);color:var(--gr)}
+  /* ── 履歴 ── */
+  .history-item{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--bd);font-size:12px}
+  .history-time{color:var(--tx3);white-space:nowrap;min-width:80px}
+  /* ── 通知バナー ── */
+  #toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:9999;white-space:nowrap}
+</style>
+</head>
+<body>
+
+<!-- ログインオーバーレイ -->
+<div id="loginOverlay">
+  <div class="login-box">
+    <div class="login-title">🛠 サポート管理</div>
+    <div class="form-group">
+      <label class="form-label">メールアドレス</label>
+      <input class="inp" id="ov-email" type="email" placeholder="admin@socialshift.work">
+    </div>
+    <div class="form-group">
+      <label class="form-label">パスワード</label>
+      <input class="inp" id="ov-password" type="password" placeholder="パスワード" onkeydown="if(event.key==='Enter')overlayLogin()">
+    </div>
+    <div id="ov-err" style="font-size:12px;color:var(--rd);min-height:16px;margin-bottom:8px"></div>
+    <button class="btn btn-p" style="width:100%" onclick="overlayLogin()" id="ov-btn">ログイン</button>
+  </div>
+</div>
+
+<!-- メイン -->
+<div class="topbar">
+  <div class="topbar-title">🛠 サポート管理</div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <span id="topbar-user" style="font-size:12px;color:var(--tx3)"></span>
+    <button class="btn btn-g" style="font-size:12px;padding:6px 12px" onclick="doLogout()">ログアウト</button>
+  </div>
+</div>
+
+<div class="main">
+  <!-- フィルター -->
+  <div class="filter-bar">
+    <select class="filter-sel" id="statusFilter" onchange="renderList()">
+      <option value="">全ステータス</option>
+      <option value="未対応">📥 未対応</option>
+      <option value="対応中">⏳ 対応中</option>
+      <option value="解決済み">✅ 解決済み</option>
+    </select>
+    <input class="inp" id="searchInput" placeholder="🔍 内容で検索…" style="width:200px;font-size:13px;padding:7px 12px" oninput="renderList()">
+    <button class="btn btn-g" style="font-size:12px;padding:7px 14px" onclick="reloadList()">🔄 更新</button>
+    <span id="list-count" style="font-size:12px;color:var(--tx3)"></span>
+  </div>
+  <!-- 一覧 -->
+  <div id="supportList"><div style="padding:40px;text-align:center;color:var(--tx3)">読み込み中…</div></div>
+</div>
+
+<!-- 詳細・編集モーダル -->
+<div class="modal" id="detailModal">
+  <div class="modal-content" style="position:relative">
+    <button class="modal-close" onclick="closeDetailModal()">✕</button>
+    <div class="modal-title">🆘 <span id="dm-id">—</span></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+      <span id="dm-date" style="font-size:12px;color:var(--tx3)"></span>
+      <span id="dm-email" style="font-size:12px;color:var(--tx3)"></span>
+    </div>
+    <!-- メッセージ全文 -->
+    <div class="form-group">
+      <label class="form-label">📋 報告内容（全文）</label>
+      <div id="dm-message" style="background:var(--bg3);border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.7;color:var(--tx);white-space:pre-wrap"></div>
+    </div>
+    <!-- ステータス変更 -->
+    <div class="form-group">
+      <label class="form-label">ステータス</label>
+      <div class="status-btns">
+        <button class="status-btn" data-status="未対応" onclick="selectStatus('未対応')">📥 未対応</button>
+        <button class="status-btn" data-status="対応中" onclick="selectStatus('対応中')">⏳ 対応中</button>
+        <button class="status-btn" data-status="解決済み" onclick="selectStatus('解決済み')">✅ 解決済み</button>
+      </div>
+    </div>
+    <!-- 対応内容 -->
+    <div class="form-group">
+      <label class="form-label">対応内容</label>
+      <textarea class="inp" id="dm-response" rows="4" placeholder="対応内容を記入してください…" style="resize:vertical"></textarea>
+    </div>
+    <!-- 変更履歴 -->
+    <div id="dm-history-wrap" style="display:none;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:var(--tx3);margin-bottom:8px">🕐 変更履歴</div>
+      <div id="dm-history"></div>
+    </div>
+    <div class="f-foot">
+      <button class="btn btn-g" onclick="closeDetailModal()">キャンセル</button>
+      <button class="btn btn-p" id="dm-save-btn" onclick="saveDetail()">💾 更新する</button>
+    </div>
+    <div id="dm-result" style="font-size:12px;text-align:center;margin-top:8px;min-height:14px"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzdwzQYNRRHO5S7Fq1qBE7qYoMEYoJTjqU1MoQivOWxFpzt4w5NcuICTOYROISn6KYpmQ/exec';
+const GITHUB_BASE = 'https://socialshift-svg.github.io/potal';
+
+// ── Auth ──
+var _token = '';
+var _me = null;
+
+function getToken() { return localStorage.getItem('1on1_support_token') || ''; }
+function saveToken(t) { localStorage.setItem('1on1_support_token', t); _token = t; }
+function clearToken() { localStorage.removeItem('1on1_support_token'); localStorage.removeItem('1on1_support_user'); }
+
+async function overlayLogin() {
+  var email = document.getElementById('ov-email').value.trim().toLowerCase();
+  var pass  = document.getElementById('ov-password').value;
+  var errEl = document.getElementById('ov-err');
+  var btn   = document.getElementById('ov-btn');
+  if (!email || !pass) { errEl.textContent = 'メールアドレスとパスワードを入力してください'; return; }
+  btn.disabled = true; btn.textContent = '確認中…';
+  errEl.textContent = '';
+  try {
+    var hash = await sha256Hex(pass);
+    var r = await fetch(GAS_URL, { method:'POST', body: JSON.stringify({ path:'auth/login', _method:'POST', email, password_hash: hash }) });
+    var d = await r.json();
+    if (d.error) { errEl.textContent = 'ログインに失敗しました: ' + d.error; return; }
+    if (!d.token || !d.user) { errEl.textContent = '応答が不正です'; return; }
+    if (d.user.role !== 'admin') { errEl.textContent = 'このページはAdmin専用です'; return; }
+    saveToken(d.token);
+    localStorage.setItem('1on1_support_user', JSON.stringify(d.user));
+    _me = d.user;
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('topbar-user').textContent = d.user.name + '（' + d.user.role + '）';
+    await loadList();
+  } catch(e) {
+    errEl.textContent = '通信エラー: ' + e.message;
+  } finally {
+    btn.disabled = false; btn.textContent = 'ログイン';
+  }
+}
+
+function doLogout() {
+  clearToken(); location.reload();
+}
+
+async function sha256Hex(str) {
+  var buf = new TextEncoder().encode(str);
+  var hash = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+async function gasReq(path, method, body) {
+  method = method || 'GET';
+  var token = getToken();
+  var payload = { path, _method: method, _auth: 'Bearer ' + token };
+  if (body) Object.assign(payload, body);
+  var r = await fetch(GAS_URL, { method:'POST', body: JSON.stringify(payload) });
+  return r.json();
+}
+
+function esc(s) {
+  var t = String(s||'');
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function toast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.style.opacity = '1';
+  setTimeout(function(){ t.style.opacity = '0'; }, 2500);
+}
+
+// ── 一覧 ──
+var _list = [];
+
+async function loadList() {
+  document.getElementById('supportList').innerHTML = '<div style="padding:40px;text-align:center;color:var(--tx3)">読み込み中…</div>';
+  var d = await gasReq('api/support/list');
+  if (!d || !d.list) { document.getElementById('supportList').innerHTML = '<div style="padding:40px;text-align:center;color:var(--rd)">取得に失敗しました</div>'; return; }
+  _list = d.list;
+  renderList();
+}
+
+async function reloadList() {
+  _list = [];
+  await loadList();
+  toast('更新しました');
+}
+
+function renderList() {
+  var statusF = document.getElementById('statusFilter').value;
+  var kw      = (document.getElementById('searchInput').value || '').toLowerCase();
+  var filtered = _list.filter(function(s) {
+    if (statusF && s.status !== statusF) return false;
+    if (kw && (s.message_excerpt||'').toLowerCase().indexOf(kw) < 0) return false;
+    return true;
+  });
+  document.getElementById('list-count').textContent = filtered.length + '件';
+
+  var statusStyle = { '未対応':'tag-未対応', '対応中':'tag-対応中', '解決済み':'tag-解決済み' };
+  var html = filtered.map(function(s) {
+    var dt = s.received_at ? new Date(s.received_at) : null;
+    var dtStr = dt ? ((dt.getMonth()+1)+'/'+dt.getDate()+' '+('0'+dt.getHours()).slice(-2)+':'+('0'+dt.getMinutes()).slice(-2)) : '—';
+    return '<div class="card"><div class="support-row" onclick="openDetail(\'' + esc(s.support_id) + '\')">'
+      + '<div style="flex:1;min-width:0">'
+      +   '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">'
+      +     '<span style="font-size:12px;font-weight:700;color:var(--tx3)">' + esc(s.support_id) + '</span>'
+      +     '<span class="tag ' + (statusStyle[s.status]||'tag-未対応') + '">' + esc(s.status) + '</span>'
+      +     '<span style="font-size:11px;color:var(--tx3)">' + dtStr + '</span>'
+      +   '</div>'
+      +   '<div style="font-size:13px;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(s.message_excerpt) + '</div>'
+      +   (s.response ? '<div style="font-size:11px;color:var(--gr);margin-top:3px">✅ 対応済み</div>' : '')
+      + '</div>'
+      + '<div style="color:var(--tx3)">›</div>'
+      + '</div></div>';
+  }).join('') || '<div style="padding:40px;text-align:center;color:var(--tx3)">該当なし</div>';
+  document.getElementById('supportList').innerHTML = html;
+}
+
+// ── 詳細モーダル ──
+var _currentId = null;
+var _currentStatus = '';
+
+async function openDetail(supportId) {
+  _currentId = supportId;
+  var dm = document.getElementById('dm-result');
+  dm.textContent = '';
+  var btn = document.getElementById('dm-save-btn');
+  btn.disabled = true;
+  document.getElementById('detailModal').classList.add('open');
+  document.getElementById('dm-id').textContent = supportId;
+  document.getElementById('dm-message').textContent = '読み込み中…';
+
+  var d = await gasReq('api/support/detail?support_id=' + encodeURIComponent(supportId));
+  btn.disabled = false;
+  if (!d || !d.ok) { document.getElementById('dm-message').textContent = '取得に失敗しました'; return; }
+
+  var dt = d.received_at ? new Date(d.received_at) : null;
+  var dtStr = dt ? ((dt.getMonth()+1)+'/'+dt.getDate()+' '+('0'+dt.getHours()).slice(-2)+':'+('0'+dt.getMinutes()).slice(-2)) : '—';
+  document.getElementById('dm-date').textContent = dtStr;
+  document.getElementById('dm-email').textContent = '送信者: ' + (d.sender_email || '—');
+  // admin側では全文表示（support_rawから直接取得する処理はGAS側で対応）
+  document.getElementById('dm-message').textContent = d.message || d.message_excerpt || '（本文取得不可）';
+  document.getElementById('dm-response').value = d.response || '';
+  _currentStatus = d.status || '未対応';
+  updateStatusBtns(_currentStatus);
+
+  // 変更履歴
+  var histWrap = document.getElementById('dm-history-wrap');
+  var histEl   = document.getElementById('dm-history');
+  if (d.history && d.history.length > 0) {
+    histWrap.style.display = '';
+    var fieldLabel = { status:'ステータス', response:'対応内容' };
+    histEl.innerHTML = d.history.map(function(h) {
+      var hd = new Date(h.changed_at);
+      var hdStr = (hd.getMonth()+1)+'/'+hd.getDate()+' '+('0'+hd.getHours()).slice(-2)+':'+('0'+hd.getMinutes()).slice(-2);
+      return '<div class="history-item"><div class="history-time">' + hdStr + '</div>'
+        + '<div style="color:var(--tx2)">'
+        +   '<strong>' + esc(fieldLabel[h.field]||h.field) + '</strong>: '
+        +   (h.field === 'response' ? '更新されました' : esc(h.old_value||'—') + ' → <strong>' + esc(h.new_value) + '</strong>')
+        + '</div></div>';
+    }).join('');
+  } else {
+    histWrap.style.display = 'none';
+  }
+}
+
+function selectStatus(s) {
+  _currentStatus = s;
+  updateStatusBtns(s);
+}
+
+function updateStatusBtns(s) {
+  document.querySelectorAll('.status-btn').forEach(function(b) {
+    b.className = 'status-btn' + (b.dataset.status === s ? ' sel-' + s : '');
+  });
+}
+
+function closeDetailModal() {
+  document.getElementById('detailModal').classList.remove('open');
+  _currentId = null;
+}
+
+async function saveDetail() {
+  if (!_currentId) return;
+  var response = document.getElementById('dm-response').value.trim();
+  var btn = document.getElementById('dm-save-btn');
+  var res = document.getElementById('dm-result');
+  btn.disabled = true; res.textContent = '更新中…'; res.style.color = 'var(--tx3)';
+
+  var d = await gasReq('api/admin/support/update', 'POST', {
+    support_id: _currentId,
+    status:     _currentStatus,
+    response:   response,
+  });
+
+  btn.disabled = false;
+  if (d && d.ok) {
+    res.style.color = 'var(--gr)';
+    res.textContent = '✅ 更新しました';
+    toast('✅ ' + _currentId + ' を更新しました');
+    // ローカルリストも更新
+    var idx = _list.findIndex(function(s){ return s.support_id === _currentId; });
+    if (idx >= 0) { _list[idx].status = _currentStatus; _list[idx].response = response; }
+    renderList();
+    setTimeout(function(){ closeDetailModal(); }, 800);
+  } else {
+    res.style.color = 'var(--rd)';
+    res.textContent = '❌ 更新失敗: ' + ((d && d.error) || 'GAS応答なし');
+  }
+}
+
+// ── 起動時 ──
+(function init() {
+  var saved = localStorage.getItem('1on1_support_user');
+  var token = getToken();
+  if (saved && token) {
+    _me = JSON.parse(saved);
+    if (_me.role !== 'admin') { clearToken(); return; }
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('topbar-user').textContent = _me.name + '（' + _me.role + '）';
+    loadList();
+  }
+})();
+</script>
+</body>
+</html>

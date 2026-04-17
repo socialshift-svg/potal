@@ -212,6 +212,7 @@ input[type="month"].inp{padding:11px 14px}
       <div class="tb-icon" id="leaderChatBtn" style="display:none;background:linear-gradient(135deg,#34a853,#1e8e3e);color:#fff;border:none" onclick="openLeaderChat()" title="リーダーに連絡">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.1 19.79 19.79 0 0 1 1.62 4.43 2 2 0 0 1 3.77 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
       </div>
+      <div class="tb-icon" onclick="goNav('support')" title="サポート・不具合報告" style="color:var(--pr);font-size:17px;font-weight:700">?</div>
       <div class="tb-icon" id="noticeBtn" onclick="toggleNoticePanel()">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg><span class="badge" id="notiBadge" style="display:none"></span>
       </div>
@@ -592,6 +593,62 @@ input[type="month"].inp{padding:11px 14px}
     </div>
   </div>
   <button class="btn btn-g" style="width:100%;margin-top:8px" onclick="logout()">🚪 ログアウト</button>
+</div>
+
+<!-- ══════════════════════════════════════  SUPPORT（サポート） -->
+<div class="screen" id="s-support">
+  <div class="bc"><span class="bc-link" onclick="goNav('home')">ホーム</span><span>›</span><span>サポート</span></div>
+  <div style="margin-bottom:12px">
+    <div style="font-size:19px;font-weight:700;margin-bottom:4px">🆘 サポート</div>
+    <div style="font-size:13px;color:var(--tx2)">不具合・トラブルの報告と対応状況の確認</div>
+  </div>
+
+  <!-- ① 不具合を連絡するボタン -->
+  <div class="card" style="margin-bottom:14px">
+    <div style="padding:18px 16px">
+      <div style="font-size:14px;font-weight:700;margin-bottom:6px">🔴 不具合・トラブルを連絡する</div>
+      <div style="font-size:12px;color:var(--tx2);margin-bottom:14px;line-height:1.7">Googleチャットのサポートスペースに投稿してください。<br>担当者が確認次第対応します。</div>
+      <button class="btn btn-p" style="width:100%;padding:13px;font-size:14px;font-weight:700"
+        onclick="window.open('https://chat.google.com/room/AAQArGxf8PQ?cls=1','_blank')">
+        💬 Googleチャットで報告する →
+      </button>
+    </div>
+  </div>
+
+  <!-- ② 対応状況一覧 -->
+  <div style="font-size:14px;font-weight:700;margin-bottom:10px">📋 対応状況一覧</div>
+  <div id="supportListWrap">
+    <div class="loading"><div class="spinner"></div></div>
+  </div>
+</div>
+
+<!-- サポート詳細モーダル -->
+<div class="modal" id="supportDetailModal">
+  <div class="modal-content">
+    <span class="modal-close" onclick="closeModal('supportDetailModal')">✕</span>
+    <div class="modal-title">🆘 <span id="sdm-id">—</span></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+      <span id="sdm-status-badge" style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:8px">—</span>
+      <span id="sdm-date" style="font-size:12px;color:var(--tx3)">—</span>
+      <span id="sdm-mine-badge" style="display:none;font-size:10px;padding:2px 8px;border-radius:8px;background:var(--pr-light);color:var(--pr);font-weight:600">自分の投稿</span>
+    </div>
+    <!-- 自分の投稿の場合のみメッセージ全文表示 -->
+    <div id="sdm-message-wrap" style="display:none;background:var(--bg3);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:var(--tx);line-height:1.7" id="sdm-message"></div>
+    <!-- 対応内容 -->
+    <div id="sdm-response-wrap" style="display:none;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:var(--tx3);margin-bottom:6px">📝 対応内容</div>
+      <div id="sdm-response" style="font-size:13px;color:var(--tx2);line-height:1.7;background:var(--gr-light);border-radius:10px;padding:12px 14px"></div>
+      <div id="sdm-responded-at" style="font-size:11px;color:var(--tx3);margin-top:4px;text-align:right"></div>
+    </div>
+    <!-- 変更履歴 -->
+    <div id="sdm-history-wrap" style="display:none">
+      <div style="font-size:11px;font-weight:700;color:var(--tx3);margin-bottom:8px">🕐 変更履歴</div>
+      <div id="sdm-history"></div>
+    </div>
+    <div class="f-foot">
+      <button class="btn btn-g" onclick="closeModal('supportDetailModal')">閉じる</button>
+    </div>
+  </div>
 </div>
 
 <!-- ══════════════════════════════════════  REFERRAL（リファラル採用） -->
@@ -1323,6 +1380,7 @@ function goNav(id) {
   if (id === 'booking') { loadMyBookings(); }
   if (id === 'settings') { loadHomeData(); }
   if (id === 'referral') { loadReferral(); }
+  if (id === 'support')  { loadSupportList(); }
 }
 
 
@@ -2310,6 +2368,152 @@ function getRefLineMessage(myName) {
     + 'https://re-katsu.jp/career/company/recruit/49808/\n'
     + 'インスタは、「@socialshift.work」から！\n\n'
     + 'よかったら返信してください 🌱';
+}
+
+// ══ サポート機能 ══
+var _supportList = [];
+var _supportLoaded = false;
+
+async function loadSupportList() {
+  if (_supportLoaded) { renderSupportList(); return; }
+  var wrap = document.getElementById('supportListWrap');
+  if (!wrap) return;
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  var data = await apiRequest('/api/support/list');
+  if (!data || !data.list) {
+    wrap.innerHTML = '<div style="padding:16px;text-align:center;color:var(--tx3)">取得できませんでした</div>';
+    return;
+  }
+  _supportList  = data.list;
+  _supportLoaded = true;
+  renderSupportList();
+}
+
+function renderSupportList() {
+  var wrap = document.getElementById('supportListWrap');
+  if (!wrap) return;
+  var list = _supportList;
+  if (list.length === 0) {
+    wrap.innerHTML = '<div class="card" style="padding:20px;text-align:center;color:var(--tx3)">報告はまだありません</div>';
+    return;
+  }
+  var statusStyle = {
+    '未対応': { bg:'var(--bg3)', color:'var(--tx3)', icon:'📥' },
+    '対応中': { bg:'var(--am-light)', color:'var(--am)', icon:'⏳' },
+    '解決済み': { bg:'var(--gr-light)', color:'var(--gr)', icon:'✅' },
+  };
+  wrap.innerHTML = list.map(function(s) {
+    var st  = statusStyle[s.status] || statusStyle['未対応'];
+    var dt  = s.received_at ? new Date(s.received_at) : null;
+    var dtStr = dt ? ((dt.getMonth()+1)+'/'+dt.getDate()+' '+('0'+dt.getHours()).slice(-2)+':'+('0'+dt.getMinutes()).slice(-2)) : '—';
+    var mineBadge = s.is_mine ? '<span style="font-size:10px;padding:2px 7px;border-radius:8px;background:var(--pr-light);color:var(--pr);font-weight:600;margin-left:6px">自分</span>' : '';
+    return '<div class="card" style="margin-bottom:8px;cursor:pointer;' + (s.is_mine ? 'border-left:3px solid var(--pr)' : '') + '" onclick="openSupportDetail(\'' + esc(s.support_id) + '\')">'
+      + '<div style="padding:12px 16px;display:flex;align-items:center;gap:10px">'
+      + '<div style="flex:1;min-width:0">'
+      +   '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">'
+      +     '<span style="font-size:11px;font-weight:700;color:var(--tx3)">' + esc(s.support_id) + '</span>'
+      +     '<span style="font-size:11px;padding:2px 8px;border-radius:6px;font-weight:600;background:'+st.bg+';color:'+st.color+'">' + st.icon + ' ' + esc(s.status) + '</span>'
+      +     mineBadge
+      +   '</div>'
+      +   '<div style="font-size:13px;color:var(--tx);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(s.message_excerpt) + '</div>'
+      +   '<div style="font-size:11px;color:var(--tx3);margin-top:3px">' + dtStr + '</div>'
+      + '</div>'
+      + '<div style="color:var(--tx3);font-size:18px">›</div>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+async function openSupportDetail(supportId) {
+  var data = await apiRequest('/api/support/detail?support_id=' + encodeURIComponent(supportId));
+  if (!data || !data.ok) { showToast('詳細の取得に失敗しました'); return; }
+
+  var statusStyle = {
+    '未対応': { bg:'var(--bg3)', color:'var(--tx3)' },
+    '対応中': { bg:'var(--am-light)', color:'var(--am)' },
+    '解決済み': { bg:'var(--gr-light)', color:'var(--gr)' },
+  };
+  var st  = statusStyle[data.status] || statusStyle['未対応'];
+  var dt  = data.received_at ? new Date(data.received_at) : null;
+  var dtStr = dt ? ((dt.getMonth()+1)+'/'+dt.getDate()+' '+('0'+dt.getHours()).slice(-2)+':'+('0'+dt.getMinutes()).slice(-2)) : '—';
+
+  document.getElementById('sdm-id').textContent = data.support_id;
+  var badge = document.getElementById('sdm-status-badge');
+  badge.textContent = data.status;
+  badge.style.background = st.bg;
+  badge.style.color = st.color;
+  document.getElementById('sdm-date').textContent = dtStr;
+
+  // 自分の投稿バッジ
+  var mineBadge = document.getElementById('sdm-mine-badge');
+  if (mineBadge) mineBadge.style.display = data.is_mine ? '' : 'none';
+
+  // 自分の投稿のみ全文表示
+  var msgWrap = document.getElementById('sdm-message-wrap');
+  if (msgWrap) {
+    if (data.is_mine && data.message) {
+      msgWrap.style.display = '';
+      msgWrap.textContent = data.message;
+    } else {
+      msgWrap.style.display = 'none';
+    }
+  }
+
+  // 対応内容
+  var resWrap = document.getElementById('sdm-response-wrap');
+  if (resWrap) {
+    if (data.response) {
+      resWrap.style.display = '';
+      document.getElementById('sdm-response').textContent = data.response;
+      var respAt = document.getElementById('sdm-responded-at');
+      if (respAt && data.responded_at) {
+        var rd = new Date(data.responded_at);
+        respAt.textContent = '対応日時: ' + (rd.getMonth()+1)+'/'+rd.getDate()+' '+('0'+rd.getHours()).slice(-2)+':'+('0'+rd.getMinutes()).slice(-2);
+      }
+    } else {
+      resWrap.style.display = 'none';
+    }
+  }
+
+  // 変更履歴
+  var histWrap = document.getElementById('sdm-history-wrap');
+  var histEl   = document.getElementById('sdm-history');
+  if (histWrap && histEl && data.history && data.history.length > 0) {
+    histWrap.style.display = '';
+    var fieldLabel = { status:'ステータス', response:'対応内容' };
+    histEl.innerHTML = data.history.map(function(h) {
+      var hd = new Date(h.changed_at);
+      var hdStr = (hd.getMonth()+1)+'/'+hd.getDate()+' '+('0'+hd.getHours()).slice(-2)+':'+('0'+hd.getMinutes()).slice(-2);
+      return '<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--bd);font-size:12px">'
+        + '<div style="color:var(--tx3);white-space:nowrap">' + hdStr + '</div>'
+        + '<div style="color:var(--tx2)">'
+        +   '<span style="font-weight:600">' + esc(fieldLabel[h.field]||h.field) + '</span>: '
+        +   (h.field === 'response' ? '更新されました' : esc(h.old_value||'—') + ' → <strong>' + esc(h.new_value) + '</strong>')
+        + '</div>'
+        + '</div>';
+    }).join('');
+  } else if (histWrap) {
+    histWrap.style.display = 'none';
+  }
+
+  openModal('supportDetailModal');
+}
+
+function openModal(id) {
+  var el = document.getElementById(id);
+  if (el) el.classList.add('open');
+}
+function closeModal(id) {
+  var el = document.getElementById(id);
+  if (el) el.classList.remove('open');
+}
+
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.style.opacity = '1';
+  setTimeout(function(){ t.style.opacity = '0'; }, 2500);
 }
 
 function loadReferral() {
