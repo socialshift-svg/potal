@@ -301,7 +301,11 @@ td{padding:10px 14px;font-size:13px}
       <span id="mrd-status" style="font-size:12px;font-weight:700">—</span>
     </div>
     <div class="form-group" style="margin-bottom:12px">
-      <label class="form-label">AIサマリー（編集可）</label>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+        <label class="form-label" style="margin-bottom:0">AIサマリー（編集可）</label>
+        <button id="mrd-regen-btn" class="btn btn-g" style="font-size:11px;padding:4px 10px;white-space:nowrap" onclick="regenerateMentorAi()">🤖 AI再生成</button>
+      </div>
+      <div id="mrd-regen-msg" style="font-size:11px;color:var(--tx3);margin-bottom:6px;min-height:14px"></div>
       <textarea class="inp" id="mrd-summary" rows="3"></textarea>
     </div>
     <div class="form-group" style="margin-bottom:12px">
@@ -2092,6 +2096,38 @@ async function saveMentorReport() {
   });
   if (r && r.ok) { toast('保存しました'); }
   else { toast('保存に失敗しました','err'); }
+}
+
+async function regenerateMentorAi() {
+  var reportId = document.getElementById('mrd-report-id').value;
+  if (!reportId) { toast('レポートIDが取得できません', 'err'); return; }
+  var btn    = document.getElementById('mrd-regen-btn');
+  var msgEl  = document.getElementById('mrd-regen-msg');
+  btn.disabled = true;
+  btn.textContent = '⏳ 生成中…';
+  if (msgEl) { msgEl.style.color = 'var(--tx3)'; msgEl.textContent = 'AI生成中です。しばらくお待ちください…'; }
+
+  var r = await gasReq('api/mentor/mentor-reports/regenerate-ai', 'POST', { report_id: reportId });
+
+  btn.disabled = false;
+  btn.textContent = '🤖 AI再生成';
+
+  if (r && r.ok) {
+    // フォームに反映
+    document.getElementById('mrd-summary').value = r.ai_summary || '';
+    document.getElementById('mrd-advice').value  = r.ai_advice  || '';
+    if (r.next_goal)               document.getElementById('mrd-goal').value         = r.next_goal;
+    if (r.next_month_project_goal) document.getElementById('mrd-next-project').value = r.next_month_project_goal;
+    if (r.next_month_study_goal)   document.getElementById('mrd-next-study').value   = r.next_month_study_goal;
+    if (msgEl) { msgEl.style.color = 'var(--gr)'; msgEl.textContent = '✅ AI生成が完了しました（文字起こし: ' + (r.transcript_length || 0) + '文字）'; }
+    toast('AI再生成が完了しました');
+  } else if (r && r.no_transcript) {
+    if (msgEl) { msgEl.style.color = 'var(--am)'; msgEl.textContent = '⚠ 文字起こしが見つかりませんでした。Meet録音の文字起こし機能を確認してください。'; }
+    toast('文字起こしが見つかりません', 'err');
+  } else {
+    if (msgEl) { msgEl.style.color = 'var(--rd)'; msgEl.textContent = '❌ 生成に失敗しました: ' + ((r && r.error) || 'GAS応答なし'); }
+    toast('AI再生成に失敗しました', 'err');
+  }
 }
 
 async function unpublishMentorReport() {
