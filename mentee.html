@@ -485,28 +485,120 @@ input[type="month"].inp{padding:11px 14px}
 </div>
 
 <!-- ══════════════════════════════════════  REPORTS -->
+<!-- ══════════════════════════════════════  REPORTS -->
 <div class="screen" id="s-reports">
-  <div style="margin-bottom:4px"><div style="font-size:19px;font-weight:700;margin-bottom:4px">過去のレポート</div><div style="font-size:13px;color:var(--tx2)">確定済み1on1レポート一覧</div></div>
-  <div class="card" id="reportsList">
-    <div class="loading"><div class="spinner"></div>読み込み中...</div>
+  <div style="margin-bottom:16px">
+    <div style="font-size:19px;font-weight:700;margin-bottom:4px">📋 レポート</div>
+    <div style="font-size:13px;color:var(--tx2)">事前レポートとメンターからのフィードバックを確認できます</div>
+  </div>
+
+  <!-- ① メンターレポートセクション -->
+  <div style="margin-bottom:20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="font-size:15px;font-weight:700">🧑‍🏫 メンターからのレポート</div>
+      <div id="mentor-report-count" style="font-size:12px;color:var(--tx3)"></div>
+    </div>
+    <div id="mentor-report-list"></div>
+    <div id="mentor-report-more" style="display:none;margin-top:8px">
+      <button class="btn btn-g btn-sm" style="width:100%;font-size:12px" onclick="showAllMentorReports()">
+        ▼ 過去のレポートをすべて表示
+      </button>
+    </div>
+  </div>
+
+  <!-- ② 事前レポートセクション -->
+  <div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="font-size:15px;font-weight:700">📝 事前レポート</div>
+      <div id="pre-report-count" style="font-size:12px;color:var(--tx3)"></div>
+    </div>
+    <div id="pre-report-list"></div>
+    <div id="pre-report-more" style="display:none;margin-top:8px">
+      <button class="btn btn-g btn-sm" style="width:100%;font-size:12px" onclick="showAllPreReports()">
+        ▼ 過去のレポートをすべて表示
+      </button>
+    </div>
   </div>
 </div>
 
-<!-- ══════════════════════════════════════  REPORT DETAIL -->
-<div class="screen" id="s-reportDetail">
-  <div class="bc"><span class="bc-link" onclick="goScreen('reports')">レポート</span><span>›</span><span>詳細</span></div>
-  <div style="margin-bottom:4px"><div style="font-size:19px;font-weight:700;margin-bottom:4px">1on1レポート</div></div>
-  <div class="detail-box">
-    <div class="db-label">📋 AIサマリー</div>
-    <div class="db-text" id="detail-summary">—</div>
+<!-- メンターレポート詳細モーダル -->
+<div class="modal" id="mentorReportDetailModal">
+  <div class="modal-content" style="padding-bottom:24px">
+    <span class="modal-close" onclick="closeModal('mentorReportDetailModal')">✕</span>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <div class="modal-title" style="margin-bottom:0">🧑‍🏫 メンターからのレポート</div>
+      <a id="mrd-pdf-link" href="#" target="_blank" style="display:none;font-size:12px;padding:5px 10px;border:1px solid var(--bd);border-radius:8px;color:var(--tx2);text-decoration:none;white-space:nowrap">📄 PDF</a>
+    </div>
+    <div id="mrd-meta" style="font-size:12px;color:var(--tx3);margin-bottom:14px">—</div>
+    <div class="detail-box">
+      <div class="db-label">📋 AIサマリー</div>
+      <div class="db-text" id="mrd-summary-view">—</div>
+    </div>
+    <div class="detail-box">
+      <div class="db-label">💡 メンターからのアドバイス</div>
+      <div class="db-text" id="mrd-advice-view">—</div>
+    </div>
+    <div class="detail-box">
+      <div class="db-label">🎯 次回の目標</div>
+      <div class="db-text" id="mrd-goal-view">—</div>
+    </div>
+    <div id="mrd-next-wrap" style="display:none">
+      <div style="font-size:11px;font-weight:700;color:var(--tx3);letter-spacing:.5px;text-transform:uppercase;margin:14px 0 8px">来月の目標（メンターより）</div>
+      <div class="detail-box">
+        <div class="db-label">📁 プロジェクト目標</div>
+        <div class="db-text" id="mrd-next-project-view">—</div>
+      </div>
+      <div class="detail-box" style="margin-bottom:0">
+        <div class="db-label">📚 学習目標</div>
+        <div class="db-text" id="mrd-next-study-view">—</div>
+      </div>
+    </div>
+    <div class="f-foot" style="margin-top:16px">
+      <button class="btn btn-g" onclick="closeModal('mentorReportDetailModal')">閉じる</button>
+    </div>
   </div>
-  <div class="detail-box">
-    <div class="db-label">💡 メンターからのアドバイス</div>
-    <div class="db-text" id="detail-advice">—</div>
-  </div>
-  <div class="detail-box" style="margin-bottom:0">
-    <div class="db-label">🎯 次月目標</div>
-    <div class="db-text" id="detail-goal">—</div>
+</div>
+
+<!-- 事前レポート詳細モーダル -->
+<div class="modal" id="preReportDetailModal">
+  <div class="modal-content" style="padding-bottom:24px">
+    <span class="modal-close" onclick="closeModal('preReportDetailModal')">✕</span>
+    <div class="modal-title">📝 事前レポート</div>
+    <div id="prd-meta" style="font-size:12px;color:var(--tx3);margin-bottom:14px">—</div>
+    <div class="detail-box">
+      <div class="db-label">今月の業務目標・取り組み</div>
+      <div class="db-text" id="prd-current-project">—</div>
+    </div>
+    <div class="detail-box">
+      <div class="db-label">今月の業務結果</div>
+      <div class="db-text" id="prd-project-result">—</div>
+    </div>
+    <div class="detail-box">
+      <div class="db-label">良かった点・成長</div>
+      <div class="db-text" id="prd-good-points">—</div>
+    </div>
+    <div class="detail-box">
+      <div class="db-label">改善点・課題</div>
+      <div class="db-text" id="prd-improvement">—</div>
+    </div>
+    <div class="detail-box">
+      <div class="db-label">学習時間・内容</div>
+      <div class="db-text" id="prd-study">—</div>
+    </div>
+    <div id="prd-goals-wrap" style="display:none">
+      <div style="font-size:11px;font-weight:700;color:var(--tx3);letter-spacing:.5px;text-transform:uppercase;margin:14px 0 8px">来月の目標</div>
+      <div class="detail-box">
+        <div class="db-label">📁 プロジェクト目標</div>
+        <div class="db-text" id="prd-next-project">—</div>
+      </div>
+      <div class="detail-box" style="margin-bottom:0">
+        <div class="db-label">📚 学習目標</div>
+        <div class="db-text" id="prd-next-study">—</div>
+      </div>
+    </div>
+    <div class="f-foot" style="margin-top:16px">
+      <button class="btn btn-g" onclick="closeModal('preReportDetailModal')">閉じる</button>
+    </div>
   </div>
 </div>
 
@@ -1381,6 +1473,7 @@ function goNav(id) {
   if (id === 'settings') { loadHomeData(); }
   if (id === 'referral') { loadReferral(); }
   if (id === 'support')  { loadSupportList(); }
+  if (id === 'reports')  { loadReportsScreen(); }
 }
 
 
@@ -1994,118 +2087,236 @@ async function loadQuickLinks() {
 // ══ レポート一覧 ══
 var _myMentorReports = []; // 公開済みメンターレポートのキャッシュ
 
+// ══════════════════════════════════════════════════════════
+//  レポート画面（メンターレポート＋事前レポート統合）
+// ══════════════════════════════════════════════════════════
+var _mentorReportsLoaded  = false;
+var _preReportsLoaded     = false;
+var _allPreReports        = [];
+var _mentorReportsShowAll = false;
+var _preReportsShowAll    = false;
+
+// レポート画面を開いた時に両方ロードして描画
+async function loadReportsScreen() {
+  var p1 = _mentorReportsLoaded ? Promise.resolve() : loadReports();
+  var p2 = _preReportsLoaded    ? Promise.resolve() : loadAllPreReports();
+  await Promise.all([p1, p2]);
+  renderMentorReportList(false);
+  renderPreReportList(false);
+}
+
+// ── メンターレポート ──
 async function loadReports() {
   const data = await apiRequest('/api/mentee/reports');
   if (!data) return;
   const reports = data.reports || [];
-  _myMentorReports = reports; // キャッシュ
+  _myMentorReports = reports;
+  _mentorReportsLoaded = true;
 
-  // ★ ホーム画面「今月の目標」を最新の公開済みレポートの next_goal から更新
+  // ホーム画面「今月の目標」を更新
   var latestWithGoal = reports.find(function(r) {
     return r.is_published === 'TRUE' && r.next_goal;
   });
-  var goalEl   = document.getElementById('currentGoal');
-  var fromEl   = document.getElementById('goalFrom');
+  var goalEl = document.getElementById('currentGoal');
+  var fromEl = document.getElementById('goalFrom');
   if (goalEl) {
     if (latestWithGoal) {
       goalEl.textContent = latestWithGoal.next_goal;
       if (fromEl) {
         var dt = new Date(latestWithGoal.created_at);
-        var label = isNaN(dt) ? '' : (dt.getMonth()+1) + '/' + dt.getDate();
-        fromEl.textContent = '📋 ' + label + ' の1on1レポートより';
+        fromEl.textContent = '📋 ' + (dt.getMonth()+1) + '/' + dt.getDate() + ' の1on1レポートより';
       }
     } else if (reports.length === 0) {
       goalEl.textContent = 'まだ目標が設定されていません';
       if (fromEl) fromEl.textContent = 'メンターが1on1レポートを公開すると表示されます';
     }
-    // レポートはあるが next_goal がない場合はハードコードのまま上書きしない
   }
 
-  // レポート一覧画面
-  const container = document.getElementById('reportsList');
-  if (container) {
-    if (reports.length === 0) {
-      container.innerHTML = '<div style="padding:24px;text-align:center;color:var(--tx3)">レポートがありません</div>';
-    } else {
-      // DOM構築方式（クォートのネスト問題を回避）
-      container.innerHTML = '';
-      reports.forEach(function(r) {
-        var dt  = new Date(r.created_at);
-        var div = document.createElement('div');
-        div.className = 'rep-item';
-        div.setAttribute('data-rid', r.report_id || '');
-        div.onclick   = function(){ showReport(this.getAttribute('data-rid')); };
-        var pdfIcon = r.pdf_url
-          ? '<a href="' + r.pdf_url + '" target="_blank" onclick="event.stopPropagation()" style="font-size:16px;margin-left:6px" title="PDFを開く">📄</a>'
-          : '';
-        div.innerHTML = '<div class="rep-date"><div class="rep-d">' + dt.getDate() + '</div>' +
-          '<div class="rep-m">' + (dt.getMonth()+1) + '月</div></div>' +
-          '<div class="rep-info"><div class="rep-title" style="display:flex;align-items:center">' + (r.ai_summary||'レポート').substring(0,40) + pdfIcon + '</div>' +
-          '<div class="rep-sub">' + r.created_at.slice(0,10) + ' / ' + (_myMentorName||'メンター') + '</div></div>' +
-          '<div class="rep-arr">›</div>';
-        container.appendChild(div);
-      });
-    }
-  }
+  // 次月目標をホームにも反映
+  var latestGoals = reports.find(function(r){ return r.is_published === 'TRUE' && (r.next_month_project_goal || r.next_month_study_goal); });
+  var projEl  = document.getElementById('homeNextProject');
+  var studyEl = document.getElementById('homeNextStudy');
+  if (projEl && latestGoals)  projEl.textContent  = latestGoals.next_month_project_goal || '—';
+  if (studyEl && latestGoals) studyEl.textContent  = latestGoals.next_month_study_goal   || '—';
 
-  // ホーム画面の直近レポート（最大3件＋もっと見る）
-  _homeReports = reports; // ★ 全件キャッシュ
+  // ホームのレポート一覧も更新
+  _homeReports = reports;
   renderRecentReports(false);
 }
 
-// 1on1レポート一覧レンダリング（showAll=trueで全件、falseで3件）
+function renderMentorReportList(showAll) {
+  var wrap    = document.getElementById('mentor-report-list');
+  var moreBtn = document.getElementById('mentor-report-more');
+  var countEl = document.getElementById('mentor-report-count');
+  if (!wrap) return;
+  var list = _myMentorReports || [];
+  if (countEl) countEl.textContent = list.length + '件';
+  if (list.length === 0) {
+    wrap.innerHTML = '<div class="card" style="padding:24px;text-align:center;color:var(--tx3);font-size:13px">メンターからのレポートがまだありません</div>';
+    if (moreBtn) moreBtn.style.display = 'none';
+    return;
+  }
+  var shown = showAll ? list : list.slice(0, 3);
+  wrap.innerHTML = '';
+  shown.forEach(function(r) {
+    var dt   = new Date(r.created_at);
+    var dtStr = isNaN(dt) ? '—' : (dt.getMonth()+1) + '月' + dt.getDate() + '日';
+    var summary = (r.ai_summary || 'レポート').substring(0, 40);
+    var div = document.createElement('div');
+    div.className = 'card';
+    div.style.cssText = 'margin-bottom:8px;cursor:pointer;padding:14px 16px;display:flex;align-items:center;gap:12px';
+    div.onclick = function(){ openMentorReportDetail(r); };
+    div.innerHTML =
+      '<div style="width:42px;height:42px;border-radius:10px;background:var(--pr-light);display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0">'
+      + '<div style="font-size:15px;font-weight:700;color:var(--pr);line-height:1">' + (isNaN(dt)?'—':dt.getDate()) + '</div>'
+      + '<div style="font-size:10px;color:var(--pr);line-height:1">' + (isNaN(dt)?'':((dt.getMonth()+1)+'月')) + '</div>'
+      + '</div>'
+      + '<div style="flex:1;min-width:0">'
+      + '<div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px">' + esc(summary) + '</div>'
+      + '<div style="font-size:11px;color:var(--tx3)">' + esc(_myMentorName||'メンター') + '  ·  ' + dtStr + '</div>'
+      + '</div>'
+      + (r.pdf_url ? '<a href="' + esc(r.pdf_url) + '" target="_blank" onclick="event.stopPropagation()" style="color:var(--tx3);font-size:18px;text-decoration:none;flex-shrink:0" title="PDFを開く">📄</a>' : '')
+      + '<div style="color:var(--tx3);font-size:18px">›</div>';
+    wrap.appendChild(div);
+  });
+  if (moreBtn) moreBtn.style.display = (!showAll && list.length > 3) ? '' : 'none';
+}
+function showAllMentorReports() {
+  _mentorReportsShowAll = true;
+  renderMentorReportList(true);
+  document.getElementById('mentor-report-more').style.display = 'none';
+}
+
+function openMentorReportDetail(r) {
+  var dt    = r.created_at ? new Date(r.created_at) : null;
+  var dtStr = dt ? ((dt.getMonth()+1) + '月' + dt.getDate() + '日  ' + ('0'+dt.getHours()).slice(-2) + ':' + ('0'+dt.getMinutes()).slice(-2)) : '—';
+  var metaEl = document.getElementById('mrd-meta');
+  if (metaEl) metaEl.textContent = dtStr + '  ·  ' + (_myMentorName||'メンター');
+  var setSafe = function(id, val){ var el=document.getElementById(id); if(el) el.textContent=val||'—'; };
+  setSafe('mrd-summary-view',       r.ai_summary);
+  setSafe('mrd-advice-view',        r.ai_advice);
+  setSafe('mrd-goal-view',          r.next_goal);
+  setSafe('mrd-next-project-view',  r.next_month_project_goal);
+  setSafe('mrd-next-study-view',    r.next_month_study_goal);
+  var nextWrap = document.getElementById('mrd-next-wrap');
+  if (nextWrap) nextWrap.style.display = (r.next_month_project_goal || r.next_month_study_goal) ? '' : 'none';
+  var pdfLink = document.getElementById('mrd-pdf-link');
+  if (pdfLink) { pdfLink.style.display = r.pdf_url ? '' : 'none'; if (r.pdf_url) pdfLink.href = r.pdf_url; }
+  openModal('mentorReportDetailModal');
+}
+
+// ── 事前レポート ──
+async function loadAllPreReports() {
+  var data = await apiRequest('/api/mentee/pre-reports');
+  if (!data || !data.reports) return;
+  _allPreReports   = data.reports;
+  _homePreReports  = data.reports;
+  _preReportsLoaded = true;
+  renderRecentPreReports(false);
+}
+
+function renderPreReportList(showAll) {
+  var wrap    = document.getElementById('pre-report-list');
+  var moreBtn = document.getElementById('pre-report-more');
+  var countEl = document.getElementById('pre-report-count');
+  if (!wrap) return;
+  var list = _allPreReports;
+  if (countEl) countEl.textContent = list.length + '件';
+  if (list.length === 0) {
+    wrap.innerHTML = '<div class="card" style="padding:24px;text-align:center;color:var(--tx3);font-size:13px">まだ事前レポートがありません</div>';
+    if (moreBtn) moreBtn.style.display = 'none';
+    return;
+  }
+  var shown = showAll ? list : list.slice(0, 3);
+  wrap.innerHTML = '';
+  shown.forEach(function(r) {
+    var dt   = r.submitted_at ? new Date(r.submitted_at) : (r.session_date ? new Date(r.session_date) : null);
+    var month = r.target_month ? r.target_month.replace('-','/') : '—';
+    var summary = (r.project_result || r.current_project || '事前レポート').substring(0, 40);
+    var div = document.createElement('div');
+    div.className = 'card';
+    div.style.cssText = 'margin-bottom:8px;cursor:pointer;padding:14px 16px;display:flex;align-items:center;gap:12px';
+    div.onclick = function(){ openPreReportDetail(r); };
+    div.innerHTML =
+      '<div style="width:42px;height:42px;border-radius:10px;background:var(--gr-light);display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0">'
+      + '<div style="font-size:10px;font-weight:700;color:var(--gr);line-height:1.2;text-align:center">' + esc(month) + '</div>'
+      + '<div style="font-size:9px;color:var(--gr)">対象月</div>'
+      + '</div>'
+      + '<div style="flex:1;min-width:0">'
+      + '<div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px">' + esc(summary) + '</div>'
+      + '<div style="font-size:11px;color:var(--tx3)">提出: ' + (dt ? ((dt.getMonth()+1)+'月'+dt.getDate()+'日') : '—') + '</div>'
+      + '</div>'
+      + '<div style="color:var(--tx3);font-size:18px">›</div>';
+    wrap.appendChild(div);
+  });
+  if (moreBtn) moreBtn.style.display = (!showAll && list.length > 3) ? '' : 'none';
+}
+function showAllPreReports() {
+  _preReportsShowAll = true;
+  renderPreReportList(true);
+  document.getElementById('pre-report-more').style.display = 'none';
+}
+
+function openPreReportDetail(r) {
+  var dt    = r.submitted_at ? new Date(r.submitted_at) : null;
+  var dtStr = dt ? ((dt.getMonth()+1)+'月'+dt.getDate()+'日') : '—';
+  var month = r.target_month ? r.target_month.replace('-','/') : '—';
+  var metaEl = document.getElementById('prd-meta');
+  if (metaEl) metaEl.textContent = '対象月: ' + month + '  ·  提出: ' + dtStr;
+  var setSafe = function(id,val){ var el=document.getElementById(id); if(el) el.textContent=val||'—'; };
+  setSafe('prd-current-project', r.current_project);
+  setSafe('prd-project-result',  r.project_result);
+  setSafe('prd-good-points',     r.good_points);
+  setSafe('prd-improvement',     r.improvement_points);
+  setSafe('prd-study',           r.study_content ? (r.study_hours||0)+'時間  '+r.study_content : (r.study_hours||'—')+'時間');
+  setSafe('prd-next-project',    r.next_month_project_goal);
+  setSafe('prd-next-study',      r.next_month_study_goal);
+  var goalsWrap = document.getElementById('prd-goals-wrap');
+  if (goalsWrap) goalsWrap.style.display = (r.next_month_project_goal || r.next_month_study_goal) ? '' : 'none';
+  openModal('preReportDetailModal');
+}
+
+// ホーム画面用（互換維持）
 var _homeReports = [];
 function renderRecentReports(showAll) {
-  const recentEl = document.getElementById('recentReports');
-  const moreEl   = document.getElementById('recentReportsMore');
+  var recentEl = document.getElementById('recentReports');
+  var moreEl   = document.getElementById('recentReportsMore');
   if (!recentEl) return;
-  const reports = _homeReports;
-  if (reports.length === 0) {
+  var list = _myMentorReports || [];
+  if (list.length === 0) {
     recentEl.innerHTML = '<div style="padding:16px;text-align:center;color:var(--tx3);font-size:13px">レポートがありません</div>';
     if (moreEl) moreEl.style.display = 'none';
     return;
   }
-  const shown = showAll ? reports : reports.slice(0, 3);
+  var shown = showAll ? list : list.slice(0, 3);
   recentEl.innerHTML = '';
   shown.forEach(function(r) {
     var dt  = new Date(r.created_at);
     var div = document.createElement('div');
     div.className = 'rep-item';
+    div.style.cssText = 'cursor:pointer';
     div.setAttribute('data-rid', r.report_id || '');
-    div.onclick = function(){ showReport(this.getAttribute('data-rid')); };
-    div.innerHTML = '<div class="rep-date"><div class="rd">' + dt.getDate() + '</div>' +
-      '<div class="rm">' + (dt.getMonth()+1) + '月</div></div>' +
-      '<div class="ri"><div class="ri-t">' + (r.ai_summary||'レポート').substring(0,20) + '</div>' +
-      '<div class="ri-s">' + (_myMentorName||'メンター') + ' ／ 確定済み</div></div>' +
-      '<div class="arr">›</div>';
+    div.onclick = function(){ openMentorReportDetail(r); };
+    div.innerHTML = '<div class="rep-date"><div class="rd">' + dt.getDate() + '</div>'
+      + '<div class="rm">' + (dt.getMonth()+1) + '月</div></div>'
+      + '<div class="ri"><div class="ri-t">' + esc((r.ai_summary||'レポート').substring(0,20)) + '</div>'
+      + '<div class="ri-s">' + esc(_myMentorName||'メンター') + ' ／ 確定済み</div></div>'
+      + '<div class="arr">›</div>';
     recentEl.appendChild(div);
   });
-  if (moreEl) moreEl.style.display = (!showAll && reports.length > 3) ? '' : 'none';
+  if (moreEl) moreEl.style.display = (!showAll && list.length > 3) ? '' : 'none';
 }
 function showAllRecentReports() { renderRecentReports(true); }
 
-function showReport(reportId) {
-  goScreen('reportDetail');
-}
-
-// ══ ホーム画面：事前レポート一覧 ══
+// 事前レポートホーム表示（互換維持）
 var _homePreReports = [];
-
 async function loadHomePreReports() {
+  if (_preReportsLoaded) { renderRecentPreReports(false); return; }
   var el = document.getElementById('recentPreReports');
-  if (!el) return;
-  // すでにキャッシュあればそのまま描画
-  if (_homePreReports.length > 0) { renderRecentPreReports(false); return; }
-  el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
-  var data = await apiRequest('/api/mentee/pre-reports');
-  if (!data || !data.reports) {
-    el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--tx3);font-size:13px">取得できませんでした</div>';
-    return;
-  }
-  _homePreReports = data.reports;
+  if (el) el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  await loadAllPreReports();
   renderRecentPreReports(false);
 }
-
 function renderRecentPreReports(showAll) {
   var el     = document.getElementById('recentPreReports');
   var moreEl = document.getElementById('recentPreReportsMore');
@@ -2113,25 +2324,25 @@ function renderRecentPreReports(showAll) {
   var reports = _homePreReports;
   if (reports.length === 0) {
     el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--tx3);font-size:13px">事前レポートがありません</div>';
-    if (moreEl) moreEl.style.display = 'none';
-    return;
+    if (moreEl) moreEl.style.display = 'none'; return;
   }
   var shown = showAll ? reports : reports.slice(0, 3);
   el.innerHTML = '';
   shown.forEach(function(r) {
-    var dt   = new Date(r.submitted_at || r.session_date || '');
+    var dt      = new Date(r.submitted_at || r.session_date || '');
     var dateStr = isNaN(dt) ? '—' : (dt.getMonth()+1) + '月' + dt.getDate() + '日';
-    var month   = r.target_month ? r.target_month.replace('-', '/') : '—';
+    var month   = r.target_month ? r.target_month.replace('-','/') : '—';
     var summary = r.project_result || r.current_project || '事前レポート';
     var div = document.createElement('div');
     div.className = 'rep-item';
-    div.style.cssText = 'cursor:default';
-    div.innerHTML = '<div class="rep-date"><div class="rd" style="font-size:11px">' + dateStr.split('月')[1] + '</div>'
+    div.style.cssText = 'cursor:pointer';
+    div.onclick = function(){ openPreReportDetail(r); };
+    div.innerHTML = '<div class="rep-date"><div class="rd" style="font-size:11px">' + (dateStr.split('月')[1]||'') + '</div>'
       + '<div class="rm">' + (dateStr.split('月')[0]||'') + '月</div></div>'
       + '<div class="ri">'
-      +   '<div class="ri-t">' + esc(summary.substring(0, 24)) + '</div>'
-      +   '<div class="ri-s">対象月: ' + esc(month) + ' ／ 提出: ' + dateStr + '</div>'
-      + '</div>';
+      + '<div class="ri-t">' + esc(summary.substring(0,24)) + '</div>'
+      + '<div class="ri-s">対象月: ' + esc(month) + ' ／ 提出: ' + dateStr + '</div>'
+      + '</div><div class="arr">›</div>';
     el.appendChild(div);
   });
   if (moreEl) moreEl.style.display = (!showAll && reports.length > 3) ? '' : 'none';
