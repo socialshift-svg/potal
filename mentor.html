@@ -2127,6 +2127,7 @@ async function regenerateMentorAi() {
   btn.textContent = '🤖 AI再生成';
 
   if (r && r.ok) {
+    console.log('[AI再生成レスポンス]', JSON.stringify(r));
     // フォームに反映
     document.getElementById('mrd-summary').value = r.ai_summary || '';
     document.getElementById('mrd-advice').value  = r.ai_advice  || '';
