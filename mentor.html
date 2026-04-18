@@ -324,6 +324,7 @@ td{padding:10px 14px;font-size:13px}
     <div class="f-foot">
       <button class="btn btn-g" onclick="closeModal('mentorReportDetailModal')">閉じる</button>
       <button class="btn btn-g" onclick="saveMentorReport()">💾 保存</button>
+      <button id="mrd-unpublish-btn" class="btn" style="display:none;background:var(--am-light);color:var(--am);border:1px solid var(--am)" onclick="unpublishMentorReport()">↩ 下書きに戻す</button>
       <button id="mrd-publish-btn" class="btn btn-p" onclick="publishMentorReport()">📤 メンティーに公開</button>
     </div>
   </div>
@@ -2072,8 +2073,10 @@ function open1on1ReportDetail(r) {
   document.getElementById('mrd-next-project').value = r.next_month_project_goal || '';
   document.getElementById('mrd-next-study').value   = r.next_month_study_goal   || '';
   document.getElementById('mrd-report-id').value    = r.report_id               || '';
-  var pubBtn = document.getElementById('mrd-publish-btn');
-  if (pubBtn) pubBtn.style.display = published ? 'none' : '';
+  var pubBtn    = document.getElementById('mrd-publish-btn');
+  var unpubBtn  = document.getElementById('mrd-unpublish-btn');
+  if (pubBtn)   pubBtn.style.display   = published ? 'none' : '';
+  if (unpubBtn) unpubBtn.style.display = published ? '' : 'none';
   modal.classList.add('open');
 }
 
@@ -2089,6 +2092,25 @@ async function saveMentorReport() {
   });
   if (r && r.ok) { toast('保存しました'); }
   else { toast('保存に失敗しました','err'); }
+}
+
+async function unpublishMentorReport() {
+  var reportId = document.getElementById('mrd-report-id').value;
+  if (!confirm('公開を取り消して下書きに戻します。メンティーからは非表示になります。よろしいですか？')) return;
+  var r = await gasReq('api/mentor/mentor-reports/unpublish', 'POST', { report_id: reportId });
+  if (r && r.ok) {
+    // ボタン状態を切り替え
+    var pubBtn   = document.getElementById('mrd-publish-btn');
+    var unpubBtn = document.getElementById('mrd-unpublish-btn');
+    var status   = document.getElementById('mrd-status');
+    if (pubBtn)   pubBtn.style.display   = '';
+    if (unpubBtn) unpubBtn.style.display = 'none';
+    if (status)   { status.textContent = '📝 未公開'; status.style.color = 'var(--am)'; }
+    await loadMentorReports();
+    toast('下書きに戻しました');
+  } else {
+    toast('操作に失敗しました', 'err');
+  }
 }
 
 async function publishMentorReport() {
