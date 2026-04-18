@@ -2071,7 +2071,21 @@ function open1on1ReportDetail(r) {
   document.getElementById('mrd-date').textContent   = fmtDateFull(r.created_at);
   document.getElementById('mrd-status').textContent = published ? '✅ 公開済み' : '📝 未公開';
   document.getElementById('mrd-status').style.color = published ? 'var(--gr)' : 'var(--am)';
-  document.getElementById('mrd-summary').value      = r.ai_summary              || '';
+  // ★ ai_summary にJSONコードが混入している場合は自動クリーンアップ
+  var rawSummary = r.ai_summary || '';
+  if (rawSummary.trim().startsWith('{') && rawSummary.includes('"ai_summary"')) {
+    try {
+      var parsed = JSON.parse(rawSummary);
+      rawSummary = parsed.ai_summary || '';
+      if (!r.ai_advice && parsed.ai_advice) {
+        r = Object.assign({}, r, { ai_advice: parsed.ai_advice });
+      }
+    } catch(pe) {
+      var m = rawSummary.match(/"ai_summary"\s*:\s*"([\s\S]*?)(?<!\\)"/);
+      rawSummary = m ? m[1].replace(/\\"/g,'"') : rawSummary;
+    }
+  }
+  document.getElementById('mrd-summary').value      = rawSummary;
   document.getElementById('mrd-advice').value       = r.ai_advice               || '';
   document.getElementById('mrd-goal').value         = r.next_goal               || '';
   document.getElementById('mrd-next-project').value = r.next_month_project_goal || '';
