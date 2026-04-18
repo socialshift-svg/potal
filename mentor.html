@@ -2167,7 +2167,15 @@ async function unpublishMentorReport() {
 async function publishMentorReport() {
   var reportId = document.getElementById('mrd-report-id').value;
   if (!confirm('メンティーに公開します。よろしいですか？')) return;
-  var r = await gasReq('api/mentor/mentor-reports/publish','POST',{ report_id: reportId });
+  // ★ 公開時にフォームの編集内容も同時送信（保存漏れを防ぐ）
+  var r = await gasReq('api/mentor/mentor-reports/publish', 'POST', {
+    report_id:               reportId,
+    ai_summary:              document.getElementById('mrd-summary').value.trim(),
+    ai_advice:               document.getElementById('mrd-advice').value.trim(),
+    next_goal:               document.getElementById('mrd-goal').value.trim(),
+    next_month_project_goal: document.getElementById('mrd-next-project').value.trim(),
+    next_month_study_goal:   document.getElementById('mrd-next-study').value.trim(),
+  });
   if (r && r.ok) {
     closeModal('mentorReportDetailModal');
     await loadMentorReports();
