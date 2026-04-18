@@ -560,6 +560,11 @@
           <label class="form-label">TEL用Meet URL</label>
           <input class="form-input" id="f_tel_meet" type="url" placeholder="https://meet.google.com/xxx-xxxx-xxx">
         </div>
+        <div class="form-group">
+          <label class="form-label">カレンダー参照メール <span style="font-size:11px;color:var(--text3);font-weight:400">（空の場合はログインメールを使用）</span></label>
+          <input class="form-input" id="f_calendar_email" type="email" placeholder="例: name@agent-network.com">
+          <div style="font-size:11px;color:var(--text3);margin-top:4px">メンターが別ドメインのカレンダーを使用している場合に設定。事前にそのカレンダーをログインアカウントへ共有してください。</div>
+        </div>
       </div>
 
       <!-- TELストックから割り当て（menteeのみ） -->
@@ -1033,6 +1038,7 @@ function editUser(u) {
   document.getElementById('f_chat').value=u.chat_url||'';
   document.getElementById('f_webhook').value=u.chat_webhook_url||'';
   document.getElementById('f_tel_meet').value=u.tel_meet_url||'';
+  document.getElementById('f_calendar_email').value=u.calendar_email||'';
   document.getElementById('pwRow').style.display='none';
   populateMentors(u.mentor_id);
   onRoleChange();
@@ -1048,7 +1054,7 @@ function editUser(u) {
 }
 
 function resetForm() {
-  ['f_name','f_email','f_birthday','f_hire_date','f_phone','f_workplace','f_wage','f_chat','f_webhook','f_tel_meet'].forEach(id=>document.getElementById(id).value='');
+  ['f_name','f_email','f_birthday','f_hire_date','f_phone','f_workplace','f_wage','f_chat','f_webhook','f_tel_meet','f_calendar_email'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('tenureHint').textContent='';
   document.getElementById('f_tel_stock').value='';
   document.getElementById('tel_stock_status').textContent='';
@@ -1143,6 +1149,7 @@ async function submitUser() {
     name,email,birthday,role,
     hire_date:document.getElementById('f_hire_date').value,
     phone:document.getElementById('f_phone').value.trim(),
+    calendar_email:document.getElementById('f_calendar_email').value.trim().toLowerCase(),
     has_leader_role:document.getElementById('f_leader').checked,
     mentor_id:document.getElementById('f_mentor').value,
     leader_id:document.getElementById('f_leader_user').value,
