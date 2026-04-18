@@ -2230,8 +2230,27 @@ function renderPreReportList(showAll) {
   var shown = showAll ? list : list.slice(0, 3);
   wrap.innerHTML = '';
   shown.forEach(function(r) {
-    var dt   = r.submitted_at ? new Date(r.submitted_at) : (r.session_date ? new Date(r.session_date) : null);
-    var month = r.target_month ? r.target_month.replace('-','/') : '—';
+    // ★ submitted_at / target_month の安全な日付処理
+    var _parseSafeDate = function(s) {
+      if (!s) return null;
+      var d = new Date(s);
+      return isNaN(d.getTime()) ? null : d;
+    };
+    var _fmtMonth = function(s) {
+      if (!s) return '—';
+      // 既にYYYY/MMやYYYY-MM形式
+      var m1 = String(s).match(/^(\d{4})[\/-](\d{1,2})/);
+      if (m1) return m1[1] + '/' + ('0'+m1[2]).slice(-2);
+      // Date型に変換された場合
+      var d = new Date(s);
+      if (!isNaN(d.getTime())) {
+        var jst = new Date(d.getTime() + 9*60*60*1000);
+        return jst.getUTCFullYear() + '/' + ('0'+(jst.getUTCMonth()+1)).slice(-2);
+      }
+      return String(s).substring(0,7) || '—';
+    };
+    var dt    = _parseSafeDate(r.submitted_at) || _parseSafeDate(r.session_date);
+    var month = _fmtMonth(r.target_month);
     var summary = (r.project_result || r.current_project || '事前レポート').substring(0, 40);
     var div = document.createElement('div');
     div.className = 'card';
@@ -2258,9 +2277,15 @@ function showAllPreReports() {
 }
 
 function openPreReportDetail(r) {
-  var dt    = r.submitted_at ? new Date(r.submitted_at) : null;
+  var dt    = (function(s){ if(!s) return null; var d=new Date(s); return isNaN(d)?null:d; })(r.submitted_at);
   var dtStr = dt ? ((dt.getMonth()+1)+'月'+dt.getDate()+'日') : '—';
-  var month = r.target_month ? r.target_month.replace('-','/') : '—';
+  var month = (function(s){
+    if(!s) return '—';
+    var m=String(s).match(/^(\d{4})[\/-](\d{1,2})/);
+    if(m) return m[1]+'/'+('0'+m[2]).slice(-2);
+    var d=new Date(s); if(!isNaN(d)){ var j=new Date(d.getTime()+9*3600000); return j.getUTCFullYear()+'/'+('0'+(j.getUTCMonth()+1)).slice(-2); }
+    return String(s).substring(0,7)||'—';
+  })(r.target_month);
   var metaEl = document.getElementById('prd-meta');
   if (metaEl) metaEl.textContent = '対象月: ' + month + '  ·  提出: ' + dtStr;
   var setSafe = function(id,val){ var el=document.getElementById(id); if(el) el.textContent=val||'—'; };
@@ -2329,9 +2354,15 @@ function renderRecentPreReports(showAll) {
   var shown = showAll ? reports : reports.slice(0, 3);
   el.innerHTML = '';
   shown.forEach(function(r) {
-    var dt      = new Date(r.submitted_at || r.session_date || '');
-    var dateStr = isNaN(dt) ? '—' : (dt.getMonth()+1) + '月' + dt.getDate() + '日';
-    var month   = r.target_month ? r.target_month.replace('-','/') : '—';
+    var dt      = (function(s){ var d=new Date(s); return isNaN(d)?null:d; })(r.submitted_at || r.session_date || '');
+    var dateStr = dt ? ((dt.getMonth()+1)+'月'+dt.getDate()+'日') : '—';
+    var month   = (function(s){
+      if(!s) return '—';
+      var m=String(s).match(/^(\d{4})[\/-](\d{1,2})/);
+      if(m) return m[1]+'/'+('0'+m[2]).slice(-2);
+      var d=new Date(s); if(!isNaN(d)){ var j=new Date(d.getTime()+9*3600000); return j.getUTCFullYear()+'/'+('0'+(j.getUTCMonth()+1)).slice(-2); }
+      return String(s).substring(0,7)||'—';
+    })(r.target_month);
     var summary = r.project_result || r.current_project || '事前レポート';
     var div = document.createElement('div');
     div.className = 'rep-item';

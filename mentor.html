@@ -2128,12 +2128,12 @@ async function regenerateMentorAi() {
 
   if (r && r.ok) {
     console.log('[AI再生成レスポンス]', JSON.stringify(r));
-    // フォームに反映
-    document.getElementById('mrd-summary').value = r.ai_summary || '';
-    document.getElementById('mrd-advice').value  = r.ai_advice  || '';
-    if (r.next_goal)               document.getElementById('mrd-goal').value         = r.next_goal;
-    if (r.next_month_project_goal) document.getElementById('mrd-next-project').value = r.next_month_project_goal;
-    if (r.next_month_study_goal)   document.getElementById('mrd-next-study').value   = r.next_month_study_goal;
+    // フォームに反映（空でも上書き）
+    document.getElementById('mrd-summary').value      = r.ai_summary                || '';
+    document.getElementById('mrd-advice').value       = r.ai_advice                 || '';
+    document.getElementById('mrd-goal').value         = r.next_goal                 || '';
+    document.getElementById('mrd-next-project').value = r.next_month_project_goal   || '';
+    document.getElementById('mrd-next-study').value   = r.next_month_study_goal     || '';
     if (msgEl) { msgEl.style.color = 'var(--gr)'; msgEl.textContent = '✅ AI生成が完了しました（文字起こし: ' + (r.transcript_length || 0) + '文字）'; }
     toast('AI再生成が完了しました');
   } else if (r && r.no_transcript) {
