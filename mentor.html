@@ -2100,16 +2100,29 @@ function open1on1ReportDetail(r) {
 
 async function saveMentorReport() {
   var reportId = document.getElementById('mrd-report-id').value;
-  var r = await gasReq('api/mentor/mentor-reports/save','POST',{
+  var payload = {
     report_id:               reportId,
     ai_summary:              document.getElementById('mrd-summary').value.trim(),
     ai_advice:               document.getElementById('mrd-advice').value.trim(),
     next_goal:               document.getElementById('mrd-goal').value.trim(),
     next_month_project_goal: document.getElementById('mrd-next-project').value.trim(),
     next_month_study_goal:   document.getElementById('mrd-next-study').value.trim()
-  });
-  if (r && r.ok) { toast('保存しました'); }
-  else { toast('保存に失敗しました','err'); }
+  };
+  var r = await gasReq('api/mentor/mentor-reports/save', 'POST', payload);
+  if (r && r.ok) {
+    toast('保存しました');
+    // ★ _allMenteeReports のキャッシュをその場で更新（再取得なしで即反映）
+    var cached = _allMenteeReports.find(function(x){ return x.report_id === reportId; });
+    if (cached) {
+      cached.ai_summary              = payload.ai_summary;
+      cached.ai_advice               = payload.ai_advice;
+      cached.next_goal               = payload.next_goal;
+      cached.next_month_project_goal = payload.next_month_project_goal;
+      cached.next_month_study_goal   = payload.next_month_study_goal;
+    }
+  } else {
+    toast('保存に失敗しました','err');
+  }
 }
 
 async function regenerateMentorAi() {
@@ -2134,6 +2147,16 @@ async function regenerateMentorAi() {
     document.getElementById('mrd-goal').value         = r.next_goal                 || '';
     document.getElementById('mrd-next-project').value = r.next_month_project_goal   || '';
     document.getElementById('mrd-next-study').value   = r.next_month_study_goal     || '';
+    // ★ キャッシュも即時更新
+    var reportId = document.getElementById('mrd-report-id').value;
+    var cached = _allMenteeReports.find(function(x){ return x.report_id === reportId; });
+    if (cached) {
+      cached.ai_summary              = r.ai_summary              || '';
+      cached.ai_advice               = r.ai_advice               || '';
+      cached.next_goal               = r.next_goal               || '';
+      cached.next_month_project_goal = r.next_month_project_goal || '';
+      cached.next_month_study_goal   = r.next_month_study_goal   || '';
+    }
     if (msgEl) { msgEl.style.color = 'var(--gr)'; msgEl.textContent = '✅ AI生成が完了しました（文字起こし: ' + (r.transcript_length || 0) + '文字）'; }
     toast('AI再生成が完了しました');
   } else if (r && r.no_transcript) {
