@@ -759,7 +759,7 @@ input[type="month"].inp{padding:11px 14px}
     </div>
     <div style="padding:12px 16px;background:var(--pr-light);display:flex;align-items:center;gap:12px;border-radius:0 0 13px 13px;flex-wrap:wrap">
       <button id="ref-open-btn" onclick="toggleReferralForm()" style="background:var(--pr);color:#fff;border:none;cursor:pointer;font-size:14px;font-weight:700;padding:11px 22px;border-radius:12px;box-shadow:0 3px 14px rgba(93,175,167,.4);transition:all .2s;font-family:'Noto Sans JP',sans-serif;flex-shrink:0">🤝 リファラルする！</button>
-      <div style="font-size:12px;color:var(--tx2);line-height:1.6">必須は<b>名前だけ</b>でもOK 💪</div>
+      <div style="font-size:12px;color:var(--tx2);line-height:1.6">すべての項目が<b>必須</b>です</div>
     </div>
   </div>
 
@@ -784,7 +784,7 @@ input[type="month"].inp{padding:11px 14px}
             onfocus="this.style.borderColor='var(--pr)'" onblur="this.style.borderColor='var(--bd)'">
         </div>
         <div style="margin-bottom:12px">
-          <label style="font-size:12px;font-weight:700;color:var(--tx2);display:block;margin-bottom:5px">候補者の連絡先 <span style="font-weight:400;color:var(--tx3)">（1つでOK）</span></label>
+          <label style="font-size:12px;font-weight:700;color:var(--tx2);display:block;margin-bottom:5px">候補者の連絡先<span style="color:var(--rd)">*</span> <span style="font-weight:400;color:var(--tx3)">（メールまたは電話どちらか1つ）</span></label>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <input id="ref-candidate-email" type="email" placeholder="📧 メールアドレス"
               style="flex:1;min-width:150px;padding:10px 13px;border-radius:10px;border:1.5px solid var(--bd);font-size:13px;font-family:'Noto Sans JP',sans-serif;background:var(--bg2);color:var(--tx);outline:none"
@@ -795,13 +795,13 @@ input[type="month"].inp{padding:11px 14px}
           </div>
         </div>
         <div style="margin-bottom:12px">
-          <label style="font-size:12px;font-weight:700;color:var(--tx2);display:block;margin-bottom:5px">候補者との関係性</label>
+          <label style="font-size:12px;font-weight:700;color:var(--tx2);display:block;margin-bottom:5px">候補者との関係性<span style="color:var(--rd)">*</span></label>
           <input id="ref-relationship" type="text" placeholder="例：元同僚、大学の友人…など"
             style="width:100%;padding:10px 13px;border-radius:10px;border:1.5px solid var(--bd);font-size:13px;font-family:'Noto Sans JP',sans-serif;background:var(--bg2);color:var(--tx);outline:none"
             onfocus="this.style.borderColor='var(--pr)'" onblur="this.style.borderColor='var(--bd)'">
         </div>
         <div style="margin-bottom:18px">
-          <label style="font-size:12px;font-weight:700;color:var(--tx2);display:block;margin-bottom:8px">候補者の現在の状況 <span style="font-weight:400;color:var(--tx3)">（ざっくりでOK）</span></label>
+          <label style="font-size:12px;font-weight:700;color:var(--tx2);display:block;margin-bottom:8px">候補者の現在の状況<span style="color:var(--rd)">*</span></label>
           <div id="ref-status-chips" style="display:flex;flex-wrap:wrap;gap:8px"></div>
           <div id="ref-status-other-wrap" style="display:none;margin-top:10px">
             <input id="ref-status-other" type="text" placeholder="具体的な状況を教えてください"
@@ -2844,13 +2844,29 @@ async function submitReferral() {
   var phone         = (document.getElementById('ref-candidate-phone') || {}).value || '';
   var relationship  = (document.getElementById('ref-relationship')    || {}).value || '';
   var statusOther   = (document.getElementById('ref-status-other')    || {}).value || '';
+  // ★ 全項目必須バリデーション
   if (!referrerName.trim()) {
     if (errEl) errEl.textContent = '⚠️ あなたのお名前を入力してください';
-    return;
+    document.getElementById('ref-referrer-name').focus(); return;
   }
   if (!candidateName.trim()) {
     if (errEl) errEl.textContent = '⚠️ 候補者のお名前を入力してください';
-    return;
+    document.getElementById('ref-candidate-name').focus(); return;
+  }
+  if (!email.trim() && !phone.trim()) {
+    if (errEl) errEl.textContent = '⚠️ 候補者の連絡先（メールまたは電話）を入力してください';
+    document.getElementById('ref-candidate-email').focus(); return;
+  }
+  if (!relationship.trim()) {
+    if (errEl) errEl.textContent = '⚠️ 候補者との関係性を入力してください';
+    document.getElementById('ref-relationship').focus(); return;
+  }
+  if (!_refSelectedStatus) {
+    if (errEl) errEl.textContent = '⚠️ 候補者の現在の状況を選択してください'; return;
+  }
+  if (_refSelectedStatus === 'その他' && !statusOther.trim()) {
+    if (errEl) errEl.textContent = '⚠️「その他」の具体的な状況を入力してください';
+    document.getElementById('ref-status-other').focus(); return;
   }
   var btn = document.getElementById('ref-submit-btn');
   if (btn) { btn.disabled = true; btn.textContent = '送信中…'; }
