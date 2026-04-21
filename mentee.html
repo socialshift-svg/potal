@@ -597,8 +597,11 @@ input[type="month"].inp{padding:11px 14px}
       </div>
     </div>
     <div class="f-foot" style="margin-top:16px">
+      <button class="btn" style="background:var(--rd-light);color:var(--rd);border:1px solid var(--rd)"
+        onclick="deletePreReport()">🗑 削除</button>
       <button class="btn btn-g" onclick="closeModal('preReportDetailModal')">閉じる</button>
     </div>
+    <div id="prd-result" style="font-size:12px;text-align:center;margin-top:6px;min-height:14px"></div>
   </div>
 </div>
 
@@ -2270,13 +2273,40 @@ function renderPreReportList(showAll) {
   });
   if (moreBtn) moreBtn.style.display = (!showAll && list.length > 3) ? '' : 'none';
 }
+async function deletePreReport() {
+  if (!_currentPreReportId) return;
+  if (!confirm('この事前レポートを削除しますか？\n削除後は元に戻せません。')) return;
+  var resEl = document.getElementById('prd-result');
+  if (resEl) { resEl.style.color = 'var(--tx3)'; resEl.textContent = '削除中…'; }
+  var r = await apiRequest('/api/mentee/pre-report/delete', {
+    method: 'POST',
+    body: JSON.stringify({ report_id: _currentPreReportId })
+  });
+  if (r && r.ok) {
+    // ローカルキャッシュから削除
+    _allPreReports  = _allPreReports.filter(function(x){ return x.report_id !== _currentPreReportId; });
+    _homePreReports = _homePreReports.filter(function(x){ return x.report_id !== _currentPreReportId; });
+    renderPreReportList(false);
+    renderRecentPreReports(false);
+    closeModal('preReportDetailModal');
+    showToast('事前レポートを削除しました');
+  } else {
+    if (resEl) { resEl.style.color = 'var(--rd)'; resEl.textContent = '❌ 削除に失敗しました'; }
+  }
+}
+
 function showAllPreReports() {
   _preReportsShowAll = true;
   renderPreReportList(true);
   document.getElementById('pre-report-more').style.display = 'none';
 }
 
+var _currentPreReportId = null;
+
 function openPreReportDetail(r) {
+  _currentPreReportId = r.report_id || null;  // ★ 削除用にIDを保持
+  var resEl = document.getElementById('prd-result');
+  if (resEl) resEl.textContent = '';
   var dt    = (function(s){ if(!s) return null; var d=new Date(s); return isNaN(d)?null:d; })(r.submitted_at);
   var dtStr = dt ? ((dt.getMonth()+1)+'月'+dt.getDate()+'日') : '—';
   var month = (function(s){

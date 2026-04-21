@@ -351,9 +351,13 @@ td{padding:10px 14px;font-size:13px}
       <div><div style="font-size:11px;font-weight:700;color:var(--am);margin-bottom:3px">改善点</div><div id="prd-improve" style="font-size:13px;color:var(--tx2)">—</div></div>
       <div><div style="font-size:11px;font-weight:700;color:var(--pr);margin-bottom:3px">来月の目標</div><div id="prd-next" style="font-size:13px;color:var(--tx2)">—</div></div>
     </div>
+    <input type="hidden" id="prd-report-id" value="">
     <div class="f-foot" style="margin-top:16px">
+      <button class="btn" style="background:var(--rd-light);color:var(--rd);border:1px solid var(--rd)"
+        onclick="mentorDeletePreReport()">🗑 削除</button>
       <button class="btn btn-g" onclick="closeModal('preReportDetailModal')">閉じる</button>
     </div>
+    <div id="prd-del-result" style="font-size:12px;text-align:center;margin-top:6px;min-height:14px"></div>
   </div>
 </div>
 
@@ -1213,6 +1217,25 @@ async function openMentorSupportDetail(supportId) {
 function closeMentorSupportModal() {
   var modal = document.getElementById('mentorSupportDetailModal');
   if (modal) modal.style.display = 'none';
+}
+
+async function mentorDeletePreReport() {
+  var reportId = (document.getElementById('prd-report-id') || {}).value || '';
+  if (!reportId) return;
+  if (!confirm('この事前レポートを削除しますか？メンティー側からも見えなくなります。')) return;
+  var resEl = document.getElementById('prd-del-result');
+  if (resEl) { resEl.style.color = 'var(--tx3)'; resEl.textContent = '削除中…'; }
+  var r = await gasReq('api/mentor/pre-report/delete', 'POST', { report_id: reportId });
+  if (r && r.ok) {
+    closeModal('preReportDetailModal');
+    // プレレポートリストを再取得
+    if (_myMembers && _myMembers.length > 0) {
+      await loadAllPreReports();
+    }
+    toast('事前レポートを削除しました');
+  } else {
+    if (resEl) { resEl.style.color = 'var(--rd)'; resEl.textContent = '❌ 削除に失敗しました'; }
+  }
 }
 
 async function loadMentorTraining() {
@@ -2253,6 +2276,10 @@ function renderPreReports() {
 }
 
 function openPreReportDetail(r) {
+  var ridEl = document.getElementById('prd-report-id');
+  if (ridEl) ridEl.value = r.report_id || '';
+  var delRes = document.getElementById('prd-del-result');
+  if (delRes) delRes.textContent = '';
   var modal = document.getElementById('preReportDetailModal');
   if (!modal) return;
   document.getElementById('prd-mentee').textContent = r.mentee_name || r.user_id || '—';
