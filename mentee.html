@@ -1634,6 +1634,7 @@ async function saveProfile() {
 // ══ 予約 ══
 // 予約関連変数
 var _availSlots   = {};
+var _slotMinutes  = 60;  // メンターの1on1デフォルト時間（GASから取得）
 var _selectedDate = '';
 var _selectedTime = '';
 
@@ -1653,7 +1654,8 @@ async function loadAvailableSlots() {
     if (calEl) calEl.innerHTML = '<div style="text-align:center;color:var(--tx3);padding:12px;font-size:12px">担当メンターが設定されていません</div>';
     return;
   }
-  _availSlots = data.slots || {};
+  _availSlots    = data.slots || {};
+  _slotMinutes   = data.slot_minutes || 60;  // ★ メンターの1on1時間
   renderBookingCalendar();
 }
 
@@ -1756,10 +1758,14 @@ async function bookSlot() {
   if (!mentorId) { showToast('❌ 担当メンターが設定されていません'); return; }
   var btn = document.getElementById('bookBtn');
   btn.disabled = true; btn.textContent = '予約中…';
-  // duration_minutes は省略→GASがメンターの default_1on1_duration を使用（デフォルト60分）
+  // duration_minutes を明示的に送信（GASのメンター設定値を使用）
   var result = await apiRequest('/api/mentee/booking', {
     method: 'POST',
-    body: JSON.stringify({ mentor_id: mentorId, scheduled_at: _selectedTime })
+    body: JSON.stringify({
+      mentor_id:        mentorId,
+      scheduled_at:     _selectedTime,
+      duration_minutes: _slotMinutes || 60
+    })
   });
   btn.disabled = false; btn.textContent = '✅ この日時で予約する';
   if (result && result.ok) {
@@ -2047,7 +2053,7 @@ function renderHomeSchedule() {
     var m   = ('0'+jst.getUTCMinutes()).slice(-2);
     return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--bd)">'
       + '<div><div style="font-size:14px;font-weight:600">' + mo + '月' + d + '日（' + wd + '）</div>'
-      + '<div style="font-size:12px;color:var(--tx3)">🕐 ' + h + ':' + m + ' (' + (b.duration_minutes||30) + '分)</div></div>'
+      + '<div style="font-size:12px;color:var(--tx3)">🕐 ' + h + ':' + m + ' (' + (b.duration_minutes || _slotMinutes || 60) + '分)</div></div>'
       + (b.meet_link ? '<a href="' + b.meet_link + '" target="_blank" style="font-size:11px;color:var(--pr);text-decoration:none;font-weight:600">▶ Meet</a>' : '')
       + '</div>';
   }).join('') + (upcoming.length > 3 ? '<div style="padding:8px 16px;text-align:center;font-size:12px;color:var(--tx3)">他' + (upcoming.length - 3) + '件</div>' : '');
@@ -2594,7 +2600,7 @@ function renderMyBookings() {
     return '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--bd)">'
       + '<div>'
       + '<div style="font-size:14px;font-weight:700">' + mo + '月' + d + '日（' + wd + '）</div>'
-      + '<div style="font-size:12px;color:var(--tx3)">🕐 ' + h + ':' + mi + '〜（' + (b.duration_minutes||30) + '分）</div>'
+      + '<div style="font-size:12px;color:var(--tx3)">🕐 ' + h + ':' + mi + '〜（' + (b.duration_minutes || _slotMinutes || 60) + '分）</div>'
       + '</div>'
       + '<div style="display:flex;gap:6px;align-items:center">'
       + (b.meet_link ? '<a href="' + b.meet_link + '" target="_blank" style="font-size:11px;color:var(--pr);text-decoration:none;font-weight:600;padding:4px 8px;border:1px solid var(--pr);border-radius:6px">▶ Meet</a>' : '')
