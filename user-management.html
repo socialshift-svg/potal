@@ -565,6 +565,11 @@
           <input class="form-input" id="f_calendar_email" type="email" placeholder="例: name@agent-network.com">
           <div style="font-size:11px;color:var(--text3);margin-top:4px">メンターが別ドメインのカレンダーを使用している場合に設定。事前にそのカレンダーをログインアカウントへ共有してください。</div>
         </div>
+        <div class="form-group">
+          <label class="form-label">個人フォルダID <span style="font-size:11px;color:var(--text3);font-weight:400">（DriveのフォルダURL末尾のID）</span></label>
+          <input class="form-input" id="f_personal_folder_id" type="text" placeholder="例: 1aBcDeFgHiJkLmNoPqRsTuVwXyZ">
+          <div style="font-size:11px;color:var(--text3);margin-top:4px">AI再生成・録音整理で使用する個人フォルダのGoogle Drive ID。DriveでフォルダURLを開き /folders/ 以降の文字列を入力。</div>
+        </div>
       </div>
 
       <!-- TELストックから割り当て（menteeのみ） -->
@@ -623,6 +628,33 @@
   </div>
 </div>
 
+<!-- ══ パスワードリセットモーダル ══ -->
+<div class="modal-overlay" id="resetPwModal" onclick="if(event.target===this)closeModal('resetPwModal')">
+  <div class="modal-box" style="max-width:420px">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title" style="color:var(--warning,#f59e0b)">🔑 パスワードリセット</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('resetPwModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p id="resetPwMsg" style="font-size:14px;margin-bottom:12px"></p>
+      <div style="background:var(--surface2,#f8f9fa);border-radius:8px;padding:12px;font-size:12px;color:var(--text2)">
+        <div style="margin-bottom:4px">リセット後のパスワード：</div>
+        <div id="resetPwPreview" style="font-family:monospace;font-size:11px;word-break:break-all;color:var(--text1)"></div>
+        <div id="resetPwBirthday" style="margin-top:6px;font-size:12px;color:var(--text2)"></div>
+      </div>
+      <div id="resetPwNoBirthday" style="display:none;color:var(--danger);font-size:12px;margin-top:8px">
+        ⚠️ 生年月日が未登録のため、生年月日リセットができません。先に生年月日を編集してください。
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('resetPwModal')">キャンセル</button>
+      <button class="btn" id="resetPwBtn" style="background:var(--warning,#f59e0b);color:#fff" onclick="execResetPw()">リセットする</button>
+    </div>
+  </div>
+</div>
+
 <div id="toasts"></div>
 
 <script>
@@ -642,7 +674,7 @@ const ACTION_MAP = {
   getUsers:      { path: 'api/admin/users/list',            method: 'GET'  },
   createUser:    { path: 'api/admin/users/create',          method: 'POST' },
   updateUser:    { path: 'api/admin/users/update-profile',  method: 'POST' },
-  deleteUser:    { path: 'api/admin/users/delete-user',     method: 'POST' },
+  resetPassword: { path: 'api/admin/user/reset-password', method: 'POST' },
   assignStock:   { path: 'api/admin/tel-stock/assign',      method: 'POST' },
   unassignStock: { path: 'api/admin/tel-stock/unassign',    method: 'POST' },
 };
@@ -662,7 +694,55 @@ async function api(action, extra = {}) {
    STATE
 ══════════════════════════════ */
 let allUsers = [], mentorList = [];
-let editId = null, delId = null;
+let editId = null, delId = null, resetPwId = null, resetPwHash = null;
+
+// ── パスワードリセット ──
+function openResetPw(userId, name, birthday) {
+  resetPwId = userId;
+  var msgEl     = document.getElementById('resetPwMsg');
+  var previewEl = document.getElementById('resetPwPreview');
+  var bdEl      = document.getElementById('resetPwBirthday');
+  var noEl      = document.getElementById('resetPwNoBirthday');
+  var btn       = document.getElementById('resetPwBtn');
+  msgEl.textContent = name + ' のパスワードを生年月日にリセットします。';
+  if (birthday) {
+    var bd = birthday.replace(/-/g,'');
+    bdEl.textContent  = '生年月日: ' + birthday + '  →  初期PW: ' + bd;
+    sha256(bd).then(function(h) {
+      resetPwHash = h;
+      previewEl.textContent = 'SHA-256: ' + h;
+    });
+    noEl.style.display = 'none';
+    btn.disabled = false;
+  } else {
+    bdEl.textContent  = '';
+    previewEl.textContent = '';
+    noEl.style.display = '';
+    btn.disabled = true;
+    resetPwHash = null;
+  }
+  openModal('resetPwModal');
+}
+
+async function execResetPw() {
+  if (!resetPwId || !resetPwHash) return;
+  var btn = document.getElementById('resetPwBtn');
+  btn.disabled = true; btn.textContent = '処理中…';
+  try {
+    const r = await api('resetPassword', { user_id: resetPwId, new_password_hash: resetPwHash });
+    if (r && r.ok) {
+      closeModal('resetPwModal');
+      toast('ok', (r.user_name||'') + ' のパスワードを生年月日にリセットしました');
+    } else {
+      toast('err', r?.message || 'リセットに失敗しました');
+    }
+  } catch(err) {
+    toast('err', 'エラー: ' + (err.message || '通信エラー'));
+  } finally {
+    btn.disabled = false; btn.textContent = 'リセットする';
+    resetPwId = null; resetPwHash = null;
+  }
+}
 let sortKey = 'name', sortAsc = true, page = 1;
 
 /* ══════════════════════════════
@@ -818,6 +898,9 @@ function buildRow(u) {
       <div class="actions">
         <button class="icon-btn" title="編集" onclick='editUser(${safeU})'>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button class="icon-btn" title="PW初期化" style="color:var(--warning,#f59e0b)" onclick="openResetPw('${u.user_id}','${esc(u.name)}','${u.birthday||''}')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         </button>
         <button class="icon-btn del" title="削除" onclick="openDel('${u.user_id}','${esc(u.name)}')">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
@@ -1039,6 +1122,7 @@ function editUser(u) {
   document.getElementById('f_webhook').value=u.chat_webhook_url||'';
   document.getElementById('f_tel_meet').value=u.tel_meet_url||'';
   document.getElementById('f_calendar_email').value=u.calendar_email||'';
+  document.getElementById('f_personal_folder_id').value=u.personal_folder_id||'';
   document.getElementById('pwRow').style.display='none';
   populateMentors(u.mentor_id);
   onRoleChange();
@@ -1054,7 +1138,7 @@ function editUser(u) {
 }
 
 function resetForm() {
-  ['f_name','f_email','f_birthday','f_hire_date','f_phone','f_workplace','f_wage','f_chat','f_webhook','f_tel_meet','f_calendar_email'].forEach(id=>document.getElementById(id).value='');
+  ['f_name','f_email','f_birthday','f_hire_date','f_phone','f_workplace','f_wage','f_chat','f_webhook','f_tel_meet','f_calendar_email','f_personal_folder_id'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('tenureHint').textContent='';
   document.getElementById('f_tel_stock').value='';
   document.getElementById('tel_stock_status').textContent='';
@@ -1150,6 +1234,7 @@ async function submitUser() {
     hire_date:document.getElementById('f_hire_date').value,
     phone:document.getElementById('f_phone').value.trim(),
     calendar_email:document.getElementById('f_calendar_email').value.trim().toLowerCase(),
+    personal_folder_id:document.getElementById('f_personal_folder_id').value.trim(),
     has_leader_role:document.getElementById('f_leader').checked,
     mentor_id:document.getElementById('f_mentor').value,
     leader_id:document.getElementById('f_leader_user').value,
