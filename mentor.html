@@ -1295,7 +1295,7 @@ function filterMentorTraining() {
 function logoutMentor() {
   if (!confirm('ログアウトしますか？')) return;
   Auth.clearAuth();
-  window.location.href = 'https://socialshift-svg.github.io/potal/login.html';
+  window.location.href = 'https://koheiumeda-arch.github.io/SS1on1/login.html';
 }
 
 function warmupGAS() {
@@ -3450,9 +3450,11 @@ function selectDateMentor(date, prefix) {
   var timeGrid = document.getElementById(prefix==='bc' ? 'bcTimeGrid' : 'buTimeGrid');
   var timeCard = document.getElementById(prefix==='bc' ? 'bcTimeCard' : 'buTimeCard');
   var labelEl  = document.getElementById(prefix==='bc' ? 'bcDateLabel': 'buDateLabel');
-  var d  = new Date(date);
-  var wd = ['日','月','火','水','木','金','土'][d.getDay()];
-  if (labelEl) labelEl.textContent = (d.getMonth()+1)+'月'+d.getDate()+'日（'+wd+'）';
+  // ★ YYYY-MM-DD をUTCの正午として解釈することでJSTの日付ズレを防ぐ
+  var d  = new Date(date + 'T12:00:00Z');
+  var wd = ['日','月','火','水','木','金','土'][d.getUTCDay()];
+  var parts = date.split('-');
+  if (labelEl) labelEl.textContent = parseInt(parts[1])+'月'+parseInt(parts[2])+'日（'+wd+'）';
 
   timeGrid.innerHTML = '';
   allSlots.forEach(function(s) {
@@ -3585,7 +3587,7 @@ async function openBookingUpdate(bookingId, scheduledAtEnc, meetLinkEnc) {
 
   // スロット取得（失敗時はdatetime-localフォールバックに切り替え）
   try {
-    var data = await gasReq('api/mentor/available-slots');
+    var data = await gasReq('api/mentor/available-slots','GET',{ skip_mentor_calendar: true });
     _updateSlots = (data && data.slots && Object.keys(data.slots).length > 0) ? data.slots : null;
   } catch(e) { _updateSlots = null; }
 
@@ -3614,7 +3616,8 @@ async function openBookingUpdate(bookingId, scheduledAtEnc, meetLinkEnc) {
 // datetime-local フォールバック用（予約作成）
 function onBcDatetimeChange(val) {
   if (val) {
-    _createSelectedTime = new Date(val).toISOString();
+    // ★ datetime-local はJST時刻として解釈（UTC変換時のズレを防ぐ）
+    _createSelectedTime = new Date(val + ':00+09:00').toISOString();
     document.getElementById('bcSubmitBtn').disabled = false;
   }
 }
@@ -3622,7 +3625,7 @@ function onBcDatetimeChange(val) {
 // datetime-local フォールバック用（予約変更）
 function onBuDatetimeChange(val) {
   if (val) {
-    _updateSelectedTime = new Date(val).toISOString();
+    _updateSelectedTime = new Date(val + ':00+09:00').toISOString();
     document.getElementById('buSubmitBtn').disabled = false;
   }
 }
