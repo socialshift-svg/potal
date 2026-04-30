@@ -3228,21 +3228,30 @@ function openMemberDetailModal(m, booking) {
   var chatBtn = document.getElementById('mqm-chat-btn');
   if (chatBtn) {
     if (booking) {
-      // スケジュール画面から開いた場合：該当1on1のカレンダーイベントへ
+      // スケジュール画面から開いた場合：該当1on1のカレンダーへ
+      // 優先順位: calendar_event_id → meet_link → scheduled_atで日付検索
       var calUrl = '';
       if (booking.calendar_event_id) {
-        // calendar_event_idがある場合はGoogleカレンダーのイベントURLを構築
         calUrl = 'https://calendar.google.com/calendar/event?eid=' + booking.calendar_event_id;
       } else if (booking.meet_link) {
-        // フォールバック：Meet URLへ
         calUrl = booking.meet_link;
+      } else if (booking.scheduled_at) {
+        // scheduled_atの日付でGoogleカレンダーを開く（例: 2026-04-30T10:00 → 20260430）
+        var d = new Date(booking.scheduled_at);
+        if (!isNaN(d)) {
+          var ymd = d.getFullYear()
+            + ('0'+(d.getMonth()+1)).slice(-2)
+            + ('0'+d.getDate()).slice(-2);
+          calUrl = 'https://calendar.google.com/calendar/r/day/' + d.getFullYear() + '/' + (d.getMonth()+1) + '/' + d.getDate();
+        }
       }
+      // URLが構築できた場合は必ず表示
+      chatBtn.style.display = '';
+      chatBtn.innerHTML = '📅 カレンダーを開く';
       if (calUrl) {
-        chatBtn.style.display = '';
-        chatBtn.innerHTML = '📅 カレンダーを開く';
         chatBtn.onclick = function(){ window.open(calUrl, '_blank'); };
       } else {
-        chatBtn.style.display = 'none';
+        chatBtn.onclick = function(){ window.open('https://calendar.google.com/calendar/r', '_blank'); };
       }
     } else {
       // スケジュール外（ダッシュボード等）から開いた場合：従来通りチャットURL
