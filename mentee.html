@@ -280,7 +280,7 @@ input[type="month"].inp{padding:11px 14px}
       <div class="next-time" id="nextTime">—</div>
       <button class="meet-btn" id="meetBtn" onclick="openMeet()"><span>▶</span> Google Meetに参加する</button>
       <div class="sub-acts">
-        <button class="sub-btn accent" onclick="goScreen('preReport')">📝 事前レポート提出</button>
+        <button class="sub-btn accent" id="homePreReportBtn" onclick="goScreen('preReport')">📝 事前レポート提出</button>
         <button class="sub-btn" onclick="goNav('booking')">📅 予約を変更</button>
       </div>
       <div id="homeCancelArea" style="display:none;margin-top:6px"></div>
@@ -445,7 +445,8 @@ input[type="month"].inp{padding:11px 14px}
     </div>
   </div>
 
-  <button class="btn btn-p" style="width:100%" onclick="submitPreReport()">📝 事前レポートを提出</button>
+  <input type="hidden" id="pr-report-id" value="">
+  <button class="btn btn-p" style="width:100%" id="preReportSubmitBtn" onclick="submitPreReport()">📝 事前レポートを提出</button>
   <div style="font-size:12px;color:var(--tx3);text-align:center;margin-top:-8px">※ <span class="req" style="color:var(--rd)">*</span> は必須項目です</div>
 </div>
 
@@ -1058,7 +1059,7 @@ async function apiRequest(endpoint, options) {
       try { data = JSON.parse(text); } catch(pe) { console.error('[mentee] JSON parse error', text.slice(0,200)); return null; }
       if (data && (data.error === 'TOKEN_MISSING' || data.error === 'INVALID_TOKEN')) {
         Auth.clearAuth();
-        window.location.href = 'https://koheiumeda-arch.github.io/SS1on1/login.html';
+        window.location.href = 'https://socialshift-svg.github.io/potal/login.html';
         return null;
       }
       return data;
@@ -1079,7 +1080,7 @@ function warmupGAS() {
 
 function logout() {
   Auth.clearAuth();
-  window.location.href = 'https://koheiumeda-arch.github.io/SS1on1/login.html';
+  window.location.href = 'https://socialshift-svg.github.io/potal/login.html';
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1091,11 +1092,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (_wtModal) _wtModal.addEventListener('click', e => { if (e.target === _wtModal) closeModal('wtTelModal'); });
 
   // ① 認証チェック
-  if (!Auth.isLoggedIn()) { window.location.href = 'https://koheiumeda-arch.github.io/SS1on1/login.html'; return; }
+  if (!Auth.isLoggedIn()) { window.location.href = 'https://socialshift-svg.github.io/potal/login.html'; return; }
 
   // ② ロールチェック（mentee のみ許可。admin は管理目的で閲覧可）
   const _role = (Auth.getUser() || {}).role;
-  if (_role && _role !== 'mentee' && _role !== 'admin') { window.location.href = 'https://koheiumeda-arch.github.io/SS1on1/login.html'; return; }
+  if (_role && _role !== 'mentee' && _role !== 'admin') { window.location.href = 'https://socialshift-svg.github.io/potal/login.html'; return; }
 
   // ③ ページビュー記録（F-07）+ GASウォームアップを並列実行
   warmupGAS();
@@ -1436,7 +1437,10 @@ function goScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const s = document.getElementById('s-' + id);
   if (s) s.classList.add('active');
-  if (id === 'preReport') updatePreReportNextMonthGoals();
+  if (id === 'preReport') {
+    updatePreReportNextMonthGoals();
+    preparePreReportForm();
+  }
   // ★ アンケート画面を開くたびに星をリセット＆booking_idをセット
   if (id === 'survey') {
     _ratings = { progress: 0, mental: 0 };
@@ -1593,6 +1597,87 @@ async function loadSurveyData() {
   }
 }
 
+// ══ 事前レポートフォーム準備（新規 or 上書き判定） ══
+function preparePreReportForm() {
+  var today = new Date();
+  var ym = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0');
+
+  // 当月の既存レポートを検索（booking_idなしのもの）
+  var existing = (_allPreReports || []).find(function(r) {
+    return !r.booking_id && (r.target_month || '').slice(0,7) === ym;
+  });
+
+  var submitBtn = document.getElementById('preReportSubmitBtn');
+  var hiddenId  = document.getElementById('pr-report-id');
+
+  if (existing) {
+    // ── 上書きモード：フォームに既存データを流し込む ──
+    if (hiddenId)  hiddenId.value  = existing.report_id || '';
+    if (submitBtn) submitBtn.innerHTML = '📝 事前レポートを更新する';
+
+    // テキストエリア・input に値をセット
+    var setVal = function(id, val) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      if (el.tagName === 'TEXTAREA' || el.type === 'text' || el.type === 'number' || el.type === 'month' || el.type === 'date') {
+        el.value = val || '';
+      } else {
+        el.textContent = val || '—';
+      }
+    };
+    setVal('pr-targetMonth',         (existing.target_month || '').slice(0,7));
+    setVal('pr-sessionDate',          existing.session_date            || '');
+    setVal('pr-projectResult',        existing.project_result          || '');
+    setVal('pr-studyHours',           existing.study_hours             || 0);
+    setVal('pr-studyContent',         existing.study_content           || '');
+    setVal('pr-goodPoints',           existing.good_points             || '');
+    setVal('pr-improvementPoints',    existing.improvement_points      || '');
+    setVal('pr-nextMonthProjectGoal', existing.next_month_project_goal || '');
+    setVal('pr-nextMonthStudyGoal',   existing.next_month_study_goal   || '');
+
+    // 通知バナーを表示
+    var banner = document.getElementById('preReportUpdateBanner');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'preReportUpdateBanner';
+      banner.style.cssText = 'background:var(--pr-light);border:1px solid rgba(93,175,167,.4);border-radius:10px;padding:10px 14px;font-size:12px;color:var(--pr);margin-bottom:8px;font-weight:600';
+      banner.textContent = '✏️ 今月の事前レポートが既にあります。内容を編集して「更新する」を押すと上書きされます。';
+      var screen = document.getElementById('s-preReport');
+      if (screen) screen.insertBefore(banner, screen.querySelector('.card'));
+    }
+    banner.style.display = '';
+
+  } else {
+    // ── 新規モード：フォームをクリアして今月日付をセット ──
+    if (hiddenId)  hiddenId.value  = '';
+    if (submitBtn) submitBtn.innerHTML = '📝 事前レポートを提出';
+
+    var clearVal = function(id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      if (el.tagName === 'TEXTAREA' || el.type === 'text' || el.type === 'number') el.value = '';
+    };
+    clearVal('pr-projectResult');
+    clearVal('pr-studyHours');
+    clearVal('pr-studyContent');
+    clearVal('pr-goodPoints');
+    clearVal('pr-improvementPoints');
+    clearVal('pr-nextMonthProjectGoal');
+    clearVal('pr-nextMonthStudyGoal');
+
+    // バナーを非表示
+    var banner = document.getElementById('preReportUpdateBanner');
+    if (banner) banner.style.display = 'none';
+
+    // 日付を今日にリセット
+    var today2 = new Date();
+    var ym2 = today2.getFullYear() + '-' + String(today2.getMonth()+1).padStart(2,'0');
+    var ymd2 = today2.toISOString().slice(0,10);
+    document.getElementById('pr-targetMonth').value = ym2;
+    document.getElementById('pr-sessionDate').value  = ymd2;
+  }
+}
+
 // ══ 事前レポート送信 ══
 async function submitPreReport() {
   var g = function(id){ var el=document.getElementById(id); return el ? (el.value||el.textContent||'') : ''; };
@@ -1600,7 +1685,9 @@ async function submitPreReport() {
   if (!g('pr-targetMonth') || !g('pr-projectResult') || !g('pr-goodPoints') || !g('pr-nextMonthProjectGoal')) {
     showToast('❌ 必須項目を入力してください'); return;
   }
+  var reportId = g('pr-report-id'); // 既存レポートのID（上書き時のみ非空）
   var body = {
+    report_id:               reportId || undefined, // GAS側でUpsertキーとして使用
     target_month:            g('pr-targetMonth'),
     session_date:            g('pr-sessionDate'),
     current_project:         gTxt('pr-currentProject'),
@@ -1614,9 +1701,24 @@ async function submitPreReport() {
     next_month_project_goal: g('pr-nextMonthProjectGoal'),
     next_month_study_goal:   g('pr-nextMonthStudyGoal'),
   };
+  var isUpdate = !!reportId;
   var result = await apiRequest('/api/mentee/pre-report', { method: 'POST', body: JSON.stringify(body) });
-  if (result && result.ok) { showToast('✅ 事前レポートを提出しました'); goNav('home'); }
-  else showToast('❌ 提出に失敗しました');
+  if (result && result.ok) {
+    // ローカルキャッシュを更新（重複表示防止）
+    if (isUpdate) {
+      _allPreReports = _allPreReports.map(function(r) {
+        return r.report_id === reportId ? Object.assign({}, r, body, { report_id: reportId, submitted_at: new Date().toISOString() }) : r;
+      });
+      _homePreReports = _allPreReports;
+    } else {
+      // 新規の場合はキャッシュをリセットして再取得
+      _preReportsLoaded = false;
+    }
+    showToast(isUpdate ? '✅ 事前レポートを更新しました' : '✅ 事前レポートを提出しました');
+    goNav('home');
+  } else {
+    showToast('❌ 提出に失敗しました');
+  }
 }
 
 // ══ プロフィール保存 ══
@@ -2413,8 +2515,31 @@ function renderRecentPreReports(showAll) {
     el.appendChild(div);
   });
   if (moreEl) moreEl.style.display = (!showAll && reports.length > 3) ? '' : 'none';
+  updateHomePreReportBtn(); // ★ 提出済みかでボタン表示を切り替え
 }
 function showAllRecentPreReports() { renderRecentPreReports(true); }
+
+// ホームの「事前レポート提出」ボタンを提出済みかどうかで切り替え
+function updateHomePreReportBtn() {
+  var btn = document.getElementById('homePreReportBtn');
+  if (!btn) return;
+  var today = new Date();
+  var ym = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0');
+  var hasThisMonth = (_allPreReports || []).some(function(r) {
+    return !r.booking_id && (r.target_month || '').slice(0,7) === ym;
+  });
+  if (hasThisMonth) {
+    btn.innerHTML = '✏️ 事前レポートを編集';
+    btn.style.background = 'var(--gr-light)';
+    btn.style.color      = 'var(--gr)';
+    btn.style.border     = '1px solid var(--gr)';
+  } else {
+    btn.innerHTML = '📝 事前レポート提出';
+    btn.style.background = '';
+    btn.style.color      = '';
+    btn.style.border     = '';
+  }
+}
 
 // 研修コンテンツ読み込み
 var _allTrainingContents = [];
