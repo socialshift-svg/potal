@@ -334,6 +334,37 @@ td{padding:10px 14px;font-size:13px}
   </div>
 </div>
 
+<!-- TEL手動登録モーダル -->
+<div class="modal" id="manualTelModal">
+  <div class="modal-box" style="max-width:420px">
+    <span class="modal-close" onclick="closeModal('manualTelModal')">✕</span>
+    <div class="modal-title">📞 TEL手動登録</div>
+    <div style="font-size:12px;color:var(--tx3);margin-bottom:14px">TEL開始ボタンを押し忘れた場合、ここから事後登録できます。登録後は「forceProcessRecordings」を実行してください。</div>
+    <div class="form-group">
+      <label class="form-label">メンティー<span class="req">*</span></label>
+      <select class="inp" id="manualTel-menteeId" style="width:100%">
+        <option value="">選択してください</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">担当リーダー<span class="req">*</span></label>
+      <select class="inp" id="manualTel-leaderId" style="width:100%">
+        <option value="">選択してください</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">TEL実施日時<span class="req">*</span></label>
+      <input type="datetime-local" class="inp" id="manualTel-callDate" style="width:100%">
+    </div>
+    <div class="form-group">
+      <label class="form-label">メモ（任意）</label>
+      <input type="text" class="inp" id="manualTel-memo" placeholder="例: ボタン押し忘れ・4/28周知会" style="width:100%">
+    </div>
+    <div id="manualTel-result" style="font-size:12px;margin-bottom:8px;min-height:16px"></div>
+    <button class="btn btn-p" style="width:100%" id="manualTelSubmitBtn" onclick="submitManualTel()">📞 登録する</button>
+  </div>
+</div>
+
 <!-- 事前レポート詳細モーダル -->
 <div class="modal" id="preReportDetailModal">
   <div class="modal-content">
@@ -862,7 +893,7 @@ td{padding:10px 14px;font-size:13px}
 
 <!-- ════ REPORTS ════ -->
 <div class="screen" id="s-reports">
-  <div class="topbar"><div><div class="page-title">レポート</div><div class="page-sub">1on1・週次TELの記録</div></div></div>
+  <div class="topbar"><div><div class="page-title">レポート</div><div class="page-sub">1on1・週次TELの記録</div></div><button class="btn btn-g btn-sm" onclick="openManualTelModal()" style="font-size:12px;white-space:nowrap">📞 TEL手動登録</button></div>
 
   <!-- レポートタブ -->
   <div style="display:flex;gap:0;border-bottom:2px solid var(--bd);margin-bottom:14px">
@@ -2420,15 +2451,19 @@ function renderReports() {
     var day       = isNaN(dt) ? '?' : dt.getDate();
     var month     = isNaN(dt) ? '' : (dt.getMonth()+1)+'月';
     var mentee    = _myMentees.find(function(m){ return m.user_id === r.mentee_id; });
-    var name      = mentee ? mentee.name : (r.mentee_id||'—');
+    // GASから返されたmentee_name/leader_nameも使用（全員表示対応）
+    var name      = (mentee ? mentee.name : null) || r.mentee_name || r.mentee_id || '—';
     var summary   = (r.talk_content || r.ai_summary || '—').slice(0, 50);
     var confirmed = r.is_confirmed === 'TRUE' || r.is_confirmed === true;
     var hasMeet   = !!(r.recording_url || r.meet_url);
     var tenure    = mentee ? calcTenure(mentee.hire_date) : null;
+    var isMine    = r.is_mine === true; // 自分担当フラグ（GASから付与）
 
     var item = document.createElement('div');
     item.className = 'rep-item';
     item.style.cursor = 'pointer';
+    // 自分担当は左ボーダーで強調
+    if (isMine) item.style.borderLeft = '3px solid var(--pr)';
 
     // 日付部分
     var dateEl = document.createElement('div');
@@ -2441,6 +2476,7 @@ function renderReports() {
     infoEl.innerHTML =
       '<div class="rep-title" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
       + '<span>'+esc(name)+'</span>'
+      + (isMine ? '<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:var(--pr-light);color:var(--pr);font-weight:600">担当</span>' : '')
       + (tenure ? '<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:var(--pr-light);color:var(--pr);font-weight:600">🗓 '+tenure.label+'</span>' : '')
       + (confirmed
           ? '<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:var(--pr-light);color:var(--pr);font-weight:600">✅ 確定</span>'
@@ -2448,8 +2484,8 @@ function renderReports() {
       + (hasMeet ? '<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:#e8f4ff;color:#1a73e8">🎙 録音あり</span>' : '')
       + '</div>'
       + '<div class="rep-sub">'+esc(summary)+'</div>'
+      + (!isMine && r.leader_name ? '<div class="rep-sub" style="color:var(--tx3)">担当リーダー: '+esc(r.leader_name)+'</div>' : '')
       + '<div class="rep-sub">'+fmtDateFull(r.created_at)+'</div>';
-
     var arrEl = document.createElement('div');
     arrEl.className = 'rep-arr';
     arrEl.textContent = '›';
@@ -2638,6 +2674,98 @@ async function loadWeeklyTel() {
     card.appendChild(hdr);
     cardList.appendChild(card);
   });
+}
+
+// ══ TEL手動登録 ══
+function openManualTelModal() {
+  var resEl = document.getElementById('manualTel-result');
+  if (resEl) resEl.textContent = '';
+
+  // メンティー選択肢をセット（全メンティー）
+  var mSel = document.getElementById('manualTel-menteeId');
+  if (mSel && mSel.options.length <= 1) {
+    (_allMentees || _myMentees || []).forEach(function(m) {
+      var opt = document.createElement('option');
+      opt.value = m.user_id;
+      opt.textContent = m.name + (m.leader_name ? '（' + m.leader_name + '）' : '');
+      mSel.appendChild(opt);
+    });
+  }
+
+  // リーダー選択肢をセット
+  var lSel = document.getElementById('manualTel-leaderId');
+  if (lSel && lSel.options.length <= 1) {
+    (_allUsers || []).filter(function(u){ return u.role === 'leader' || u.has_leader_role; })
+      .forEach(function(u) {
+        var opt = document.createElement('option');
+        opt.value = u.user_id;
+        opt.textContent = u.name;
+        lSel.appendChild(opt);
+      });
+    // リーダー情報がない場合はメンターも候補に
+    if (lSel.options.length <= 1) {
+      (_myMentees || []).forEach(function(m) {
+        if (m.leader_id) {
+          var already = Array.from(lSel.options).some(function(o){ return o.value === m.leader_id; });
+          if (!already) {
+            var opt = document.createElement('option');
+            opt.value = m.leader_id;
+            opt.textContent = m.leader_name || m.leader_id;
+            lSel.appendChild(opt);
+          }
+        }
+      });
+    }
+  }
+
+  // 日時を現在時刻にセット（datetime-local形式）
+  var now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset()); // ローカル時間に変換
+  var dtStr = now.toISOString().slice(0,16);
+  var dtEl = document.getElementById('manualTel-callDate');
+  if (dtEl) dtEl.value = dtStr;
+
+  openModal('manualTelModal');
+}
+
+async function submitManualTel() {
+  var menteeId  = (document.getElementById('manualTel-menteeId')  || {}).value || '';
+  var leaderId  = (document.getElementById('manualTel-leaderId')  || {}).value || '';
+  var callDate  = (document.getElementById('manualTel-callDate')  || {}).value || '';
+  var memo      = (document.getElementById('manualTel-memo')      || {}).value || '';
+  var resEl     = document.getElementById('manualTel-result');
+  var btn       = document.getElementById('manualTelSubmitBtn');
+
+  if (!menteeId || !leaderId || !callDate) {
+    if (resEl) { resEl.style.color = 'var(--rd)'; resEl.textContent = '❌ 全必須項目を入力してください'; }
+    return;
+  }
+
+  // datetime-local → ISO形式（JST offset付き）
+  var isoDate = new Date(callDate).toISOString();
+
+  if (btn) { btn.disabled = true; btn.textContent = '登録中…'; }
+  var r = await gasReq('api/admin/weekly-call/manual', 'POST', {
+    mentee_id: menteeId,
+    leader_id: leaderId,
+    call_date: isoDate,
+    memo:      memo
+  });
+  if (btn) { btn.disabled = false; btn.textContent = '📞 登録する'; }
+
+  if (r && r.ok) {
+    if (resEl) {
+      resEl.style.color = 'var(--gr)';
+      resEl.textContent = '✅ 登録しました（' + (r.mentee_name||'') + ' / ' + (r.call_id||'') + '）'
+        + (r.duplicate ? '　※同時刻帯の既存レコードあり' : '');
+    }
+    toast('TELを手動登録しました。forceProcessRecordingsを実行してください。');
+    // 3秒後にモーダルを閉じる
+    setTimeout(function(){ closeModal('manualTelModal'); }, 3000);
+  } else {
+    var err = r && (r.error || r.message) || '不明なエラー';
+    if (resEl) { resEl.style.color = 'var(--rd)'; resEl.textContent = '❌ ' + err; }
+  }
 }
 
 function openTelModal(name, menteeId) {
