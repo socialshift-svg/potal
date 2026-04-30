@@ -2240,14 +2240,32 @@ async function loadPreReports() {
   listEl.innerHTML = '<div class="loading">読み込み中…</div>';
   var data = await gasReq('api/mentor/pre-reports');
   _preReports = (data && data.reports) ? data.reports : [];
-  renderPreReports();
+  // フィルター選択肢（メンティー・月）を再構築してから描画
+  var mSel = document.getElementById('reportsFilterMonth');
+  var uSel = document.getElementById('reportsFilterMentee');
+  if (mSel) { while (mSel.options.length > 1) mSel.remove(1); }
+  if (uSel) { while (uSel.options.length > 1) uSel.remove(1); }
+  loadReportsScreen();
 }
 
 function renderPreReports() {
   var listEl   = document.getElementById('preReportsList');
   var menteeId = document.getElementById('reportsFilterMentee').value;
-  var filtered = _preReports.filter(function(r){
-    return !menteeId || r.user_id === menteeId;
+  var month    = document.getElementById('reportsFilterMonth').value;
+  var mineOnly = document.getElementById('reportsFilterMine').checked;
+
+  var filtered = _preReports.filter(function(r) {
+    var uid = r.user_id || r.mentee_id;
+    if (menteeId && uid !== menteeId) return false;
+    if (month) {
+      var d = (r.submitted_at || '').slice(0, 7);
+      if (d !== month) return false;
+    }
+    if (mineOnly) {
+      var isMine = _myMentees.some(function(m) { return m.user_id === uid; });
+      if (!isMine) return false;
+    }
+    return true;
   });
   document.getElementById('reportsCount').textContent = filtered.length + '件';
 
@@ -2266,9 +2284,10 @@ function renderPreReports() {
       + '<div class="rep-m">'+(isNaN(dt)?'':((dt.getMonth()+1)+'月'))+'</div>';
     var infoEl = document.createElement('div');
     infoEl.className = 'rep-info';
+    var mineTag = r.is_mine ? '<span style="font-size:10px;padding:2px 6px;border-radius:8px;background:var(--pr-light);color:var(--pr);font-weight:600;margin-left:5px">担当</span>' : '';
     infoEl.innerHTML =
-      '<div class="rep-title">'+esc(r.mentee_name||r.user_id||'—')+'</div>'
-      + '<div class="rep-sub">'+esc((r.current_project||r.goal_work_6m||'—').slice(0,50))+'</div>'
+      '<div class="rep-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">'+esc(r.mentee_name||r.user_id||'—')+mineTag+'</div>'
+      + '<div class="rep-sub">'+esc((r.mentor_name ? '担当MT: '+r.mentor_name+' / ' : '')+( r.current_project||r.goal_work_6m||'—').slice(0,40))+'</div>'
       + '<div class="rep-sub">提出: '+fmtDateFull(r.submitted_at)+'</div>';
     var arrEl = document.createElement('div');
     arrEl.className = 'rep-arr'; arrEl.textContent = '›';
@@ -2316,7 +2335,7 @@ function loadReportsScreen() {
   if (sel && sel.options.length <= 1) {
     // 全メンティーを列挙（_allMenteeReports と _myMentees を合わせてユニーク化）
     var seen = {};
-    var allItems = _allMenteeReports.concat(_myReports);
+    var allItems = _allMenteeReports.concat(_myReports).concat(_preReports);
     allItems.forEach(function(r) {
       var id = r.mentee_id || r.user_id;
       if (id && !seen[id]) {
@@ -2334,8 +2353,8 @@ function loadReportsScreen() {
   var mSel = document.getElementById('reportsFilterMonth');
   if (mSel && mSel.options.length <= 1) {
     var months = {};
-    _myReports.concat(_allMenteeReports).forEach(function(r) {
-      var d = r.created_at || r.session_date || '';
+    _myReports.concat(_allMenteeReports).concat(_preReports).forEach(function(r) {
+      var d = r.created_at || r.session_date || r.submitted_at || '';
       if (d && d.length >= 7) months[d.slice(0,7)] = true;
     });
     Object.keys(months).sort().reverse().forEach(function(ym) {
