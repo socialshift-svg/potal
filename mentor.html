@@ -1008,7 +1008,7 @@ td{padding:10px 14px;font-size:13px}
 //  設定
 // ══════════════════════════════════════════════════════════
 const GAS_URL     = 'https://script.google.com/macros/s/AKfycbzdwzQYNRRHO5S7Fq1qBE7qYoMEYoJTjqU1MoQivOWxFpzt4w5NcuICTOYROISn6KYpmQ/exec';
-const GITHUB_BASE = 'https://socialshift-svg.github.io/potal';
+const GITHUB_BASE = 'https://koheiumeda-arch.github.io/SS1on1';
 
 // ★ セキュリティ: フロントエンドでSHA-256ハッシュ化（パスワードを平文送信しない）
 async function sha256Hex(str) {
@@ -1295,7 +1295,7 @@ function filterMentorTraining() {
 function logoutMentor() {
   if (!confirm('ログアウトしますか？')) return;
   Auth.clearAuth();
-  window.location.href = 'https://socialshift-svg.github.io/potal/login.html';
+  window.location.href = 'https://koheiumeda-arch.github.io/SS1on1/login.html';
 }
 
 function warmupGAS() {
@@ -1862,8 +1862,9 @@ function buildScheduleCard(b, compact) {
   panelBtn.className = 'sc-btn sc-doc';
   panelBtn.textContent = '👤 メンバー詳細';
   var _menteeId = b.mentee_id;
+  var _booking  = b; // 予約データを保持（モーダルのカレンダーリンク用）
   panelBtn.onclick = function(){
-    openMemberDetail(_menteeId);
+    openMemberDetailWithBooking(_menteeId, _booking);
   };
   acts.appendChild(panelBtn);
 
@@ -3209,7 +3210,8 @@ function closeMemberDetail() {
 }
 
 // スケジュール/ダッシュボードから「メンバー詳細」を開く（モーダル方式）
-function openMemberDetailModal(m) {
+// booking: buildScheduleCardから渡される予約データ（省略可）
+function openMemberDetailModal(m, booking) {
   var modal = document.getElementById('memberDetailQuickModal');
   if (!modal) return;
 
@@ -3222,11 +3224,32 @@ function openMemberDetailModal(m) {
   document.getElementById('mqm-wage').textContent       = m.hourly_wage ? '¥'+Number(m.hourly_wage).toLocaleString()+'/h' : '—';
   setTenure('mqm-tenure-wrap', 'mqm-tenure', m.hire_date, m.tenure_label);
 
-  // チャットボタン
+  // チャットボタン → 予約がある場合はカレンダーイベントリンクに変更
   var chatBtn = document.getElementById('mqm-chat-btn');
   if (chatBtn) {
-    chatBtn.style.display = m.chat_url ? '' : 'none';
-    chatBtn.onclick = function(){ window.open(m.chat_url, '_blank'); };
+    if (booking) {
+      // スケジュール画面から開いた場合：該当1on1のカレンダーイベントへ
+      var calUrl = '';
+      if (booking.calendar_event_id) {
+        // calendar_event_idがある場合はGoogleカレンダーのイベントURLを構築
+        calUrl = 'https://calendar.google.com/calendar/event?eid=' + booking.calendar_event_id;
+      } else if (booking.meet_link) {
+        // フォールバック：Meet URLへ
+        calUrl = booking.meet_link;
+      }
+      if (calUrl) {
+        chatBtn.style.display = '';
+        chatBtn.innerHTML = '📅 カレンダーを開く';
+        chatBtn.onclick = function(){ window.open(calUrl, '_blank'); };
+      } else {
+        chatBtn.style.display = 'none';
+      }
+    } else {
+      // スケジュール外（ダッシュボード等）から開いた場合：従来通りチャットURL
+      chatBtn.style.display = m.chat_url ? '' : 'none';
+      chatBtn.innerHTML = '💬 チャットを開く';
+      chatBtn.onclick = function(){ window.open(m.chat_url, '_blank'); };
+    }
   }
 
   // 予約作成ボタン
@@ -3250,6 +3273,29 @@ function openMemberDetailModal(m) {
   }
 
   modal.classList.add('open');
+}
+
+// スケジュールカードから呼ぶ：予約データ付きでメンバー詳細モーダルを開く
+function openMemberDetailWithBooking(userId, booking) {
+  var m = _myMentees.find(function(x){ return x.user_id === userId; });
+  if (!m) {
+    // メンティー情報未ロードの場合は読み込んでリトライ
+    loadMentees().then(function(){ openMemberDetailWithBooking(userId, booking); });
+    return;
+  }
+  _mdCurrentMentee = m;
+  _mdCurrentSig    = m.status || 'green';
+
+  var sEl = document.getElementById('s-members');
+  var isOnMembersScreen = sEl && sEl.classList.contains('active');
+
+  if (isOnMembersScreen) {
+    // メンバー管理画面の場合：ドロワー方式（bookingは使わない）
+    openMemberDetail(userId, null);
+  } else {
+    // スケジュール・ダッシュボードからの場合：予約データ付きでモーダルを開く
+    openMemberDetailModal(m, booking);
+  }
 }
 
 function openMemberDetailChat() {
