@@ -280,7 +280,7 @@ input[type="month"].inp{padding:11px 14px}
       <div class="next-time" id="nextTime">—</div>
       <button class="meet-btn" id="meetBtn" onclick="openMeet()"><span>▶</span> Google Meetに参加する</button>
       <div class="sub-acts">
-        <button class="sub-btn accent" id="homePreReportBtn" onclick="goScreen('preReport')">📝 事前レポート提出</button>
+        <button class="sub-btn accent" id="homePreReportBtn" onclick="openPreReportFromHome()">📝 事前レポート提出</button>
         <button class="sub-btn" onclick="goNav('booking')">📅 予約を変更</button>
       </div>
       <div id="homeCancelArea" style="display:none;margin-top:6px"></div>
@@ -298,7 +298,7 @@ input[type="month"].inp{padding:11px 14px}
     </div>
   </div>
   <div class="card">
-    <div class="ch"><div class="ct">📝 過去の事前レポート</div></div>
+    <div class="ch"><div class="ct">📝 事前レポート一覧</div><button class="btn btn-g btn-sm" style="font-size:11px" onclick="goScreen('preReport')">＋ 作成・編集</button></div>
     <div id="recentPreReports"><div class="loading"><div class="spinner"></div></div></div>
     <div id="recentPreReportsMore" style="display:none;padding:8px 16px;border-top:1px solid var(--bd)">
       <button class="btn btn-g btn-sm" style="width:100%;font-size:12px" onclick="showAllRecentPreReports()">もっと見る</button>
@@ -1645,6 +1645,7 @@ async function loadSurveyData() {
 
 // ══ 事前レポート月次管理 ══
 var _prSlots       = [];  // 月スロット一覧
+var _nextBooking   = null; // 次回の1on1予約データ
 var _prCurrentSlot = null; // 現在編集中のスロット
 
 // 月リスト画面を表示
@@ -1686,6 +1687,74 @@ async function loadPreReportMonthList() {
 
   // それでも空なら「レポートなし」と表示（無限ループを防ぐ）
   renderPreReportMonthList();
+}
+
+// ══ 「次回の1on1」カードから事前レポートを開く ══
+// next_bookingが月次1on1の場合 → 当月スロットと紐づけてフォームを開く
+// その他1on1の場合 → 月リスト画面を開く
+async function openPreReportFromHome() {
+  var b = _nextBooking;
+
+  // 月次1on1かどうか判定
+  var isMonthly = !b || !b.meeting_type || b.meeting_type === 'monthly';
+
+  if (!b || !isMonthly) {
+    // 予約なし or 月次以外 → 通常の月リスト画面を開く
+    goScreen('preReport');
+    return;
+  }
+
+  // 月次1on1の場合 → 当月スロットを検索して紐づける
+  var ym = (b.scheduled_at || '').slice(0, 7);
+  goScreen('preReport');
+
+  // goScreen内のloadが完了するのを少し待つ
+  setTimeout(async function() {
+    // _prSlotsから当月スロットを探す
+    var slot = _prSlots.find(function(s) {
+      return (s.target_month || '').slice(0, 7) === ym;
+    });
+
+    if (!slot) {
+      // 当月スロットがなければ新規作成
+      var r = await apiRequest('/api/mentee/pre-report', {
+        method: 'POST',
+        body: JSON.stringify({ target_month: ym, status: 'draft' })
+      });
+      if (r && r.ok) {
+        slot = {
+          report_id:    r.report_id,
+          target_month: ym,
+          status:       'draft',
+          monthly_booking_id: '',
+          monthly_booking_scheduled_at: b.scheduled_at || '',
+          month_bookings: [],
+        };
+        _prSlots.unshift(slot);
+      }
+    }
+
+    if (!slot || !slot.report_id) {
+      showToast('❌ 事前レポートの準備に失敗しました');
+      return;
+    }
+
+    // まだ紐付けられていなければ自動紐付け
+    if (!slot.monthly_booking_id && b.booking_id) {
+      await apiRequest('/api/mentee/pre-report/link-booking', {
+        method: 'POST',
+        body: JSON.stringify({ report_id: slot.report_id, booking_id: b.booking_id })
+      });
+      // ローカルキャッシュ更新
+      slot.monthly_booking_id = b.booking_id;
+      slot.monthly_booking_scheduled_at = b.scheduled_at || '';
+      _prSlots = _prSlots.map(function(s) {
+        return s.report_id === slot.report_id ? slot : s;
+      });
+    }
+
+    openPreReportForm(slot.report_id);
+  }, 500);
 }
 
 // ★ GAS v27以前用フォールバック：既存 pre-reports APIから月リストを構築
@@ -1861,6 +1930,33 @@ async function openPreReportForm(reportId) {
       if (b.booking_id === slot.monthly_booking_id) opt.selected = true;
       sel.appendChild(opt);
     });
+    // _nextBookingから来た場合、自動でドロップダウンに反映
+    if (slot.monthly_booking_id && !sel.value) {
+      // ドロップダウンにない（month_bookingsが未取得）場合は動的に追加
+      var nb = _nextBooking;
+      if (nb && nb.booking_id === slot.monthly_booking_id) {
+        var d2   = new Date(nb.scheduled_at || '');
+        var dStr2 = isNaN(d2) ? '' : (d2.getMonth()+1) + '/' + d2.getDate() + '（' + ['日','月','火','水','木','金','土'][d2.getDay()] + '）' + ('0'+d2.getHours()).slice(-2) + ':' + ('0'+d2.getMinutes()).slice(-2);
+        var opt2 = document.createElement('option');
+        opt2.value = nb.booking_id;
+        opt2.textContent = dStr2 + ' 月次1on1';
+        opt2.selected = true;
+        sel.appendChild(opt2);
+      }
+    }
+  }
+
+  // 紐付けられた1on1の日時をサブタイトルに表示
+  var prSub = document.getElementById('preReportSubtitle');
+  if (prSub) {
+    if (slot.monthly_booking_scheduled_at) {
+      var bdt = new Date(slot.monthly_booking_scheduled_at);
+      if (!isNaN(bdt)) {
+        prSub.textContent = (bdt.getMonth()+1) + '/' + bdt.getDate() + '（' + ['日','月','火','水','木','金','土'][bdt.getDay()] + '）' + ('0'+bdt.getHours()).slice(-2) + ':' + ('0'+bdt.getMinutes()).slice(-2) + ' ' + (_myMentorName||'メンター');
+      }
+    } else {
+      prSub.textContent = '月次1on1 未紐付け';
+    }
   }
 
   // 提出済み・過去は入力欄を読み取り専用に
@@ -2289,6 +2385,8 @@ function renderHome(data) {
   }
   if (data.next_booking) {
     var b  = data.next_booking;
+    // ★ 次回1on1情報をグローバルに保持（事前レポートとの紐付けに使用）
+    _nextBooking = b;
     var dt = new Date(b.scheduled_at);
     var month = dt.getMonth() + 1;
     var day   = dt.getDate();
@@ -2788,44 +2886,119 @@ async function loadHomePreReports() {
   var el = document.getElementById('recentPreReports');
   if (el) el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   await loadAllPreReports();
+  // _prSlotsが未ロードの場合はhomePreReportsから月リストを構築
+  if (!_prSlots || _prSlots.length === 0) {
+    var monthMap = {};
+    _allPreReports.forEach(function(r) {
+      var ym = (r.target_month || '').slice(0,7);
+      if (!ym) return;
+      if (!monthMap[ym] || (r.submitted_at||'') > (monthMap[ym].submitted_at||'')) monthMap[ym] = r;
+    });
+    _prSlots = Object.keys(monthMap).sort().reverse().map(function(ym) {
+      var r = monthMap[ym];
+      return Object.assign({}, r, {
+        target_month: ym,
+        status: r.status || (r.submitted_at ? 'submitted' : 'draft'),
+        monthly_booking_id: r.monthly_booking_id || '',
+        monthly_booking_scheduled_at: r.monthly_booking_scheduled_at || '',
+        archived_at: r.archived_at || '',
+        month_bookings: [],
+      });
+    });
+  }
   renderRecentPreReports(false);
 }
 function renderRecentPreReports(showAll) {
   var el     = document.getElementById('recentPreReports');
   var moreEl = document.getElementById('recentPreReportsMore');
   if (!el) return;
-  var reports = _homePreReports;
-  if (reports.length === 0) {
+
+  // _prSlotsがある場合はそちらを優先（月次管理データ）
+  // なければ_homePreReportsで代替
+  var slots = (_prSlots && _prSlots.length > 0) ? _prSlots : null;
+  var reports = slots ? null : _homePreReports;
+
+  var items = slots || reports;
+  if (!items || items.length === 0) {
     el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--tx3);font-size:13px">事前レポートがありません</div>';
     if (moreEl) moreEl.style.display = 'none'; return;
   }
-  var shown = showAll ? reports : reports.slice(0, 3);
+
+  var shown = showAll ? items : items.slice(0, 5);
   el.innerHTML = '';
-  shown.forEach(function(r) {
-    var dt      = (function(s){ var d=new Date(s); return isNaN(d)?null:d; })(r.submitted_at || r.session_date || '');
-    var dateStr = dt ? ((dt.getMonth()+1)+'月'+dt.getDate()+'日') : '—';
-    var month   = (function(s){
-      if(!s) return '—';
-      var m=String(s).match(/^(\d{4})[\/-](\d{1,2})/);
-      if(m) return m[1]+'/'+('0'+m[2]).slice(-2);
-      var d=new Date(s); if(!isNaN(d)){ var j=new Date(d.getTime()+9*3600000); return j.getUTCFullYear()+'/'+('0'+(j.getUTCMonth()+1)).slice(-2); }
-      return String(s).substring(0,7)||'—';
-    })(r.target_month);
-    var summary = r.project_result || r.current_project || '事前レポート';
+
+  shown.forEach(function(item) {
+    // _prSlots形式 or _homePreReports形式を統一して扱う
+    var targetMonth   = item.target_month || '';
+    var status        = item.status || (item.submitted_at ? 'submitted' : 'draft');
+    var bookingId     = item.monthly_booking_id || '';
+    var bookingAt     = item.monthly_booking_scheduled_at || ''; // GASから返される場合
+    var isArchived    = status === 'archived';
+    var reportId      = item.report_id;
+
+    // 確定判定：紐づいた1on1の開始時刻+60分後を過ぎていれば確定
+    var isConfirmed   = false;
+    if (bookingAt) {
+      var confirmTime = new Date(bookingAt).getTime() + 60 * 60 * 1000;
+      isConfirmed = Date.now() > confirmTime;
+    }
+
+    // 表示用ラベル
+    var parts  = targetMonth.slice(0,7).split('-');
+    var mLabel = parts.length === 2 ? parts[0] + '年' + parseInt(parts[1]) + '月分' : targetMonth || '—';
+
+    // ステータスバッジ
+    var badgeCfg = {
+      draft:     { label: '✏️ 下書き',   color: 'var(--am)', bg: 'var(--am-light)' },
+      submitted: { label: '✅ 提出済み', color: 'var(--gr)', bg: 'var(--gr-light)' },
+      archived:  { label: '📁 過去',     color: 'var(--tx3)', bg: 'var(--bg3)' },
+    };
+    var badge = badgeCfg[status] || badgeCfg.draft;
+
+    // 月次1on1紐付け表示
+    var linkStr = '';
+    var calBtn  = '';
+    if (!bookingId) {
+      linkStr = '<span style="font-size:11px;color:var(--tx3)">月次1on1: 未設定</span>';
+    } else if (bookingAt) {
+      var bd  = new Date(bookingAt);
+      var bStr = isNaN(bd) ? bookingAt : ((bd.getMonth()+1) + '/' + bd.getDate() + ' ' + ('0'+bd.getHours()).slice(-2) + ':' + ('0'+bd.getMinutes()).slice(-2));
+      var calUrl = 'https://calendar.google.com/calendar/r/day/' + (isNaN(bd) ? '' : bd.getFullYear() + '/' + (bd.getMonth()+1) + '/' + bd.getDate());
+      linkStr = '<span style="font-size:11px;color:var(--gr)">📅 ' + bStr + '</span>';
+      calBtn  = ' <a href="' + calUrl + '" target="_blank" onclick="event.stopPropagation()" style="font-size:10px;padding:2px 6px;border-radius:6px;background:#e8f4ff;color:#1a73e8;text-decoration:none;font-weight:600">カレンダー</a>';
+    } else {
+      linkStr = '<span style="font-size:11px;color:var(--gr)">📅 1on1紐付け済み</span>';
+    }
+
     var div = document.createElement('div');
     div.className = 'rep-item';
-    div.style.cssText = 'cursor:pointer';
-    div.onclick = function(){ openPreReportDetail(r); };
-    div.innerHTML = '<div class="rep-date"><div class="rd" style="font-size:11px">' + (dateStr.split('月')[1]||'') + '</div>'
-      + '<div class="rm">' + (dateStr.split('月')[0]||'') + '月</div></div>'
-      + '<div class="ri">'
-      + '<div class="ri-t">' + esc(summary.substring(0,24)) + '</div>'
-      + '<div class="ri-s">対象月: ' + esc(month) + ' ／ 提出: ' + dateStr + '</div>'
-      + '</div><div class="arr">›</div>';
+    div.style.cssText = 'cursor:pointer;padding:12px 16px';
+
+    // 未確定なら編集フォームへ、確定済み・過去はreadonly表示
+    if (!isArchived && !isConfirmed && reportId) {
+      (function(rid){ div.onclick = function(){
+        goScreen('preReport');
+        // 少し待ってからフォームを開く（goScreen内のloadが完了してから）
+        setTimeout(function(){ openPreReportForm(rid); }, 400);
+      }; })(reportId);
+    } else if (reportId) {
+      (function(r){ div.onclick = function(){ openPreReportDetail(r); }; })(item);
+    }
+
+    div.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">'
+      + '<div style="font-size:15px;font-weight:700">' + esc(mLabel) + '</div>'
+      + '<span style="font-size:11px;padding:2px 8px;border-radius:8px;background:' + badge.bg + ';color:' + badge.color + ';font-weight:600">' + badge.label + '</span>'
+      + '</div>'
+      + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
+      + linkStr + calBtn
+      + '</div>';
+
     el.appendChild(div);
   });
-  if (moreEl) moreEl.style.display = (!showAll && reports.length > 3) ? '' : 'none';
-  updateHomePreReportBtn(); // ★ 提出済みかでボタン表示を切り替え
+
+  if (moreEl) moreEl.style.display = (!showAll && items.length > 5) ? '' : 'none';
+  updateHomePreReportBtn();
 }
 function showAllRecentPreReports() { renderRecentPreReports(true); }
 
