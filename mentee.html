@@ -1652,16 +1652,29 @@ async function loadPreReportMonthList() {
   var listEl = document.getElementById('prMonthList');
   if (listEl) listEl.innerHTML = '<div class="loading" style="padding:16px;text-align:center">読み込み中…</div>';
 
-  var data = await apiRequest('/api/mentee/pre-report/monthly-slots');
-  _prSlots = (data && data.slots) ? data.slots : [];
+  // ★ monthly-slotsエンドポイントを試みる（GAS v28以降）
+  // 失敗またはエンドポイント未存在の場合は既存の pre-reports から代替表示
+  var data = null;
+  try {
+    data = await apiRequest('/api/mentee/pre-report/monthly-slots');
+  } catch(e) {
+    data = null;
+  }
 
-  // スロットがなければcreateMonthlyPreReportsの代わりにフロントで初期スロットを生成
+  // APIがエラーまたはエンドポイント未存在（GAS v27以前）の場合のフォールバック
+  if (!data || data.error || !data.slots) {
+    await loadPreReportMonthListFallback_();
+    return;
+  }
+
+  _prSlots = data.slots;
+
+  // スロットが空の場合は当月〜2ヶ月先の3ヶ月分を自動生成して再取得
   if (_prSlots.length === 0) {
     var today = new Date();
     for (var i = 0; i < 3; i++) {
-      var d = new Date(today.getFullYear(), today.getMonth() + i, 1);
+      var d  = new Date(today.getFullYear(), today.getMonth() + i, 1);
       var ym = d.getFullYear() + '-' + ('0'+(d.getMonth()+1)).slice(-2);
-      // サーバーに空スロットを作成
       await apiRequest('/api/mentee/pre-report', {
         method: 'POST',
         body: JSON.stringify({ target_month: ym, status: 'draft' })
@@ -1670,6 +1683,74 @@ async function loadPreReportMonthList() {
     var data2 = await apiRequest('/api/mentee/pre-report/monthly-slots');
     _prSlots = (data2 && data2.slots) ? data2.slots : [];
   }
+
+  // それでも空なら「レポートなし」と表示（無限ループを防ぐ）
+  renderPreReportMonthList();
+}
+
+// ★ GAS v27以前用フォールバック：既存 pre-reports APIから月リストを構築
+async function loadPreReportMonthListFallback_() {
+  var data = await apiRequest('/api/mentee/pre-reports');
+  var reports = (data && data.reports) ? data.reports : [];
+
+  // target_monthで月ごとにグループ化（最新1件を代表に）
+  var monthMap = {};
+  reports.forEach(function(r) {
+    var ym = (r.target_month || r.submitted_at || '').slice(0,7);
+    if (!ym) return;
+    if (!monthMap[ym] || (r.submitted_at||'') > (monthMap[ym].submitted_at||'')) {
+      monthMap[ym] = r;
+    }
+  });
+
+  // 当月〜過去3ヶ月を含む月スロットを構築
+  var today = new Date();
+  var months = [];
+  for (var i = -2; i <= 2; i++) {
+    var d  = new Date(today.getFullYear(), today.getMonth() + i, 1);
+    var ym = d.getFullYear() + '-' + ('0'+(d.getMonth()+1)).slice(-2);
+    months.push(ym);
+  }
+
+  _prSlots = months.map(function(ym) {
+    var r = monthMap[ym];
+    if (r) {
+      return {
+        report_id:           r.report_id,
+        target_month:        ym,
+        status:              r.status || (r.submitted_at ? 'submitted' : 'draft'),
+        monthly_booking_id:  r.monthly_booking_id || '',
+        archived_at:         r.archived_at || '',
+        submitted_at:        r.submitted_at || '',
+        project_result:          r.project_result          || '',
+        study_hours:             r.study_hours             || '',
+        study_content:           r.study_content           || '',
+        good_points:             r.good_points             || '',
+        improvement_points:      r.improvement_points      || '',
+        next_month_project_goal: r.next_month_project_goal || '',
+        next_month_study_goal:   r.next_month_study_goal   || '',
+        current_project:         r.current_project         || '',
+        goal_work_6m:            r.goal_work_6m            || '',
+        goal_skill_6m:           r.goal_skill_6m           || '',
+        month_bookings:          [],
+      };
+    } else {
+      // レコードなし → 空スロット（クリックで新規作成）
+      return {
+        report_id:    null,
+        target_month: ym,
+        status:       'draft',
+        monthly_booking_id: '',
+        archived_at:  '',
+        submitted_at: '',
+        project_result: '', study_hours: '', study_content: '',
+        good_points: '', improvement_points: '',
+        next_month_project_goal: '', next_month_study_goal: '',
+        current_project: '', goal_work_6m: '', goal_skill_6m: '',
+        month_bookings: [],
+      };
+    }
+  });
 
   renderPreReportMonthList();
 }
@@ -1689,20 +1770,53 @@ function renderPreReportMonthList() {
     archived:  { label: '📁 過去',     color: 'var(--tx3)', bg: 'var(--bg3)' },
   };
 
-  listEl.innerHTML = _prSlots.map(function(s) {
+  var items = _prSlots.map(function(s) {
     var cfg    = STATUS_CONFIG[s.status] || STATUS_CONFIG.draft;
     var ymStr  = s.target_month ? s.target_month.slice(0,7) : '—';
     var parts  = ymStr.split('-');
     var label  = parts.length === 2 ? parts[0] + '年' + parseInt(parts[1]) + '月分' : ymStr;
     var linked = s.monthly_booking_id ? '📅 1on1紐付け済み' : '';
-    return '<div class="rep-item" style="cursor:pointer;padding:14px 16px;display:flex;align-items:center;justify-content:space-between" onclick="openPreReportForm('' + s.report_id + '')">'      + '<div>'      +   '<div style="font-size:16px;font-weight:700;margin-bottom:3px">' + label + '</div>'      +   '<div style="font-size:11px;color:var(--tx3)">' + (linked || (s.submitted_at ? '提出: ' + s.submitted_at.slice(0,10) : '未提出')) + '</div>'      + '</div>'      + '<div style="display:flex;align-items:center;gap:8px">'      +   '<span style="font-size:11px;padding:3px 8px;border-radius:8px;background:' + cfg.bg + ';color:' + cfg.color + ';font-weight:600">' + cfg.label + '</span>'      +   '<span style="color:var(--tx3)">›</span>'      + '</div>'      + '</div>';
-  }).join('');
+    var key    = s.report_id || s.target_month;
+    var el     = document.createElement('div');
+    el.className = 'rep-item';
+    el.setAttribute('style', 'cursor:pointer;padding:14px 16px;display:flex;align-items:center;justify-content:space-between');
+    el.innerHTML = '<div>'
+      + '<div style="font-size:16px;font-weight:700;margin-bottom:3px">' + esc(label) + '</div>'
+      + '<div style="font-size:11px;color:var(--tx3)">' + esc(linked || (s.submitted_at ? '提出: ' + s.submitted_at.slice(0,10) : '未提出')) + '</div>'
+      + '</div>'
+      + '<div style="display:flex;align-items:center;gap:8px">'
+      + '<span style="font-size:11px;padding:3px 8px;border-radius:8px;background:' + cfg.bg + ';color:' + cfg.color + ';font-weight:600">' + cfg.label + '</span>'
+      + '<span style="color:var(--tx3)">&rsaquo;</span>'
+      + '</div>';
+    (function(k){ el.onclick = function(){ openPreReportForm(k); }; })(key);
+    return el;
+  });
+  listEl.innerHTML = '';
+  items.forEach(function(el){ listEl.appendChild(el); });
 }
 
-// 月別フォームを開く
-function openPreReportForm(reportId) {
-  var slot = _prSlots.find(function(s){ return s.report_id === reportId; });
+// 月別フォームを開く（report_idがnullの場合は新規作成してから開く）
+async function openPreReportForm(reportId) {
+  var slot = _prSlots.find(function(s){ return s.report_id === reportId || (!s.report_id && s.target_month === reportId); });
   if (!slot) return;
+
+  // report_idがnull（空スロット）の場合はAPIで新規作成
+  if (!slot.report_id) {
+    var r = await apiRequest('/api/mentee/pre-report', {
+      method: 'POST',
+      body: JSON.stringify({ target_month: slot.target_month, status: 'draft' })
+    });
+    if (r && r.ok) {
+      slot.report_id = r.report_id;
+      // _prSlotsも更新
+      _prSlots = _prSlots.map(function(s) {
+        return s.target_month === slot.target_month ? Object.assign({}, s, { report_id: r.report_id }) : s;
+      });
+    } else {
+      showToast('❌ レポートの作成に失敗しました');
+      return;
+    }
+  }
   _prCurrentSlot = slot;
 
   // パンくず更新
