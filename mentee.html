@@ -338,16 +338,51 @@ input[type="month"].inp{padding:11px 14px}
       <div class="time-grid" id="timeGrid"></div>
     </div>
   </div>
+  <div id="meetingTypeSection" style="display:none;margin-top:12px;padding:12px;background:var(--bg2);border-radius:10px;border:1px solid var(--bd)">
+    <div style="font-size:13px;font-weight:700;margin-bottom:8px;color:var(--tx)">1on1の種別を選択</div>
+    <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer;font-size:14px">
+      <input type="radio" name="meetingType" value="monthly" checked id="mt-monthly">
+      <span>📅 月次1on1（レポートに反映）</span>
+    </label>
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px">
+      <input type="radio" name="meetingType" value="other" id="mt-other">
+      <span>💬 その他の1on1（メモのみ・レポート反映なし）</span>
+    </label>
+  </div>
   <button class="btn btn-p" style="width:100%;margin-top:8px;display:none" id="bookBtn" onclick="bookSlot()">✅ この日時で予約する</button>
 </div>
 
 <!-- ══════════════════════════════════════  事前レポート（要件②対応・新フォーム項目） -->
 <div class="screen" id="s-preReport">
-  <div class="bc"><span class="bc-link" onclick="goScreen('home')">ホーム</span><span>›</span><span>事前レポート</span></div>
-  <div style="margin-bottom:4px">
-    <div style="font-size:19px;font-weight:700;margin-bottom:4px">事前レポート提出</div>
-    <div style="font-size:13px;color:var(--tx2)" id="preReportSubtitle">—</div>
+  <div class="bc"><span class="bc-link" onclick="goScreen('home')">ホーム</span><span>›</span>
+    <span id="prBreadcrumb">事前レポート</span>
   </div>
+
+  <!-- ══ 月リスト表示（サブ画面A） ══ -->
+  <div id="prMonthListView">
+    <div style="font-size:19px;font-weight:700;margin-bottom:4px">事前レポート</div>
+    <div style="font-size:13px;color:var(--tx2);margin-bottom:16px">月ごとに1本作成・管理できます</div>
+    <div id="prMonthList" style="display:flex;flex-direction:column;gap:8px">
+      <div class="loading" style="padding:16px;text-align:center">読み込み中…</div>
+    </div>
+  </div>
+
+  <!-- ══ 月別フォーム（サブ画面B） ══ -->
+  <div id="prFormView" style="display:none">
+    <div style="margin-bottom:4px">
+      <div style="font-size:19px;font-weight:700;margin-bottom:4px" id="prFormTitle">事前レポート</div>
+      <div style="font-size:13px;color:var(--tx2)" id="preReportSubtitle">—</div>
+    </div>
+    <!-- 月次1on1紐付けカード -->
+    <div class="card" style="margin-bottom:8px">
+      <div class="ch"><div class="ct">📅 紐づける月次1on1</div></div>
+      <div style="padding:16px">
+        <select class="inp" id="pr-monthlyBookingId" style="width:100%">
+          <option value="">選択しない（後で設定可）</option>
+        </select>
+        <div style="font-size:11px;color:var(--tx3);margin-top:6px">紐付けした1on1の開始時刻を過ぎると、このレポートは自動的に過去レポートに移動します。</div>
+      </div>
+    </div>
 
   <!-- ① 基本情報 -->
   <div class="card">
@@ -445,9 +480,14 @@ input[type="month"].inp{padding:11px 14px}
     </div>
   </div>
 
-  <input type="hidden" id="pr-report-id" value="">
-  <button class="btn btn-p" style="width:100%" id="preReportSubmitBtn" onclick="submitPreReport()">📝 事前レポートを提出</button>
-  <div style="font-size:12px;color:var(--tx3);text-align:center;margin-top:-8px">※ <span class="req" style="color:var(--rd)">*</span> は必須項目です</div>
+    <input type="hidden" id="pr-report-id" value="">
+    <!-- 下書き保存・提出ボタン -->
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-g" style="flex:1" id="prDraftBtn" onclick="submitPreReport('draft')">💾 下書き保存</button>
+      <button class="btn btn-p" style="flex:2" id="preReportSubmitBtn" onclick="submitPreReport('submitted')">📝 提出する</button>
+    </div>
+    <div style="font-size:12px;color:var(--tx3);text-align:center;margin-top:4px">※ <span class="req" style="color:var(--rd)">*</span> は必須項目です</div>
+  </div><!-- /prFormView -->
 </div>
 
 <!-- ══════════════════════════════════════  SURVEY（アンケート） -->
@@ -1439,7 +1479,13 @@ function goScreen(id) {
   if (s) s.classList.add('active');
   if (id === 'preReport') {
     updatePreReportNextMonthGoals();
-    preparePreReportForm();
+    // 月リスト画面にリセットして読み込み
+    var mlv = document.getElementById('prMonthListView');
+    var pfv = document.getElementById('prFormView');
+    if (mlv) mlv.style.display = '';
+    if (pfv) pfv.style.display = 'none';
+    _prCurrentSlot = null;
+    loadPreReportMonthList();
   }
   // ★ アンケート画面を開くたびに星をリセット＆booking_idをセット
   if (id === 'survey') {
@@ -1597,6 +1643,135 @@ async function loadSurveyData() {
   }
 }
 
+// ══ 事前レポート月次管理 ══
+var _prSlots       = [];  // 月スロット一覧
+var _prCurrentSlot = null; // 現在編集中のスロット
+
+// 月リスト画面を表示
+async function loadPreReportMonthList() {
+  var listEl = document.getElementById('prMonthList');
+  if (listEl) listEl.innerHTML = '<div class="loading" style="padding:16px;text-align:center">読み込み中…</div>';
+
+  var data = await apiRequest('/api/mentee/pre-report/monthly-slots');
+  _prSlots = (data && data.slots) ? data.slots : [];
+
+  // スロットがなければcreateMonthlyPreReportsの代わりにフロントで初期スロットを生成
+  if (_prSlots.length === 0) {
+    var today = new Date();
+    for (var i = 0; i < 3; i++) {
+      var d = new Date(today.getFullYear(), today.getMonth() + i, 1);
+      var ym = d.getFullYear() + '-' + ('0'+(d.getMonth()+1)).slice(-2);
+      // サーバーに空スロットを作成
+      await apiRequest('/api/mentee/pre-report', {
+        method: 'POST',
+        body: JSON.stringify({ target_month: ym, status: 'draft' })
+      });
+    }
+    var data2 = await apiRequest('/api/mentee/pre-report/monthly-slots');
+    _prSlots = (data2 && data2.slots) ? data2.slots : [];
+  }
+
+  renderPreReportMonthList();
+}
+
+// 月リストを描画
+function renderPreReportMonthList() {
+  var listEl = document.getElementById('prMonthList');
+  if (!listEl) return;
+  if (_prSlots.length === 0) {
+    listEl.innerHTML = '<div style="padding:16px;color:var(--tx3);text-align:center">事前レポートがありません</div>';
+    return;
+  }
+
+  var STATUS_CONFIG = {
+    draft:     { label: '✏️ 下書き中', color: 'var(--am)', bg: 'var(--am-light)' },
+    submitted: { label: '✅ 提出済み', color: 'var(--gr)', bg: 'var(--gr-light)' },
+    archived:  { label: '📁 過去',     color: 'var(--tx3)', bg: 'var(--bg3)' },
+  };
+
+  listEl.innerHTML = _prSlots.map(function(s) {
+    var cfg    = STATUS_CONFIG[s.status] || STATUS_CONFIG.draft;
+    var ymStr  = s.target_month ? s.target_month.slice(0,7) : '—';
+    var parts  = ymStr.split('-');
+    var label  = parts.length === 2 ? parts[0] + '年' + parseInt(parts[1]) + '月分' : ymStr;
+    var linked = s.monthly_booking_id ? '📅 1on1紐付け済み' : '';
+    return '<div class="rep-item" style="cursor:pointer;padding:14px 16px;display:flex;align-items:center;justify-content:space-between" onclick="openPreReportForm('' + s.report_id + '')">'      + '<div>'      +   '<div style="font-size:16px;font-weight:700;margin-bottom:3px">' + label + '</div>'      +   '<div style="font-size:11px;color:var(--tx3)">' + (linked || (s.submitted_at ? '提出: ' + s.submitted_at.slice(0,10) : '未提出')) + '</div>'      + '</div>'      + '<div style="display:flex;align-items:center;gap:8px">'      +   '<span style="font-size:11px;padding:3px 8px;border-radius:8px;background:' + cfg.bg + ';color:' + cfg.color + ';font-weight:600">' + cfg.label + '</span>'      +   '<span style="color:var(--tx3)">›</span>'      + '</div>'      + '</div>';
+  }).join('');
+}
+
+// 月別フォームを開く
+function openPreReportForm(reportId) {
+  var slot = _prSlots.find(function(s){ return s.report_id === reportId; });
+  if (!slot) return;
+  _prCurrentSlot = slot;
+
+  // パンくず更新
+  var parts  = (slot.target_month || '').split('-');
+  var label  = parts.length === 2 ? parts[0] + '年' + parseInt(parts[1]) + '月分' : slot.target_month;
+  var bc = document.getElementById('prBreadcrumb');
+  if (bc) bc.innerHTML = '<span class="bc-link" onclick="backToMonthList()">事前レポート</span><span>›</span><span>' + label + '</span>';
+  var title = document.getElementById('prFormTitle');
+  if (title) title.textContent = label + ' 事前レポート';
+
+  // リスト非表示・フォーム表示
+  document.getElementById('prMonthListView').style.display = 'none';
+  document.getElementById('prFormView').style.display = '';
+
+  // フォームにデータを流し込む
+  document.getElementById('pr-report-id').value = slot.report_id || '';
+  var setV = function(id, val) { var el = document.getElementById(id); if (el) el.value = val || ''; };
+  var setT = function(id, val) { var el = document.getElementById(id); if (el) el.textContent = val || '—'; };
+  setV('pr-targetMonth',         (slot.target_month||'').slice(0,7));
+  setV('pr-sessionDate',          slot.session_date || '');
+  setV('pr-projectResult',        slot.project_result || '');
+  setV('pr-studyHours',           slot.study_hours || '');
+  setV('pr-studyContent',         slot.study_content || '');
+  setV('pr-goodPoints',           slot.good_points || '');
+  setV('pr-improvementPoints',    slot.improvement_points || '');
+  setV('pr-nextMonthProjectGoal', slot.next_month_project_goal || '');
+  setV('pr-nextMonthStudyGoal',   slot.next_month_study_goal || '');
+  setT('pr-currentProject',       slot.current_project || '');
+  setT('pr-goalWork6m-disp',      slot.goal_work_6m || '');
+  setT('pr-goalSkill6m-disp',     slot.goal_skill_6m || '');
+
+  // 月次1on1ドロップダウンを更新
+  var sel = document.getElementById('pr-monthlyBookingId');
+  if (sel) {
+    sel.innerHTML = '<option value="">選択しない（後で設定可）</option>';
+    (slot.month_bookings || []).forEach(function(b) {
+      var d    = new Date(b.scheduled_at);
+      var dStr = isNaN(d) ? b.scheduled_at : (d.getMonth()+1) + '/' + d.getDate() + '（' + ['日','月','火','水','木','金','土'][d.getDay()] + '）' + ('0'+d.getHours()).slice(-2) + ':' + ('0'+d.getMinutes()).slice(-2);
+      var opt  = document.createElement('option');
+      opt.value = b.booking_id;
+      opt.textContent = dStr + ' ' + (b.mentor_name||'') + ' 月次1on1';
+      if (b.booking_id === slot.monthly_booking_id) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  }
+
+  // 提出済み・過去は入力欄を読み取り専用に
+  var isReadonly = slot.status === 'archived';
+  ['pr-projectResult','pr-studyHours','pr-studyContent','pr-goodPoints',
+   'pr-improvementPoints','pr-nextMonthProjectGoal','pr-nextMonthStudyGoal','pr-sessionDate'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.disabled = isReadonly;
+  });
+  var submitBtn = document.getElementById('preReportSubmitBtn');
+  var draftBtn  = document.getElementById('prDraftBtn');
+  if (submitBtn) submitBtn.style.display = isReadonly ? 'none' : '';
+  if (draftBtn)  draftBtn.style.display  = isReadonly ? 'none' : '';
+}
+
+// 月リストに戻る
+function backToMonthList() {
+  document.getElementById('prMonthListView').style.display = '';
+  document.getElementById('prFormView').style.display = 'none';
+  _prCurrentSlot = null;
+  var bc = document.getElementById('prBreadcrumb');
+  if (bc) bc.textContent = '事前レポート';
+  renderPreReportMonthList();
+}
+
 // ══ 事前レポートフォーム準備（新規 or 上書き判定） ══
 function preparePreReportForm() {
   var today = new Date();
@@ -1678,16 +1853,21 @@ function preparePreReportForm() {
   }
 }
 
-// ══ 事前レポート送信 ══
-async function submitPreReport() {
+// ══ 事前レポート送信（status: 'draft' or 'submitted'） ══
+async function submitPreReport(status) {
+  status = status || 'submitted';
   var g = function(id){ var el=document.getElementById(id); return el ? (el.value||el.textContent||'') : ''; };
   var gTxt = function(id){ var el=document.getElementById(id); return el ? (el.textContent||'').replace(/^—$/,'') : ''; };
   if (!g('pr-targetMonth') || !g('pr-projectResult') || !g('pr-goodPoints') || !g('pr-nextMonthProjectGoal')) {
     showToast('❌ 必須項目を入力してください'); return;
   }
-  var reportId = g('pr-report-id'); // 既存レポートのID（上書き時のみ非空）
+  var reportId     = g('pr-report-id');
+  var bookingSelEl = document.getElementById('pr-monthlyBookingId');
+  var linkedBookingId = bookingSelEl ? bookingSelEl.value : '';
   var body = {
-    report_id:               reportId || undefined, // GAS側でUpsertキーとして使用
+    report_id:               reportId || undefined,
+    status:                  status,
+    monthly_booking_id:      linkedBookingId || undefined,
     target_month:            g('pr-targetMonth'),
     session_date:            g('pr-sessionDate'),
     current_project:         gTxt('pr-currentProject'),
@@ -1703,21 +1883,32 @@ async function submitPreReport() {
   };
   var isUpdate = !!reportId;
   var result = await apiRequest('/api/mentee/pre-report', { method: 'POST', body: JSON.stringify(body) });
+  // 月次1on1との紐付けを更新
+  if (result && result.ok && reportId && linkedBookingId !== undefined) {
+    apiRequest('/api/mentee/pre-report/link-booking', { method: 'POST', body: JSON.stringify({ report_id: reportId, booking_id: linkedBookingId }) }).catch(function(){});
+  }
   if (result && result.ok) {
-    // ローカルキャッシュを更新（重複表示防止）
-    if (isUpdate) {
-      _allPreReports = _allPreReports.map(function(r) {
-        return r.report_id === reportId ? Object.assign({}, r, body, { report_id: reportId, submitted_at: new Date().toISOString() }) : r;
+    _preReportsLoaded = false;
+    // _prSlotsのキャッシュも更新
+    if (reportId && _prSlots) {
+      _prSlots = _prSlots.map(function(s) {
+        if (s.report_id !== reportId) return s;
+        return Object.assign({}, s, {
+          status:              status,
+          monthly_booking_id:  linkedBookingId || s.monthly_booking_id,
+          submitted_at:        status === 'submitted' ? new Date().toISOString() : s.submitted_at,
+        });
       });
-      _homePreReports = _allPreReports;
-    } else {
-      // 新規の場合はキャッシュをリセットして再取得
-      _preReportsLoaded = false;
     }
-    showToast(isUpdate ? '✅ 事前レポートを更新しました' : '✅ 事前レポートを提出しました');
-    goNav('home');
+    var msg = status === 'draft' ? '💾 下書きを保存しました' : '✅ 事前レポートを提出しました';
+    showToast(msg);
+    if (status === 'submitted') {
+      backToMonthList(); // 提出後は月リストに戻る
+    } else {
+      renderPreReportMonthList(); // 下書き保存後はそのまま
+    }
   } else {
-    showToast('❌ 提出に失敗しました');
+    showToast('❌ 保存に失敗しました');
   }
 }
 
@@ -1850,6 +2041,8 @@ function selectTime(time, datetime, el) {
   document.querySelectorAll('.time-slot').forEach(function(t){ t.classList.remove('sel'); });
   el.classList.add('sel');
   document.getElementById('bookBtn').style.display = '';
+  var sec = document.getElementById('meetingTypeSection');
+  if (sec) sec.style.display = '';
 }
 
 async function bookSlot() {
@@ -1861,12 +2054,15 @@ async function bookSlot() {
   var btn = document.getElementById('bookBtn');
   btn.disabled = true; btn.textContent = '予約中…';
   // duration_minutes を明示的に送信（GASのメンター設定値を使用）
+  var mtEl = document.querySelector('input[name="meetingType"]:checked');
+  var meeting_type = mtEl ? mtEl.value : 'monthly';
   var result = await apiRequest('/api/mentee/booking', {
     method: 'POST',
     body: JSON.stringify({
       mentor_id:        mentorId,
       scheduled_at:     _selectedTime,
-      duration_minutes: _slotMinutes || 60
+      duration_minutes: _slotMinutes || 60,
+      meeting_type:     meeting_type
     })
   });
   btn.disabled = false; btn.textContent = '✅ この日時で予約する';
