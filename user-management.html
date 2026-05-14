@@ -1286,7 +1286,12 @@ async function submitUser() {
       // GASからのエラーレスポンス（認証エラー・バリデーションエラー等）
       const msg = d?.message || d?.error || '処理に失敗しました';
       console.error('[API Error]', d);
-      toast('err', msg);
+      // ★ 列未追加エラーの場合は分かりやすいメッセージを表示
+      if (msg && msg.includes('addMissingUserColumns')) {
+        toast('err', 'スプレッドシートの列が不足しています。GASエディタで addMissingUserColumns を実行してください。');
+      } else {
+        toast('err', msg);
+      }
     }
   } catch(err) {
     // fetch自体が失敗（ネットワーク障害）の場合のみオフライン扱い
