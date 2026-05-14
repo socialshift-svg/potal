@@ -1226,7 +1226,75 @@ document.addEventListener('DOMContentLoaded', async () => {
       s.style.color = i < val ? 'var(--am)' : 'var(--bd)';
     });
   });
+  // ★ TEL着信ポーリング開始（30秒ごと）
+  startTelIncomingPoller();
 });
+
+
+// ══ TEL着信ポーリング ══
+var _telPollerTimer = null;
+var _telLastCallId  = '';
+var _telDismissed   = '';  // 一度「後で」したcall_idはスキップ
+
+function startTelIncomingPoller() {
+  if (_telPollerTimer) clearInterval(_telPollerTimer);
+  // 初回は10秒後に開始、以降30秒ごと
+  setTimeout(function() {
+    checkTelIncoming();
+    _telPollerTimer = setInterval(checkTelIncoming, 30000);
+  }, 10000);
+}
+
+async function checkTelIncoming() {
+  try {
+    var data = await apiRequest('/api/mentee/tel-incoming');
+    if (!data || !data.incoming) return;
+    var call = data.incoming;
+    // 既に「後で」したか、または同じ着信を再表示しない
+    if (call.call_id === _telDismissed) return;
+    // 着信UIを表示
+    showTelIncoming(call);
+  } catch(e) {
+    // エラーは無視（ポーリングなので）
+  }
+}
+
+function showTelIncoming(call) {
+  _telLastCallId = call.call_id || '';
+  var modal  = document.getElementById('telIncomingModal');
+  var caller = document.getElementById('telCallerName');
+  var btn    = document.getElementById('telAnswerBtn');
+  if (!modal) return;
+
+  if (caller) caller.textContent = (call.leader_name || 'リーダー') + ' さんから着信中…';
+  if (btn)    btn.href = call.tel_meet_url || '#';
+
+  modal.style.display = 'flex';
+
+  // 着信音（Web Audio API でビープ音）
+  try {
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    function beep() {
+      var o = ctx.createOscillator();
+      var g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value = 440;
+      g.gain.setValueAtTime(0.3, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+      o.start(ctx.currentTime);
+      o.stop(ctx.currentTime + 0.5);
+    }
+    beep();
+    setTimeout(beep, 700);
+    setTimeout(beep, 1400);
+  } catch(e) {}
+}
+
+function dismissTelIncoming() {
+  _telDismissed = _telLastCallId;
+  var modal = document.getElementById('telIncomingModal');
+  if (modal) modal.style.display = 'none';
+}
 
 // ══ Mentee兼Leader: 週次TEL管理 ══
 var _wtCurrentMentee = { userId: null, name: null, callId: null };
@@ -3791,5 +3859,24 @@ function closeRefCelebration() {
   if (wrap) wrap.innerHTML = '';
 }
 </script>
+<!-- ══ TEL着信モーダル ══ -->
+<div id="telIncomingModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.75);align-items:center;justify-content:center;flex-direction:column">
+  <div style="background:#fff;border-radius:24px;padding:32px 28px;text-align:center;max-width:320px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,.3);animation:telPulse 1s ease-in-out infinite alternate">
+    <div style="font-size:56px;margin-bottom:8px;animation:telRing 0.6s ease-in-out infinite alternate">📞</div>
+    <div style="font-size:20px;font-weight:800;color:#1a1a1a;margin-bottom:6px">TELが来ています</div>
+    <div style="font-size:15px;color:#666;margin-bottom:24px" id="telCallerName">リーダーから着信中…</div>
+    <a id="telAnswerBtn" href="#" target="_blank"
+       style="display:block;background:linear-gradient(135deg,#27ae60,#1e8449);color:#fff;font-size:16px;font-weight:800;padding:14px;border-radius:14px;text-decoration:none;margin-bottom:12px;box-shadow:0 4px 12px rgba(39,174,96,.4)">
+      ✅&nbsp; 応答する
+    </a>
+    <button onclick="dismissTelIncoming()" style="width:100%;background:#f0f0f0;color:#888;font-size:14px;font-weight:600;padding:12px;border-radius:12px;border:none;cursor:pointer">
+      後で
+    </button>
+  </div>
+</div>
+<style>
+@keyframes telPulse { from{transform:scale(1)} to{transform:scale(1.02)} }
+@keyframes telRing  { from{transform:rotate(-15deg)} to{transform:rotate(15deg)} }
+</style>
 </body>
 </html>

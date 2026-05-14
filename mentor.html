@@ -683,7 +683,7 @@ td{padding:10px 14px;font-size:13px}
         <div class="ct" id="panelName">メンバーを選択</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn btn-sm" id="panelChatBtn" style="display:none;background:linear-gradient(135deg,#1a73e8,#0d62d1);color:#fff" onclick="openMenteeChat()">💬 チャット</button>
-          <button class="btn btn-sm" id="panelTelBtn" style="display:none;background:linear-gradient(135deg,var(--pr),var(--pr2));color:#fff" onclick="startTelCall()">📞 TEL開始</button>
+          <button id="panelTelBtn" style="display:none;background:linear-gradient(135deg,#e8474f,#c0392b);color:#fff;font-size:15px;font-weight:800;padding:12px 24px;border-radius:14px;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(232,71,79,.5);width:100%;margin-top:8px;letter-spacing:.5px" onmousedown="this.style.transform='scale(.97)'" onmouseup="this.style.transform='';" onclick="startTelCall()">📞&nbsp; TEL 開始</button>
           <button class="btn btn-p btn-sm" onclick="openBookingCreate()">＋ 予約</button>
           <button class="btn btn-g btn-sm" onclick="openTelHistModal()">📞 TEL履歴</button>
         </div>
@@ -1039,7 +1039,7 @@ td{padding:10px 14px;font-size:13px}
 //  設定
 // ══════════════════════════════════════════════════════════
 const GAS_URL     = 'https://script.google.com/macros/s/AKfycbzdwzQYNRRHO5S7Fq1qBE7qYoMEYoJTjqU1MoQivOWxFpzt4w5NcuICTOYROISn6KYpmQ/exec';
-const GITHUB_BASE = 'https://socialshift-svg.github.io/potal';
+const GITHUB_BASE = 'https://koheiumeda-arch.github.io/SS1on1';
 
 // ★ セキュリティ: フロントエンドでSHA-256ハッシュ化（パスワードを平文送信しない）
 async function sha256Hex(str) {
@@ -1326,7 +1326,7 @@ function filterMentorTraining() {
 function logoutMentor() {
   if (!confirm('ログアウトしますか？')) return;
   Auth.clearAuth();
-  window.location.href = 'https://socialshift-svg.github.io/potal/login.html';
+  window.location.href = 'https://koheiumeda-arch.github.io/SS1on1/login.html';
 }
 
 function warmupGAS() {
