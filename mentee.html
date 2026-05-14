@@ -2441,7 +2441,7 @@ function renderHome(data) {
     var timeEl = document.getElementById('nextTime');
     var meetBtn = document.getElementById('meetBtn');
     if (dateEl) dateEl.textContent = month + '月' + day + '日（' + wd + '）';
-    var mtBadge = b.meeting_type === 'other' ? '💬 その他1on1' : '📅 月次1on1';
+    var mtBadge = b.meeting_type === 'other' ? 'その他' : '月次';
     if (timeEl) timeEl.innerHTML = '🕐 ' + hour + ':' + min + '〜　' + esc(data.mentor ? data.mentor.name : '')
       + '&nbsp;<span style="font-size:10px;padding:2px 6px;border-radius:6px;background:rgba(255,255,255,.25);color:#fff;font-weight:600">' + mtBadge + '</span>';
     // キャンセルボタン追加
@@ -2605,14 +2605,19 @@ function renderHomeSchedule() {
     var d   = jst.getUTCDate();
     var wd  = wds[jst.getUTCDay()];
     var h   = ('0'+jst.getUTCHours()).slice(-2);
+    var h   = ('0'+jst.getUTCHours()).slice(-2);
     var m   = ('0'+jst.getUTCMinutes()).slice(-2);
+    var mtL  = b.meeting_type === 'other' ? 'その他' : '月次';
+    var mtC  = b.meeting_type === 'other' ? 'var(--am)' : 'var(--pr)';
+    var mtBg = b.meeting_type === 'other' ? 'var(--am-light)' : 'var(--pr-light)';
     return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--bd)">'
-      + '<div><div style="font-size:14px;font-weight:600">' + mo + '月' + d + '日（' + wd + '）</div>'
-      + '<div style="font-size:12px;color:var(--tx3)">🕐 ' + h + ':' + m + ' (' + (b.duration_minutes || _slotMinutes || 60) + '分)</div></div>'
+      + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
+      + '<span style="font-size:13px;font-weight:600">' + mo + '月' + d + '日（' + wd + '）&nbsp;' + h + ':' + m + '〜</span>'
+      + '<span style="font-size:10px;padding:2px 5px;border-radius:5px;background:' + mtBg + ';color:' + mtC + ';font-weight:600">' + mtL + '</span>'
+      + '</div>'
       + (b.meet_link ? '<a href="' + b.meet_link + '" target="_blank" style="font-size:11px;color:var(--pr);text-decoration:none;font-weight:600">▶ Meet</a>' : '')
       + '</div>';
   }).join('') + (upcoming.length > 3 ? '<div style="padding:8px 16px;text-align:center;font-size:12px;color:var(--tx3)">他' + (upcoming.length - 3) + '件</div>' : '');
-}
 
 function openMyChat() {
   if (_myChatUrl) window.open(_myChatUrl, '_blank');
@@ -3310,18 +3315,17 @@ function renderMyBookings() {
     var wd  = wds[jst.getUTCDay()];
     var h   = ('0'+jst.getUTCHours()).slice(-2);
     var mi  = ('0'+jst.getUTCMinutes()).slice(-2);
-    var mtLabel = b.meeting_type === 'other' ? '💬 その他1on1' : '📅 月次1on1';
+    var mtLabel = b.meeting_type === 'other' ? 'その他' : '月次';
     var mtColor = b.meeting_type === 'other' ? 'var(--am)' : 'var(--pr)';
     var mtBg    = b.meeting_type === 'other' ? 'var(--am-light)' : 'var(--pr-light)';
     return '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--bd)">'
-      + '<div>'
-      + '<div style="font-size:14px;font-weight:700">' + mo + '月' + d + '日（' + wd + '）</div>'
-      + '<div style="font-size:14px;font-weight:700;display:flex;align-items:center;gap:6px">' + mo + '月' + d + '日（' + wd + '）'
-      + '<span style="font-size:10px;padding:2px 6px;border-radius:6px;background:' + mtBg + ';color:' + mtColor + ';font-weight:600">' + mtLabel + '</span></div>'
+      + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+      + '<span style="font-size:14px;font-weight:700">' + mo + '月' + d + '日（' + wd + '）&nbsp;' + h + ':' + mi + '〜</span>'
+      + '<span style="font-size:10px;padding:2px 6px;border-radius:6px;background:' + mtBg + ';color:' + mtColor + ';font-weight:600">' + mtLabel + '</span>'
       + '</div>'
       + '<div style="display:flex;gap:6px;align-items:center">'
       + (b.meet_link ? '<a href="' + b.meet_link + '" target="_blank" style="font-size:11px;color:var(--pr);text-decoration:none;font-weight:600;padding:4px 8px;border:1px solid var(--pr);border-radius:6px">▶ Meet</a>' : '')
-      + '<button class="btn" style="background:var(--rd-light);color:var(--rd);border:1px solid var(--rd);font-size:11px;padding:4px 10px" onclick="cancelMyBooking(\'' + b.booking_id + '\')">🗑</button>'
+      + '<button class="btn" style="background:var(--rd-light);color:var(--rd);border:1px solid var(--rd);font-size:11px;padding:4px 10px" onclick="cancelMyBooking(\''  + b.booking_id + '\')">🗑</button>'
       + '</div></div>';
   }).join('');
 
