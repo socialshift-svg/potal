@@ -1498,20 +1498,54 @@ function goScreen(id) {
 }
 
 function updatePreReportNextMonthGoals() {
-  // 最新の公開済みメンターレポートから next_month goals を取得
-  var latest = _myMentorReports.find(function(r) {
-    return r.is_published === 'TRUE' && (r.next_month_project_goal || r.next_month_study_goal);
-  });
+  // ★ 「前月」の公開済みメンターレポートのみを表示（全て同じ目標になる問題を修正）
   var projEl  = document.getElementById('pr-prevNextProject');
   var studyEl = document.getElementById('pr-prevNextStudy');
   var refBox  = document.getElementById('pr-prevNextGoalBox');
   if (!refBox) return;
-  if (latest) {
-    if (projEl)  projEl.textContent  = latest.next_month_project_goal || '—';
-    if (studyEl) studyEl.textContent = latest.next_month_study_goal   || '—';
+
+  // 現在フォームに設定されているtarget_monthを基準に前月を算出
+  var targetMonth = document.getElementById('pr-targetMonth')
+    ? document.getElementById('pr-targetMonth').value
+    : '';
+  var prevYm = '';
+  if (targetMonth) {
+    var parts = targetMonth.slice(0,7).split('-');
+    if (parts.length === 2) {
+      var y = parseInt(parts[0]), m = parseInt(parts[1]) - 1;
+      if (m < 1) { y--; m = 12; }
+      prevYm = y + '-' + ('0'+m).slice(-2);
+    }
+  } else {
+    // target_monthが未設定の場合は先月を使用
+    var now  = new Date();
+    var pm   = now.getMonth() === 0 ? 12 : now.getMonth();
+    var py   = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+    prevYm   = py + '-' + ('0'+pm).slice(-2);
+  }
+
+  // 前月のレポートを探す（target_monthまたはcreated_atで判定）
+  var prevReport = null;
+  if (prevYm && _myMentorReports.length > 0) {
+    prevReport = _myMentorReports.find(function(r) {
+      if (r.is_published !== 'TRUE') return false;
+      var tm = (r.target_month || '').slice(0,7).replace('/', '-');
+      if (tm === prevYm) return true;
+      // target_monthがなければcreated_atの年月で判定
+      var ca = (r.created_at || '').slice(0,7);
+      return ca === prevYm;
+    });
+  }
+
+  if (prevReport && (prevReport.next_month_project_goal || prevReport.next_month_study_goal)) {
+    if (projEl)  projEl.textContent  = prevReport.next_month_project_goal || '—';
+    if (studyEl) studyEl.textContent = prevReport.next_month_study_goal   || '—';
     refBox.style.display = '';
   } else {
-    refBox.style.display = 'none';
+    // 前月のレポートがない or 目標が未設定
+    if (projEl)  projEl.textContent  = '1on1未実施';
+    if (studyEl) studyEl.textContent = '1on1未実施';
+    refBox.style.display = '';
   }
 }
 
@@ -2068,8 +2102,12 @@ async function submitPreReport(status) {
   status = status || 'submitted';
   var g = function(id){ var el=document.getElementById(id); return el ? (el.value||el.textContent||'') : ''; };
   var gTxt = function(id){ var el=document.getElementById(id); return el ? (el.textContent||'').replace(/^—$/,'') : ''; };
-  if (!g('pr-targetMonth') || !g('pr-projectResult') || !g('pr-goodPoints') || !g('pr-nextMonthProjectGoal')) {
-    showToast('❌ 必須項目を入力してください'); return;
+  // ★ 下書き保存時はバリデーションをスキップ、提出時のみ必須チェック
+  if (status === 'submitted') {
+    if (!g('pr-targetMonth') || !g('pr-projectResult') || !g('pr-goodPoints') || !g('pr-nextMonthProjectGoal')) {
+      showToast('❌ 必須項目（今月の成果・良かった点・来月の目標）を入力してください');
+      return;
+    }
   }
   var reportId     = g('pr-report-id');
   var bookingSelEl = document.getElementById('pr-monthlyBookingId');
@@ -2281,6 +2319,11 @@ async function bookSlot() {
     _selectedDate = ''; _selectedTime = '';
     document.getElementById('timeCard').style.display = 'none';
     document.getElementById('bookBtn').style.display  = 'none';
+    // ★ 月次/その他選択UIも非表示にリセット
+    var mts = document.getElementById('meetingTypeSection');
+    if (mts) mts.style.display = 'none';
+    var mtm = document.getElementById('mt-monthly');
+    if (mtm) mtm.checked = true; // デフォルトに戻す
     _allUpcomingBookings = [];
     await loadAvailableSlots();
     loadHomeData();
@@ -2398,7 +2441,9 @@ function renderHome(data) {
     var timeEl = document.getElementById('nextTime');
     var meetBtn = document.getElementById('meetBtn');
     if (dateEl) dateEl.textContent = month + '月' + day + '日（' + wd + '）';
-    if (timeEl) timeEl.textContent = '🕐 ' + hour + ':' + min + '〜　' + (data.mentor ? data.mentor.name : '');
+    var mtBadge = b.meeting_type === 'other' ? '💬 その他1on1' : '📅 月次1on1';
+    if (timeEl) timeEl.innerHTML = '🕐 ' + hour + ':' + min + '〜　' + esc(data.mentor ? data.mentor.name : '')
+      + '&nbsp;<span style="font-size:10px;padding:2px 6px;border-radius:6px;background:rgba(255,255,255,.25);color:#fff;font-weight:600">' + mtBadge + '</span>';
     // キャンセルボタン追加
     var cancelArea = document.getElementById('homeCancelArea');
     if (cancelArea) {
@@ -2663,6 +2708,10 @@ async function loadReports() {
   renderRecentReports(false);
 }
 
+var _mentorReportPage = 1;
+var _preReportPage    = 1;
+var REPORTS_PER_PAGE  = 5; // ★ 1ページ5件
+
 function renderMentorReportList(showAll) {
   var wrap    = document.getElementById('mentor-report-list');
   var moreBtn = document.getElementById('mentor-report-more');
@@ -2675,7 +2724,10 @@ function renderMentorReportList(showAll) {
     if (moreBtn) moreBtn.style.display = 'none';
     return;
   }
-  var shown = showAll ? list : list.slice(0, 3);
+  var total     = list.length;
+  var totalPage = Math.ceil(total / REPORTS_PER_PAGE);
+  var start     = (_mentorReportPage - 1) * REPORTS_PER_PAGE;
+  var shown     = showAll ? list : list.slice(start, start + REPORTS_PER_PAGE);
   wrap.innerHTML = '';
   shown.forEach(function(r) {
     var dt   = new Date(r.created_at);
@@ -2698,7 +2750,41 @@ function renderMentorReportList(showAll) {
       + '<div style="color:var(--tx3);font-size:18px">›</div>';
     wrap.appendChild(div);
   });
-  if (moreBtn) moreBtn.style.display = (!showAll && list.length > 3) ? '' : 'none';
+  // ページネーション
+  if (moreBtn && !showAll) {
+    if (totalPage <= 1) {
+      moreBtn.style.display = 'none';
+    } else {
+      moreBtn.style.display = 'block';
+      moreBtn.innerHTML = renderReportPager_(totalPage, _mentorReportPage, 'jumpMentorReportPage');
+    }
+  } else if (moreBtn) {
+    moreBtn.style.display = 'none';
+  }
+}
+
+function jumpMentorReportPage(p) {
+  _mentorReportPage = p;
+  renderMentorReportList(false);
+  var el = document.getElementById('mentor-report-list');
+  if (el) el.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function renderReportPager_(totalPage, currentPage, jumpFn) {
+  var pages = '';
+  var btnStyle = 'padding:5px 10px;border-radius:6px;border:1px solid var(--bd);font-size:12px;cursor:pointer;';
+  if (currentPage > 1) {
+    pages += '<button onclick="' + jumpFn + '(' + (currentPage-1) + ')" style="' + btnStyle + 'background:var(--bg3);color:var(--tx2)">&lsaquo;</button>';
+  }
+  for (var i = 1; i <= totalPage; i++) {
+    pages += '<button onclick="' + jumpFn + '(' + i + ')" style="' + btnStyle
+      + (i === currentPage ? 'background:var(--pr);color:#fff;border-color:var(--pr)' : 'background:var(--bg3);color:var(--tx2)')
+      + '">' + i + '</button>';
+  }
+  if (currentPage < totalPage) {
+    pages += '<button onclick="' + jumpFn + '(' + (currentPage+1) + ')" style="' + btnStyle + 'background:var(--bg3);color:var(--tx2)">&rsaquo;</button>';
+  }
+  return '<div style="display:flex;align-items:center;justify-content:center;gap:4px;padding:8px 0">' + pages + '</div>';
 }
 function showAllMentorReports() {
   _mentorReportsShowAll = true;
@@ -2746,7 +2832,10 @@ function renderPreReportList(showAll) {
     if (moreBtn) moreBtn.style.display = 'none';
     return;
   }
-  var shown = showAll ? list : list.slice(0, 3);
+  var total     = list.length;
+  var totalPage = Math.ceil(total / REPORTS_PER_PAGE);
+  var start     = (_preReportPage - 1) * REPORTS_PER_PAGE;
+  var shown     = showAll ? list : list.slice(start, start + REPORTS_PER_PAGE);
   wrap.innerHTML = '';
   shown.forEach(function(r) {
     // ★ submitted_at / target_month の安全な日付処理
@@ -2787,7 +2876,23 @@ function renderPreReportList(showAll) {
       + '<div style="color:var(--tx3);font-size:18px">›</div>';
     wrap.appendChild(div);
   });
-  if (moreBtn) moreBtn.style.display = (!showAll && list.length > 3) ? '' : 'none';
+  if (moreBtn && !showAll) {
+    if (totalPage <= 1) {
+      moreBtn.style.display = 'none';
+    } else {
+      moreBtn.style.display = 'block';
+      moreBtn.innerHTML = renderReportPager_(totalPage, _preReportPage, 'jumpPreReportPage');
+    }
+  } else if (moreBtn) {
+    moreBtn.style.display = 'none';
+  }
+}
+
+function jumpPreReportPage(p) {
+  _preReportPage = p;
+  renderPreReportList(false);
+  var el = document.getElementById('pre-report-list');
+  if (el) el.scrollIntoView({ behavior:'smooth', block:'start' });
 }
 async function deletePreReport() {
   if (!_currentPreReportId) return;
@@ -3205,10 +3310,14 @@ function renderMyBookings() {
     var wd  = wds[jst.getUTCDay()];
     var h   = ('0'+jst.getUTCHours()).slice(-2);
     var mi  = ('0'+jst.getUTCMinutes()).slice(-2);
+    var mtLabel = b.meeting_type === 'other' ? '💬 その他1on1' : '📅 月次1on1';
+    var mtColor = b.meeting_type === 'other' ? 'var(--am)' : 'var(--pr)';
+    var mtBg    = b.meeting_type === 'other' ? 'var(--am-light)' : 'var(--pr-light)';
     return '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--bd)">'
       + '<div>'
       + '<div style="font-size:14px;font-weight:700">' + mo + '月' + d + '日（' + wd + '）</div>'
-      + '<div style="font-size:12px;color:var(--tx3)">🕐 ' + h + ':' + mi + '〜（' + (b.duration_minutes || _slotMinutes || 60) + '分）</div>'
+      + '<div style="font-size:14px;font-weight:700;display:flex;align-items:center;gap:6px">' + mo + '月' + d + '日（' + wd + '）'
+      + '<span style="font-size:10px;padding:2px 6px;border-radius:6px;background:' + mtBg + ';color:' + mtColor + ';font-weight:600">' + mtLabel + '</span></div>'
       + '</div>'
       + '<div style="display:flex;gap:6px;align-items:center">'
       + (b.meet_link ? '<a href="' + b.meet_link + '" target="_blank" style="font-size:11px;color:var(--pr);text-decoration:none;font-weight:600;padding:4px 8px;border:1px solid var(--pr);border-radius:6px">▶ Meet</a>' : '')
