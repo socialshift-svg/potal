@@ -2058,28 +2058,21 @@ function renderMentorReports() {
   pageItems.forEach(function(r) {
     var published = r.is_published === 'TRUE';
 
-    // ★ 日付表示
-    // GASが補完した booking_scheduled_at を使う
-    // has_exact_date=true → 正確な日付あり（日・月・フル日付表示）
-    // has_exact_date=false → 月のみ（target_monthかcreated_atから）
-    var _bsa = r.booking_scheduled_at || r.created_at || '';
-    var dt = _bsa ? new Date(_bsa) : null;
-    var _ok = dt && !isNaN(dt.getTime());
-    var _hasExact = !!(r.has_exact_date && _ok);
-    var _dayDisp  = _hasExact ? dt.getDate() : '—';
-    var _monDisp  = _ok ? ((dt.getMonth()+1) + '月') : '?月';
-    var _dispDate = _hasExact
-      ? fmtDateFull(_bsa)
-      : (_ok ? (dt.getFullYear() + '/' + (dt.getMonth()+1)) : '—');
+    // 日付表示: booking_scheduled_at を使う
+    var dt = r.booking_scheduled_at ? new Date(r.booking_scheduled_at) : null;
+    var day = (dt && !isNaN(dt)) ? dt.getDate() : '—';
+    var mon = (dt && !isNaN(dt)) ? (dt.getMonth()+1)+'月' : '—';
+    var dateText = (dt && !isNaN(dt))
+      ? (dt.getFullYear()+'/'+(dt.getMonth()+1)+'/'+dt.getDate())
+      : '—';
 
     var item = document.createElement('div');
-    item.className  = 'rep-item';
+    item.className = 'rep-item';
     item.style.cursor = 'pointer';
 
     var dateEl = document.createElement('div');
     dateEl.className = 'rep-date';
-    dateEl.innerHTML = '<div class="rep-d">' + _dayDisp + '</div>'
-      + '<div class="rep-m">' + _monDisp + '</div>';
+    dateEl.innerHTML = '<div class="rep-d">'+day+'</div><div class="rep-m">'+mon+'</div>';
 
     var infoEl = document.createElement('div');
     infoEl.className = 'rep-info';
@@ -2095,7 +2088,7 @@ function renderMentorReports() {
       + pdfLink
       + '</div>'
       + '<div class="rep-sub">'+esc((r.ai_summary||'—').slice(0,50))+'</div>'
-      + '<div class="rep-sub">' + _dispDate + '</div>';
+      + '<div class="rep-sub">'+dateText+'</div>';
 
     var arrEl = document.createElement('div');
     arrEl.className = 'rep-arr';
@@ -2105,8 +2098,6 @@ function renderMentorReports() {
     (function(rep){ item.onclick = function(){ open1on1ReportDetail(rep); }; })(r);
     listEl.appendChild(item);
   });
-  if (!pagerEl) return;
-  if (totalPage <= 1) { pagerEl.style.display = 'none'; return; }
   pagerEl.style.display = 'flex';
   pagerEl.innerHTML = '';
   var pb = document.createElement('button');
