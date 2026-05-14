@@ -2058,18 +2058,19 @@ function renderMentorReports() {
   pageItems.forEach(function(r) {
     var published = r.is_published === 'TRUE';
 
-    // ★ 日付優先順位: booking_scheduled_at → target_month → created_at
+    // ★ 日付: booking_scheduled_at(GASが補完済み) を使う
+    //   has_exact_date=trueなら「日・月」表示、falseなら「—・月」のみ
     var _bsa      = r.booking_scheduled_at || '';
-    var _tm       = r.target_month || '';
-    var _dateStr  = _bsa || (_tm ? _tm.slice(0,7) + '-01' : '') || r.created_at || '';
-    var dt        = new Date(_dateStr);
-    var _dayDisp  = _bsa ? (isNaN(dt) ? '?' : dt.getDate()) : '—';
-    var _monDisp  = isNaN(dt) ? '' : ((dt.getMonth()+1) + '月');
-    var _dispDate = _bsa
+    var dt        = _bsa ? new Date(_bsa) : null;
+    var _hasExact = !!(r.has_exact_date);
+    var _dayDisp  = (_hasExact && dt && !isNaN(dt)) ? dt.getDate() : '—';
+    var _monDisp  = (dt && !isNaN(dt)) ? ((dt.getMonth()+1) + '月') : '5月';
+    // 右側テキスト: 正確な日付があれば「YYYY/M/D」、なければ「YYYY/M」
+    var _dispDate = (_hasExact && dt && !isNaN(dt))
       ? fmtDateFull(_bsa)
-      : (_tm ? _tm.slice(0,7).replace('-','/') : fmtDateFull(r.created_at));
+      : (dt && !isNaN(dt) ? (dt.getFullYear() + '/' + (dt.getMonth()+1)) : '—');
 
-    var item   = document.createElement('div');
+    var item = document.createElement('div');
     item.className  = 'rep-item';
     item.style.cursor = 'pointer';
 
@@ -2102,7 +2103,6 @@ function renderMentorReports() {
     (function(rep){ item.onclick = function(){ open1on1ReportDetail(rep); }; })(r);
     listEl.appendChild(item);
   });
-
   // ページネーション
   if (!pagerEl) return;
   if (totalPage <= 1) { pagerEl.style.display = 'none'; return; }
