@@ -2057,19 +2057,27 @@ function renderMentorReports() {
   listEl.innerHTML = '';
   pageItems.forEach(function(r) {
     var published = r.is_published === 'TRUE';
-    // ★ 日付: booking_scheduled_at → target_month → created_at の優先順位
-    var _dateStr = r.booking_scheduled_at || r.created_at || '';
-    var dt = new Date(_dateStr);
-    var _hasExact = !!(r.booking_scheduled_at);
-    var item = document.createElement('div');
-    item.className = 'rep-item';
+
+    // ★ 日付優先順位: booking_scheduled_at → target_month → created_at
+    var _bsa      = r.booking_scheduled_at || '';
+    var _tm       = r.target_month || '';
+    var _dateStr  = _bsa || (_tm ? _tm.slice(0,7) + '-01' : '') || r.created_at || '';
+    var dt        = new Date(_dateStr);
+    var _dayDisp  = _bsa ? (isNaN(dt) ? '?' : dt.getDate()) : '—';
+    var _monDisp  = isNaN(dt) ? '' : ((dt.getMonth()+1) + '月');
+    var _dispDate = _bsa
+      ? fmtDateFull(_bsa)
+      : (_tm ? _tm.slice(0,7).replace('-','/') : fmtDateFull(r.created_at));
+
+    var item   = document.createElement('div');
+    item.className  = 'rep-item';
     item.style.cursor = 'pointer';
 
     var dateEl = document.createElement('div');
     dateEl.className = 'rep-date';
-    dateEl.innerHTML = '<div class="rep-d">'+(isNaN(dt)?'?':dt.getDate())+'</div>'
-    dateEl.innerHTML = '<div class="rep-d">'+(isNaN(dt)?'?':(_hasExact?dt.getDate():'—'))+'</div>'
-      + '<div class="rep-m">'+(isNaN(dt)?'':((dt.getMonth()+1)+'月'))+'</div>';
+    dateEl.innerHTML = '<div class="rep-d">' + _dayDisp + '</div>'
+      + '<div class="rep-m">' + _monDisp + '</div>';
+
     var infoEl = document.createElement('div');
     infoEl.className = 'rep-info';
     var pdfLink = r.pdf_url
@@ -2084,7 +2092,7 @@ function renderMentorReports() {
       + pdfLink
       + '</div>'
       + '<div class="rep-sub">'+esc((r.ai_summary||'—').slice(0,50))+'</div>'
-      + '<div class="rep-sub">'+(r.booking_scheduled_at ? fmtDateFull(r.booking_scheduled_at) : (r.target_month ? r.target_month.slice(0,7).replace('-','/') : fmtDateFull(r.created_at)))+'</div>';
+      + '<div class="rep-sub">' + _dispDate + '</div>';
 
     var arrEl = document.createElement('div');
     arrEl.className = 'rep-arr';
