@@ -683,7 +683,7 @@ td{padding:10px 14px;font-size:13px}
         <div class="ct" id="panelName">メンバーを選択</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn btn-sm" id="panelChatBtn" style="display:none;background:linear-gradient(135deg,#1a73e8,#0d62d1);color:#fff" onclick="openMenteeChat()">💬 チャット</button>
-          <button class="btn btn-sm" id="panelTelBtn" style="display:none;background:linear-gradient(135deg,#e8474f,#c0392b);color:#fff;font-size:13px;font-weight:700;padding:7px 16px;box-shadow:0 2px 8px rgba(232,71,79,.35)" onclick="startTelCall()">📞 TEL開始</button>
+          <button class="btn btn-sm" id="panelTelBtn" style="display:none;background:linear-gradient(135deg,var(--pr),var(--pr2));color:#fff" onclick="startTelCall()">📞 TEL開始</button>
           <button class="btn btn-p btn-sm" onclick="openBookingCreate()">＋ 予約</button>
           <button class="btn btn-g btn-sm" onclick="openTelHistModal()">📞 TEL履歴</button>
         </div>
@@ -1039,7 +1039,7 @@ td{padding:10px 14px;font-size:13px}
 //  設定
 // ══════════════════════════════════════════════════════════
 const GAS_URL     = 'https://script.google.com/macros/s/AKfycbzdwzQYNRRHO5S7Fq1qBE7qYoMEYoJTjqU1MoQivOWxFpzt4w5NcuICTOYROISn6KYpmQ/exec';
-const GITHUB_BASE = 'https://koheiumeda-arch.github.io/SS1on1';
+const GITHUB_BASE = 'https://socialshift-svg.github.io/potal';
 
 // ★ セキュリティ: フロントエンドでSHA-256ハッシュ化（パスワードを平文送信しない）
 async function sha256Hex(str) {
@@ -1326,7 +1326,7 @@ function filterMentorTraining() {
 function logoutMentor() {
   if (!confirm('ログアウトしますか？')) return;
   Auth.clearAuth();
-  window.location.href = 'https://koheiumeda-arch.github.io/SS1on1/login.html';
+  window.location.href = 'https://socialshift-svg.github.io/potal/login.html';
 }
 
 function warmupGAS() {
@@ -2637,44 +2637,6 @@ async function loadWeeklyTel() {
     var acts = document.createElement('div');
     acts.style.cssText = 'display:flex;flex-direction:column;gap:5px;flex-shrink:0';
 
-    // ★ TEL開始ボタン（最優先で追加・目立つ赤色）
-    var telMeetUrl = mentee.tel_meet_url || '';
-    var telStartBtn = document.createElement('button');
-    telStartBtn.className = 'btn btn-sm';
-    if (telMeetUrl) {
-      telStartBtn.style.cssText = 'background:linear-gradient(135deg,#e8474f,#c0392b);color:#fff;font-size:12px;font-weight:700;padding:6px 12px;box-shadow:0 2px 6px rgba(232,71,79,.35)';
-      telStartBtn.title = 'TELを開始する';
-      telStartBtn.innerHTML = '📞 TEL開始';
-      (function(mid, mname, url) {
-        telStartBtn.onclick = async function() {
-          telStartBtn.disabled = true;
-          telStartBtn.textContent = '発信中…';
-          try {
-            var r = await gasReq('api/mentor/tel-start', 'POST', { mentee_id: mid });
-            if (r && r.ok) {
-              window.open(url, '_blank');
-              toast(r.notify_result && r.notify_result.ok
-                ? mname + ' さんにチャット通知を送りました 📞'
-                : 'Meetを開きました');
-            } else {
-              var em = r && (r.error || r.message) || 'エラー';
-              toast(em.indexOf('TEL_MEET_URL_NOT_SET') >= 0 ? 'TEL用Meet URLが未設定です' : em, 'err');
-            }
-          } catch(e) { toast('通信エラー: ' + e.message, 'err'); }
-          finally {
-            telStartBtn.disabled = false;
-            telStartBtn.innerHTML = '📞 TEL開始';
-          }
-        };
-      })(uid, mName, telMeetUrl);
-    } else {
-      telStartBtn.style.cssText = 'background:var(--bg3);color:var(--tx3);font-size:12px;padding:6px 12px;cursor:default;border:1px solid var(--bd)';
-      telStartBtn.title = 'TEL用Meet URLが設定されていません';
-      telStartBtn.innerHTML = '📞 TEL未設定';
-      telStartBtn.disabled = true;
-    }
-    acts.appendChild(telStartBtn);
-
     // チャットアイコンボタン
     if (chatUrl) {
       var chatBtn = document.createElement('button');
@@ -3607,15 +3569,11 @@ async function startTelCall() {
       // Meetを新しいタブで開く
       window.open(r.tel_meet_url, '_blank');
 
-      // 通知結果をトースト表示（カードUI送信対応）
-      var nr = r.notify_result;
-      if (nr && nr.ok) {
-        var msg = nr.fallback
-          ? m.name + ' さんにチャット通知を送信しました 📞'
-          : m.name + ' さんにカード着信通知を送信しました 📞';
-        toast(msg);
+      // 通知結果をトースト表示
+      if (r.notify_result && r.notify_result.ok) {
+        toast(m.name + ' さんにチャット通知を送信しました 📞');
       } else {
-        toast('Meetを開きました（チャット通知: ' + (nr ? (nr.reason || 'コード:' + nr.code) : '未設定') + '）');
+        toast('Meetを開きました（チャット通知: ' + (r.notify_result ? r.notify_result.reason : '未設定') + '）');
       }
     } else {
       var errMsg = r && (r.error || r.message) || 'エラーが発生しました';
