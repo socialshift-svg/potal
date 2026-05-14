@@ -558,19 +558,6 @@ td{padding:10px 14px;font-size:13px}
       <input class="inp" type="datetime-local" id="bcDatetimeInput" onchange="onBcDatetimeChange(this.value)"/>
     </div>
     <div class="form-group" style="margin-bottom:12px">
-      <label class="form-label">1on1の種別<span style="color:var(--rd)">*</span></label>
-      <div style="display:flex;flex-direction:column;gap:8px;padding:10px;background:var(--bg2);border-radius:8px;border:1px solid var(--bd)">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
-          <input type="radio" name="bcMeetingType" value="monthly" checked>
-          <span>📅 月次1on1（レポートに反映）</span>
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
-          <input type="radio" name="bcMeetingType" value="other">
-          <span>💬 その他の1on1（メモのみ・レポート反映なし）</span>
-        </label>
-      </div>
-    </div>
-    <div class="form-group" style="margin-bottom:12px">
       <label class="form-label">所要時間</label>
       <select class="inp" id="bc-duration">
         <option value="30">30分</option>
@@ -696,7 +683,7 @@ td{padding:10px 14px;font-size:13px}
         <div class="ct" id="panelName">メンバーを選択</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn btn-sm" id="panelChatBtn" style="display:none;background:linear-gradient(135deg,#1a73e8,#0d62d1);color:#fff" onclick="openMenteeChat()">💬 チャット</button>
-          <button class="btn btn-sm" id="panelTelBtn" style="display:none;background:linear-gradient(135deg,var(--pr),var(--pr2));color:#fff" onclick="startTelCall()">📞 TEL開始</button>
+          <button class="btn btn-sm" id="panelTelBtn" style="display:none;background:linear-gradient(135deg,#e8474f,#c0392b);color:#fff;font-size:13px;font-weight:700;padding:7px 16px;box-shadow:0 2px 8px rgba(232,71,79,.35)" onclick="startTelCall()">📞 TEL開始</button>
           <button class="btn btn-p btn-sm" onclick="openBookingCreate()">＋ 予約</button>
           <button class="btn btn-g btn-sm" onclick="openTelHistModal()">📞 TEL履歴</button>
         </div>
@@ -1502,60 +1489,45 @@ async function loadAll() {
 async function loadMentees() {
   var cacheKey = 'mentees_' + (_me ? _me.user_id : '');
   var cached = Cache.get(cacheKey);
-  // ★ stale-while-revalidate: キャッシュがあれば即描画してバックグラウンドで更新
-  if (cached && cached.length > 0) {
-    _myMentees = cached;
-    renderMenteeList_();  // 古いデータで先に描画
-    // バックグラウンドで最新データを取得
-    gasReq('api/mentor/my-mentees').then(function(data) {
-      if (data && data.mentees && data.mentees.length > 0) {
-        _myMentees = data.mentees;
-        Cache.set(cacheKey, _myMentees, 600);
-        renderMenteeList_();
+  if (cached) { _myMentees = cached; }
+  else {
+    var data = await gasReq('api/mentor/my-mentees');
+    if (!data || !data.mentees) {
+      var d2 = await gasReq('api/admin/members');
+      if (d2 && d2.members) {
+        _myMentees = d2.members.filter(function(m) { return m.mentor_id === _me.user_id; });
       }
-    });
-    return;
+    } else {
+      _myMentees = data.mentees;
+    }
+    Cache.set(cacheKey, _myMentees, 600);
   }
-  // キャッシュなし → ローディング表示してから取得
-  var listEl = document.getElementById('menteeList');
-  if (listEl) listEl.innerHTML = '<div class="loading" style="padding:16px;text-align:center">読み込み中…</div>';
-  var data = await gasReq('api/mentor/my-mentees');
-  if (data && data.mentees) {
-    _myMentees = data.mentees;
-  } else {
-    // フォールバック削除済み：エラー表示のみ
-    if (listEl) listEl.innerHTML = '<div class="loading" style="padding:16px;color:var(--rd)">メンバー取得に失敗しました。<br>再読み込みしてください。</div>';
-    return;
-  }
-  Cache.set(cacheKey, _myMentees, 600);
 
-  renderMenteeList_();
-}
-
-// サイドバーのメンティー一覧を描画（キャッシュ更新後も再利用できるよう分離）
-function renderMenteeList_() {
+  // サイドバー描画
   var listEl = document.getElementById('menteeList');
-  if (!listEl) return;
   if (_myMentees.length === 0) {
     listEl.innerHTML = '<div class="loading">担当メンティーがいません</div>';
     return;
   }
   var SIG_MAP = { red:'s-rd', yellow:'s-am', green:'s-gr', blue:'s-cy', active:'s-gr' };
   var STATUS_LABEL = { red:'🔴 要注意', yellow:'🟡 注意', green:'🟢 順調', blue:'🔵 快調', active:'🟢 順調' };
-  var currentId = _currentMentee ? _currentMentee.user_id : (_myMentees[0] ? _myMentees[0].user_id : null);
-  listEl.innerHTML = _myMentees.map(function(m) {
+  listEl.innerHTML = _myMentees.map(function(m, i) {
     var sigCls = SIG_MAP[m.status] || 's-gr';
     var label  = STATUS_LABEL[m.status] || '🟢 順調';
-    var isActive = m.user_id === currentId;
-    return '<div class="mem-item'+(isActive?' active':'') +'" onclick="selectMentee(\''+m.user_id+'\',this)">'
+    return '<div class="mem-item'+(i===0?' active':'') +'" onclick="selectMentee(\''+m.user_id+'\',this)">'
       +'<div class="sig '+sigCls+'"></div>'
       +'<div class="m-ava">'+esc((m.name||'?').slice(0,1))+'</div>'
       +'<div class="m-info"><div class="m-name">'+esc(m.name)+'</div><div class="m-last">'+esc(label)+'</div></div>'
       +'</div>';
   }).join('');
-  if (!_currentMentee && _myMentees.length > 0) selectMentee(_myMentees[0].user_id, null);
+
+  // 最初のメンティーを選択
+  if (_myMentees.length > 0) selectMentee(_myMentees[0].user_id, null);
+
+  // 実施率を計算（スケジュールから）
   updateRate();
 }
+
 function updateRate() {
   if (_mySchedules.length === 0) return;
   var done  = _mySchedules.filter(function(s){ return s.status === 'completed'; }).length;
@@ -2665,6 +2637,44 @@ async function loadWeeklyTel() {
     var acts = document.createElement('div');
     acts.style.cssText = 'display:flex;flex-direction:column;gap:5px;flex-shrink:0';
 
+    // ★ TEL開始ボタン（最優先で追加・目立つ赤色）
+    var telMeetUrl = mentee.tel_meet_url || '';
+    var telStartBtn = document.createElement('button');
+    telStartBtn.className = 'btn btn-sm';
+    if (telMeetUrl) {
+      telStartBtn.style.cssText = 'background:linear-gradient(135deg,#e8474f,#c0392b);color:#fff;font-size:12px;font-weight:700;padding:6px 12px;box-shadow:0 2px 6px rgba(232,71,79,.35)';
+      telStartBtn.title = 'TELを開始する';
+      telStartBtn.innerHTML = '📞 TEL開始';
+      (function(mid, mname, url) {
+        telStartBtn.onclick = async function() {
+          telStartBtn.disabled = true;
+          telStartBtn.textContent = '発信中…';
+          try {
+            var r = await gasReq('api/mentor/tel-start', 'POST', { mentee_id: mid });
+            if (r && r.ok) {
+              window.open(url, '_blank');
+              toast(r.notify_result && r.notify_result.ok
+                ? mname + ' さんにチャット通知を送りました 📞'
+                : 'Meetを開きました');
+            } else {
+              var em = r && (r.error || r.message) || 'エラー';
+              toast(em.indexOf('TEL_MEET_URL_NOT_SET') >= 0 ? 'TEL用Meet URLが未設定です' : em, 'err');
+            }
+          } catch(e) { toast('通信エラー: ' + e.message, 'err'); }
+          finally {
+            telStartBtn.disabled = false;
+            telStartBtn.innerHTML = '📞 TEL開始';
+          }
+        };
+      })(uid, mName, telMeetUrl);
+    } else {
+      telStartBtn.style.cssText = 'background:var(--bg3);color:var(--tx3);font-size:12px;padding:6px 12px;cursor:default;border:1px solid var(--bd)';
+      telStartBtn.title = 'TEL用Meet URLが設定されていません';
+      telStartBtn.innerHTML = '📞 TEL未設定';
+      telStartBtn.disabled = true;
+    }
+    acts.appendChild(telStartBtn);
+
     // チャットアイコンボタン
     if (chatUrl) {
       var chatBtn = document.createElement('button');
@@ -3597,11 +3607,15 @@ async function startTelCall() {
       // Meetを新しいタブで開く
       window.open(r.tel_meet_url, '_blank');
 
-      // 通知結果をトースト表示
-      if (r.notify_result && r.notify_result.ok) {
-        toast(m.name + ' さんにチャット通知を送信しました 📞');
+      // 通知結果をトースト表示（カードUI送信対応）
+      var nr = r.notify_result;
+      if (nr && nr.ok) {
+        var msg = nr.fallback
+          ? m.name + ' さんにチャット通知を送信しました 📞'
+          : m.name + ' さんにカード着信通知を送信しました 📞';
+        toast(msg);
       } else {
-        toast('Meetを開きました（チャット通知: ' + (r.notify_result ? r.notify_result.reason : '未設定') + '）');
+        toast('Meetを開きました（チャット通知: ' + (nr ? (nr.reason || 'コード:' + nr.code) : '未設定') + '）');
       }
     } else {
       var errMsg = r && (r.error || r.message) || 'エラーが発生しました';
@@ -3782,15 +3796,12 @@ async function submitBookingCreate() {
   // datetime-localをISO形式に変換
   var isoDate = dt; // gasReqから返されたISO文字列をそのまま使用
   btn.textContent='登録中…'; btn.disabled=true;
-  var bcMtEl = document.querySelector('input[name="bcMeetingType"]:checked');
-  var bc_meeting_type = bcMtEl ? bcMtEl.value : 'monthly';
   var r = await gasReq('api/mentor/booking/create','POST',{
     mentee_id:        _bookingCreateId,
     scheduled_at:     isoDate,
     duration_minutes: parseInt(dur),
     meet_link:        meet,
     note:             note,
-    meeting_type:     bc_meeting_type,
   });
   btn.textContent='予約を登録する'; btn.disabled=false;
   if (r && (r.ok||r.booking_id)) {
