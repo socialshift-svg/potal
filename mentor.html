@@ -683,7 +683,7 @@ td{padding:10px 14px;font-size:13px}
         <div class="ct" id="panelName">メンバーを選択</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn btn-sm" id="panelChatBtn" style="display:none;background:linear-gradient(135deg,#1a73e8,#0d62d1);color:#fff" onclick="openMenteeChat()">💬 チャット</button>
-          <button id="panelTelBtn" style="display:none;background:linear-gradient(135deg,#e8474f,#c0392b);color:#fff;font-size:15px;font-weight:800;padding:12px 24px;border-radius:14px;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(232,71,79,.5);width:100%;margin-top:8px;letter-spacing:.5px" onmousedown="this.style.transform='scale(.97)'" onmouseup="this.style.transform='';" onclick="startTelCall()">📞&nbsp; TEL 開始</button>
+          <button class="btn btn-sm" id="panelTelBtn" style="display:none;background:linear-gradient(135deg,var(--pr),var(--pr2));color:#fff" onclick="startTelCall()">📞 TEL開始</button>
           <button class="btn btn-p btn-sm" onclick="openBookingCreate()">＋ 予約</button>
           <button class="btn btn-g btn-sm" onclick="openTelHistModal()">📞 TEL履歴</button>
         </div>
@@ -2057,7 +2057,10 @@ function renderMentorReports() {
   listEl.innerHTML = '';
   pageItems.forEach(function(r) {
     var published = r.is_published === 'TRUE';
-    var dt = new Date(r.created_at||'');
+    // ★ 日付: booking_scheduled_at → target_month → created_at の優先順位
+    var _dateStr = r.booking_scheduled_at || r.created_at || '';
+    var dt = new Date(_dateStr);
+    var _hasExact = !!(r.booking_scheduled_at);
     var item = document.createElement('div');
     item.className = 'rep-item';
     item.style.cursor = 'pointer';
@@ -2065,8 +2068,8 @@ function renderMentorReports() {
     var dateEl = document.createElement('div');
     dateEl.className = 'rep-date';
     dateEl.innerHTML = '<div class="rep-d">'+(isNaN(dt)?'?':dt.getDate())+'</div>'
+    dateEl.innerHTML = '<div class="rep-d">'+(isNaN(dt)?'?':(_hasExact?dt.getDate():'—'))+'</div>'
       + '<div class="rep-m">'+(isNaN(dt)?'':((dt.getMonth()+1)+'月'))+'</div>';
-
     var infoEl = document.createElement('div');
     infoEl.className = 'rep-info';
     var pdfLink = r.pdf_url
@@ -2081,7 +2084,7 @@ function renderMentorReports() {
       + pdfLink
       + '</div>'
       + '<div class="rep-sub">'+esc((r.ai_summary||'—').slice(0,50))+'</div>'
-      + '<div class="rep-sub">'+fmtDateFull(r.created_at)+'</div>';
+      + '<div class="rep-sub">'+(r.booking_scheduled_at ? fmtDateFull(r.booking_scheduled_at) : (r.target_month ? r.target_month.slice(0,7).replace('-','/') : fmtDateFull(r.created_at)))+'</div>';
 
     var arrEl = document.createElement('div');
     arrEl.className = 'rep-arr';
