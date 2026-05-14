@@ -1875,9 +1875,26 @@ function renderPreReportMonthList() {
 
   var items = _prSlots.map(function(s) {
     var cfg    = STATUS_CONFIG[s.status] || STATUS_CONFIG.draft;
-    var ymStr  = s.target_month ? s.target_month.slice(0,7) : '—';
-    var parts  = ymStr.split('-');
-    var label  = parts.length === 2 ? parts[0] + '年' + parseInt(parts[1]) + '月分' : ymStr;
+    // target_monthがISO形式(2026-04-30T15:00:00Z)でも正しく年月を抽出
+    var _tm    = s.target_month || '';
+    var _tmMatch = _tm.match(/^(\d{4})[\/-](\d{1,2})/);
+    var ymStr, label;
+    if (_tmMatch) {
+      ymStr = _tmMatch[1] + '-' + ('0'+_tmMatch[2]).slice(-2);
+      label = _tmMatch[1] + '年' + parseInt(_tmMatch[2]) + '月分';
+    } else if (_tm) {
+      // Dateとして解析してJSTで取得
+      var _d = new Date(_tm);
+      if (!isNaN(_d.getTime())) {
+        var _jst = new Date(_d.getTime() + 9*60*60*1000);
+        ymStr = _jst.getUTCFullYear() + '-' + ('0'+(_jst.getUTCMonth()+1)).slice(-2);
+        label = _jst.getUTCFullYear() + '年' + (_jst.getUTCMonth()+1) + '月分';
+      } else {
+        ymStr = '—'; label = '—';
+      }
+    } else {
+      ymStr = '—'; label = '—';
+    }
     var linked = s.monthly_booking_id ? '📅 1on1紐付け済み' : '';
     var key    = s.report_id || s.target_month;
     var el     = document.createElement('div');
@@ -2831,7 +2848,12 @@ function renderPreReportList(showAll) {
   var moreBtn = document.getElementById('pre-report-more');
   var countEl = document.getElementById('pre-report-count');
   if (!wrap) return;
-  var list = _allPreReports;
+  // ★ target_month昇順ソート（重複排除なし・月の順序を正しく表示）
+  var list = (_allPreReports || []).slice().sort(function(a, b) {
+    var ta = (a.target_month || a.submitted_at || '').slice(0,7);
+    var tb = (b.target_month || b.submitted_at || '').slice(0,7);
+    return ta.localeCompare(tb);
+  });
   if (countEl) countEl.textContent = list.length + '件';
   if (list.length === 0) {
     wrap.innerHTML = '<div class="card" style="padding:24px;text-align:center;color:var(--tx3);font-size:13px">まだ事前レポートがありません</div>';
@@ -2852,14 +2874,14 @@ function renderPreReportList(showAll) {
     };
     var _fmtMonth = function(s) {
       if (!s) return '—';
-      // 既にYYYY/MMやYYYY-MM形式
+      // YYYY-MM または YYYY/MM 形式
       var m1 = String(s).match(/^(\d{4})[\/-](\d{1,2})/);
-      if (m1) return m1[1] + '/' + ('0'+m1[2]).slice(-2);
-      // Date型に変換された場合
+      if (m1) return m1[1] + '年' + parseInt(m1[2]) + '月';
+      // ISO形式などDateに変換できる場合
       var d = new Date(s);
       if (!isNaN(d.getTime())) {
         var jst = new Date(d.getTime() + 9*60*60*1000);
-        return jst.getUTCFullYear() + '/' + ('0'+(jst.getUTCMonth()+1)).slice(-2);
+        return jst.getUTCFullYear() + '年' + (jst.getUTCMonth()+1) + '月';
       }
       return String(s).substring(0,7) || '—';
     };
