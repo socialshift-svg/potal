@@ -2034,7 +2034,7 @@ function renderMentorReports() {
   var filtered = _mentorReports.filter(function(r) {
     if (menteeId && r.mentee_id !== menteeId) return false;
     if (month) {
-      var d = (r.created_at || r.session_date || '').slice(0,7);
+      var d = (r.booking_scheduled_at || r.created_at || r.session_date || '').slice(0,7);
       if (d !== month) return false;
     }
     if (mineOnly && r.mentor_id !== _me.user_id) return false;
