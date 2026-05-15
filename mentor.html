@@ -1959,6 +1959,10 @@ async function execCancel() {
 // ══════════════════════════════════════════════════════════
 // 週次TEL録音未アップロードバナー更新
 function renderTelRecordingBanner() {
+  // ★ ハドル運用終了のため録音バナーは非表示
+  var banner = document.getElementById('telRecordingBanner');
+  if (banner) banner.style.display = 'none';
+  return;
   var banner = document.getElementById('telRecordingBanner');
   if (!banner) return;
   var missingRec = _allCallReports.filter(function(r){ return !r.recording_url; });
@@ -2034,7 +2038,7 @@ function renderMentorReports() {
   var filtered = _mentorReports.filter(function(r) {
     if (menteeId && r.mentee_id !== menteeId) return false;
     if (month) {
-      var d = (r.booking_scheduled_at || r.created_at || r.session_date || '').slice(0,7);
+      var d = (r.created_at || r.session_date || '').slice(0,7);
       if (d !== month) return false;
     }
     if (mineOnly && r.mentor_id !== _me.user_id) return false;
@@ -2657,16 +2661,19 @@ async function loadWeeklyTel() {
     var acts = document.createElement('div');
     acts.style.cssText = 'display:flex;flex-direction:column;gap:5px;flex-shrink:0';
 
-    // チャットアイコンボタン
+    // ★「電話する」ボタン（チャットURLを開く・大きく目立つデザイン）
+    var callBtn = document.createElement('button');
     if (chatUrl) {
-      var chatBtn = document.createElement('button');
-      chatBtn.className = 'btn btn-sm';
-      chatBtn.style.cssText = 'background:linear-gradient(135deg,#1a73e8,#0d62d1);color:#fff;border:none;font-size:11px;padding:5px 10px';
-      chatBtn.title = 'チャットを開く';
-      chatBtn.innerHTML = '💬';
-      (function(url){ chatBtn.onclick = function(){ window.open(url,'_blank'); }; })(chatUrl);
-      acts.appendChild(chatBtn);
+      callBtn.style.cssText = 'background:linear-gradient(135deg,#e8474f,#c0392b);color:#fff;font-size:14px;font-weight:800;padding:10px 16px;border-radius:12px;border:none;cursor:pointer;box-shadow:0 3px 12px rgba(232,71,79,.4);width:100%;letter-spacing:.5px';
+      callBtn.innerHTML = '📞&nbsp; 電話する';
+      callBtn.title = 'チャットを開いて電話する';
+      (function(url){ callBtn.onclick = function(){ window.open(url,'_blank'); }; })(chatUrl);
+    } else {
+      callBtn.style.cssText = 'background:var(--bg3);color:var(--tx3);font-size:14px;font-weight:700;padding:10px 16px;border-radius:12px;border:1px solid var(--bd);cursor:default;width:100%';
+      callBtn.innerHTML = '📞&nbsp; チャット未設定';
+      callBtn.disabled = true;
     }
+    acts.insertBefore(callBtn, acts.firstChild);
 
     // レポートボタン
     var repBtn = document.createElement('button');
