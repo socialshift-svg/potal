@@ -918,7 +918,7 @@ td{padding:10px 14px;font-size:13px}
     <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--tx2);cursor:pointer;white-space:nowrap">
       <input type="checkbox" id="reportsFilterMine" onchange="filterReports()"> 自分の担当のみ
     </label>
-    <select class="inp" id="reportsFilterType" style="font-size:12px;padding:5px 8px;border-radius:8px;border:1px solid var(--bd)" onchange="filterReports()">
+    <select class="inp" id="reportsFilterType" style="display:none;font-size:12px;padding:5px 8px;border-radius:8px;border:1px solid var(--bd)" onchange="filterReports()">
       <option value="">全種別</option>
       <option value="monthly">📅 月次1on1</option>
       <option value="other">💬 その他</option>
@@ -1998,13 +1998,14 @@ function switchRepTab(tab) {
     document.getElementById('repPane-'+t).style.display = t===tab ? '' : 'none';
   });
   // 確定状態フィルターをTEL以外では非表示
-  var stSel = document.getElementById('reportsFilterStatus');
-  if (stSel) stSel.style.display = tab==='tel' ? '' : 'none';
+  var stSel  = document.getElementById('reportsFilterStatus');
+  var typeSel = document.getElementById('reportsFilterType');
+  if (stSel)  stSel.style.display  = tab==='tel'  ? '' : 'none';
+  if (typeSel) typeSel.style.display = tab==='1on1' ? '' : 'none';  // ★ 1on1タブのみ表示
 
   if (tab === '1on1' && _mentorReports.length === 0) {
-    // ★ 種別フィルターを「全種別」にリセット
     var tf = document.getElementById('reportsFilterType');
-    if (tf) tf.value = '';
+    if (tf) tf.value = '';  // ★ 全種別にリセット
     loadMentorReports();
   } else if (tab === 'pre' && _preReports.length === 0) {
     loadPreReports();
@@ -2033,15 +2034,10 @@ function renderMentorReports() {
   var filtered = _mentorReports.filter(function(r) {
     if (menteeId && r.mentee_id !== menteeId) return false;
     if (month) {
-      var d = (r.booking_scheduled_at || r.target_month || r.created_at || r.session_date || '').slice(0,7);
+      var d = (r.created_at || r.session_date || '').slice(0,7);
       if (d !== month) return false;
     }
     if (mineOnly && r.mentor_id !== _me.user_id) return false;
-    var typeFilter = document.getElementById('reportsFilterType');
-    if (typeFilter && typeFilter.value && r.meeting_type) {
-      // ★ meeting_typeがない場合はフィルターをスキップ（旧GAS互換）
-      if (r.meeting_type !== typeFilter.value) return false;
-    }
     return true;
   });
 
@@ -2443,6 +2439,20 @@ function filterReports() {
     renderReports();
   } else if (_currentRepTab === '1on1') {
     _mentorRepPage = 1;
+    var typeVal = document.getElementById('reportsFilterType') ? document.getElementById('reportsFilterType').value : '';
+    // ★ meeting_typeがないデータはフィルターをスキップ（旧GAS互換）
+    _mentorReports = _allMenteeReports.filter(function(r) {
+      if (menteeId && r.mentee_id !== menteeId) return false;
+      if (month) {
+        var d = (r.booking_scheduled_at || r.target_month || r.created_at || '').slice(0,7);
+        if (d !== month) return false;
+      }
+      if (mineOnly && r.mentor_id !== _me.user_id) return false;
+      if (typeVal && r.meeting_type) {
+        if (r.meeting_type !== typeVal) return false;
+      }
+      return true;
+    });
     renderMentorReports();
   } else if (_currentRepTab === 'pre') {
     renderPreReports();
@@ -2666,7 +2676,6 @@ async function loadWeeklyTel() {
     if (chatUrl) {
       callBtn.style.cssText = 'background:linear-gradient(135deg,#e8474f,#c0392b);color:#fff;font-size:14px;font-weight:800;padding:10px 16px;border-radius:12px;border:none;cursor:pointer;box-shadow:0 3px 12px rgba(232,71,79,.4);width:100%;letter-spacing:.5px';
       callBtn.innerHTML = '📞&nbsp; 電話する';
-      callBtn.title = 'チャットを開いて電話する';
       (function(url){ callBtn.onclick = function(){ window.open(url,'_blank'); }; })(chatUrl);
     } else {
       callBtn.style.cssText = 'background:var(--bg3);color:var(--tx3);font-size:14px;font-weight:700;padding:10px 16px;border-radius:12px;border:1px solid var(--bd);cursor:default;width:100%';
