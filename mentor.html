@@ -558,6 +558,19 @@ td{padding:10px 14px;font-size:13px}
       <input class="inp" type="datetime-local" id="bcDatetimeInput" onchange="onBcDatetimeChange(this.value)"/>
     </div>
     <div class="form-group" style="margin-bottom:12px">
+      <label class="form-label">種別 <span style="color:var(--rd)">*</span></label>
+      <div style="display:flex;gap:8px">
+        <label id="bc-type-monthly-label" style="display:flex;align-items:center;gap:6px;flex:1;padding:10px 14px;border-radius:10px;border:2px solid var(--pr);background:var(--pr-light);cursor:pointer;font-size:13px;font-weight:700">
+          <input type="radio" name="bc-meeting-type" id="bc-type-monthly" value="monthly" checked onchange="onBcTypeChange()" style="accent-color:var(--pr)">
+          📅 月次1on1<br><span style="font-size:10px;color:var(--tx3);font-weight:400">レポートに反映</span>
+        </label>
+        <label id="bc-type-other-label" style="display:flex;align-items:center;gap:6px;flex:1;padding:10px 14px;border-radius:10px;border:2px solid var(--bd);background:var(--bg3);cursor:pointer;font-size:13px;font-weight:700">
+          <input type="radio" name="bc-meeting-type" id="bc-type-other" value="other" onchange="onBcTypeChange()" style="accent-color:var(--tx2)">
+          💬 その他<br><span style="font-size:10px;color:var(--tx3);font-weight:400">メモのみ</span>
+        </label>
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:12px">
       <label class="form-label">所要時間</label>
       <select class="inp" id="bc-duration">
         <option value="30">30分</option>
@@ -3775,6 +3788,20 @@ async function openBookingCreate() {
   }
 }
 
+function onBcTypeChange() {
+  var isMonthly = document.getElementById('bc-type-monthly') && document.getElementById('bc-type-monthly').checked;
+  var ml = document.getElementById('bc-type-monthly-label');
+  var ol = document.getElementById('bc-type-other-label');
+  if (!ml || !ol) return;
+  if (isMonthly) {
+    ml.style.borderColor = 'var(--pr)'; ml.style.background = 'var(--pr-light)';
+    ol.style.borderColor = 'var(--bd)'; ol.style.background = 'var(--bg3)';
+  } else {
+    ml.style.borderColor = 'var(--bd)'; ml.style.background = 'var(--bg3)';
+    ol.style.borderColor = 'var(--pr)'; ol.style.background = 'var(--pr-light)';
+  }
+}
+
 async function submitBookingCreate() {
   var dt   = _createSelectedTime;
   var dur  = document.getElementById('bc-duration') ? document.getElementById('bc-duration').value : '30';
@@ -3787,12 +3814,15 @@ async function submitBookingCreate() {
   // datetime-localをISO形式に変換
   var isoDate = dt; // gasReqから返されたISO文字列をそのまま使用
   btn.textContent='登録中…'; btn.disabled=true;
+  var mtEl = document.querySelector('input[name="bc-meeting-type"]:checked');
+  var meeting_type = mtEl ? mtEl.value : 'monthly';
   var r = await gasReq('api/mentor/booking/create','POST',{
     mentee_id:        _bookingCreateId,
     scheduled_at:     isoDate,
     duration_minutes: parseInt(dur),
     meet_link:        meet,
     note:             note,
+    meeting_type:     meeting_type,
   });
   btn.textContent='予約を登録する'; btn.disabled=false;
   if (r && (r.ok||r.booking_id)) {
