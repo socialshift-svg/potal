@@ -558,19 +558,6 @@ td{padding:10px 14px;font-size:13px}
       <input class="inp" type="datetime-local" id="bcDatetimeInput" onchange="onBcDatetimeChange(this.value)"/>
     </div>
     <div class="form-group" style="margin-bottom:12px">
-      <label class="form-label">種別 <span style="color:var(--rd)">*</span></label>
-      <div style="display:flex;gap:8px">
-        <label id="bc-type-monthly-label" style="display:flex;align-items:center;gap:6px;flex:1;padding:10px 14px;border-radius:10px;border:2px solid var(--pr);background:var(--pr-light);cursor:pointer;font-size:13px;font-weight:700">
-          <input type="radio" name="bc-meeting-type" id="bc-type-monthly" value="monthly" checked onchange="onBcTypeChange()" style="accent-color:var(--pr)">
-          📅 月次1on1<br><span style="font-size:10px;color:var(--tx3);font-weight:400">レポートに反映</span>
-        </label>
-        <label id="bc-type-other-label" style="display:flex;align-items:center;gap:6px;flex:1;padding:10px 14px;border-radius:10px;border:2px solid var(--bd);background:var(--bg3);cursor:pointer;font-size:13px;font-weight:700">
-          <input type="radio" name="bc-meeting-type" id="bc-type-other" value="other" onchange="onBcTypeChange()" style="accent-color:var(--tx2)">
-          💬 その他<br><span style="font-size:10px;color:var(--tx3);font-weight:400">メモのみ</span>
-        </label>
-      </div>
-    </div>
-    <div class="form-group" style="margin-bottom:12px">
       <label class="form-label">所要時間</label>
       <select class="inp" id="bc-duration">
         <option value="30">30分</option>
@@ -1977,18 +1964,9 @@ async function execCancel() {
 // ══════════════════════════════════════════════════════════
 // 週次TEL録音未アップロードバナー更新
 function renderTelRecordingBanner() {
+  // ★ ハドル運用終了のため非表示
   var banner = document.getElementById('telRecordingBanner');
-  if (!banner) return;
-  var missingRec = _allCallReports.filter(function(r){ return !r.recording_url; });
-  if (missingRec.length === 0) { banner.style.display='none'; return; }
-  banner.style.display = '';
-  var btn = document.createElement('button');
-  btn.className = 'btn btn-sm';
-  btn.style.cssText = 'background:var(--am);color:#fff;border:none;flex-shrink:0;font-size:12px';
-  btn.textContent = '録音をアップロード →';
-  btn.onclick = openTelRecordingUploadGuide;
-  banner.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><div>🎙 <strong>' + missingRec.length + '件</strong>のハドル録音がアップロードされていません</div></div>';
-  banner.querySelector('div > div').after(btn);
+  if (banner) banner.style.display = 'none';
 }
 
 // TEL録音アップロードガイドを開く
@@ -2024,6 +2002,9 @@ function switchRepTab(tab) {
   if (stSel) stSel.style.display = tab==='tel' ? '' : 'none';
 
   if (tab === '1on1' && _mentorReports.length === 0) {
+    // ★ 種別フィルターを「全種別」にリセット
+    var tf = document.getElementById('reportsFilterType');
+    if (tf) tf.value = '';
     loadMentorReports();
   } else if (tab === 'pre' && _preReports.length === 0) {
     loadPreReports();
@@ -2052,14 +2033,14 @@ function renderMentorReports() {
   var filtered = _mentorReports.filter(function(r) {
     if (menteeId && r.mentee_id !== menteeId) return false;
     if (month) {
-      var d = (r.created_at || r.session_date || '').slice(0,7);
+      var d = (r.booking_scheduled_at || r.target_month || r.created_at || r.session_date || '').slice(0,7);
       if (d !== month) return false;
     }
     if (mineOnly && r.mentor_id !== _me.user_id) return false;
     var typeFilter = document.getElementById('reportsFilterType');
-    if (typeFilter && typeFilter.value) {
-      var rType = r.meeting_type || 'monthly';
-      if (rType !== typeFilter.value) return false;
+    if (typeFilter && typeFilter.value && r.meeting_type) {
+      // ★ meeting_typeがない場合はフィルターをスキップ（旧GAS互換）
+      if (r.meeting_type !== typeFilter.value) return false;
     }
     return true;
   });
@@ -2126,9 +2107,6 @@ function renderMentorReports() {
       + (published
           ? '<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:var(--pr-light);color:var(--pr);font-weight:600">✅ 公開済み</span>'
           : '<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:var(--am-light);color:var(--am);font-weight:600">📝 未公開</span>')
-      + ((r.meeting_type === 'other')
-          ? '<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:#e8f0fe;color:#1a73e8;font-weight:600">💬 その他</span>'
-          : '')
       + pdfLink
       + '</div>'
       + '<div class="rep-sub">'+esc((r.ai_summary||'—').slice(0,50))+'</div>'
@@ -2683,16 +2661,19 @@ async function loadWeeklyTel() {
     var acts = document.createElement('div');
     acts.style.cssText = 'display:flex;flex-direction:column;gap:5px;flex-shrink:0';
 
-    // チャットアイコンボタン
+    // ★「電話する」大ボタン（チャットURLを開く）
+    var callBtn = document.createElement('button');
     if (chatUrl) {
-      var chatBtn = document.createElement('button');
-      chatBtn.className = 'btn btn-sm';
-      chatBtn.style.cssText = 'background:linear-gradient(135deg,#1a73e8,#0d62d1);color:#fff;border:none;font-size:11px;padding:5px 10px';
-      chatBtn.title = 'チャットを開く';
-      chatBtn.innerHTML = '💬';
-      (function(url){ chatBtn.onclick = function(){ window.open(url,'_blank'); }; })(chatUrl);
-      acts.appendChild(chatBtn);
+      callBtn.style.cssText = 'background:linear-gradient(135deg,#e8474f,#c0392b);color:#fff;font-size:14px;font-weight:800;padding:10px 16px;border-radius:12px;border:none;cursor:pointer;box-shadow:0 3px 12px rgba(232,71,79,.4);width:100%;letter-spacing:.5px';
+      callBtn.innerHTML = '📞&nbsp; 電話する';
+      callBtn.title = 'チャットを開いて電話する';
+      (function(url){ callBtn.onclick = function(){ window.open(url,'_blank'); }; })(chatUrl);
+    } else {
+      callBtn.style.cssText = 'background:var(--bg3);color:var(--tx3);font-size:14px;font-weight:700;padding:10px 16px;border-radius:12px;border:1px solid var(--bd);cursor:default;width:100%';
+      callBtn.innerHTML = '📞&nbsp; チャット未設定';
+      callBtn.disabled = true;
     }
+    acts.appendChild(callBtn);
 
     // レポートボタン
     var repBtn = document.createElement('button');
@@ -3788,20 +3769,6 @@ async function openBookingCreate() {
   }
 }
 
-function onBcTypeChange() {
-  var isMonthly = document.getElementById('bc-type-monthly') && document.getElementById('bc-type-monthly').checked;
-  var ml = document.getElementById('bc-type-monthly-label');
-  var ol = document.getElementById('bc-type-other-label');
-  if (!ml || !ol) return;
-  if (isMonthly) {
-    ml.style.borderColor = 'var(--pr)'; ml.style.background = 'var(--pr-light)';
-    ol.style.borderColor = 'var(--bd)'; ol.style.background = 'var(--bg3)';
-  } else {
-    ml.style.borderColor = 'var(--bd)'; ml.style.background = 'var(--bg3)';
-    ol.style.borderColor = 'var(--pr)'; ol.style.background = 'var(--pr-light)';
-  }
-}
-
 async function submitBookingCreate() {
   var dt   = _createSelectedTime;
   var dur  = document.getElementById('bc-duration') ? document.getElementById('bc-duration').value : '30';
@@ -3814,15 +3781,12 @@ async function submitBookingCreate() {
   // datetime-localをISO形式に変換
   var isoDate = dt; // gasReqから返されたISO文字列をそのまま使用
   btn.textContent='登録中…'; btn.disabled=true;
-  var mtEl = document.querySelector('input[name="bc-meeting-type"]:checked');
-  var meeting_type = mtEl ? mtEl.value : 'monthly';
   var r = await gasReq('api/mentor/booking/create','POST',{
     mentee_id:        _bookingCreateId,
     scheduled_at:     isoDate,
     duration_minutes: parseInt(dur),
     meet_link:        meet,
     note:             note,
-    meeting_type:     meeting_type,
   });
   btn.textContent='予約を登録する'; btn.disabled=false;
   if (r && (r.ok||r.booking_id)) {
