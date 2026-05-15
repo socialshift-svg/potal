@@ -274,6 +274,15 @@ input[type="month"].inp{padding:11px 14px}
     </div>
   </div>
   <div class="next-card">
+<!-- ★ 事前レポートアラートバナー -->
+<div id="preReportAlertBanner" style="display:none;margin:12px 16px;padding:14px 16px;background:linear-gradient(135deg,#fff8e1,#fff3cd);border:1px solid #ffc107;border-radius:12px;border-left:4px solid #ff9800">
+  <div style="font-size:13px;font-weight:700;color:#e65100;margin-bottom:6px" id="preAlertTitle"></div>
+  <div style="font-size:12px;color:#795548;margin-bottom:10px" id="preAlertSub"></div>
+  <button onclick="goNav('reports'); setTimeout(function(){ switchRepTab('pre'); }, 200)"
+    style="background:#ff9800;color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer">
+    📝 事前レポートを書く →
+  </button>
+</div>
     <div class="next-hd"><div class="next-hd-t">📅 次回の1on1</div><div class="countdown" id="countdown">明日まで</div></div>
     <div class="next-bd">
       <div class="next-date" id="nextDate">2月18日（火）</div>
@@ -1327,9 +1336,21 @@ async function loadWeeklyTelMentee() {
       cardsEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--tx3);font-size:13px">担当Menteeが設定されていません</div>';
       return;
     }
-    // ★ ハドル運用終了のため録音バナーは非表示
+    // 録音未アップロードチェック（バナー表示）
+    const missingRec = reports.filter(r => !r.recording_url);
     const bannerEl = document.getElementById('wtRecordingBanner');
-    if (bannerEl) bannerEl.style.display = 'none';
+    if (bannerEl) {
+      if (missingRec.length > 0) {
+        bannerEl.style.display = '';
+        bannerEl.innerHTML =
+          '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">'
+          + '<div>🎙 <strong>' + missingRec.length + '件</strong>のハドル録音がアップロードされていません</div>'
+          + '<button class="btn" style="background:var(--am);color:#fff;border:none;font-size:12px;padding:7px 14px;flex-shrink:0" onclick="openWtUploadGuide()">録音をアップロード →</button>'
+          + '</div>';
+      } else {
+        bannerEl.style.display = 'none';
+      }
+    }
 
     // カードをDOM構築（クォート問題回避・チャット/録音UPボタン追加）
     cardsEl.innerHTML = '';
@@ -1410,20 +1431,6 @@ async function loadWeeklyTelMentee() {
         histBtn.onclick = () => showWtTelHistory(m.user_id, m.name);
         acts.appendChild(histBtn);
       }
-
-      // ★「電話する」ボタン（チャットURLを開く・最優先で先頭に表示）
-      var _chatUrl = m.chat_url || '';
-      var callBtn2 = document.createElement('button');
-      if (_chatUrl) {
-        callBtn2.style.cssText = 'background:linear-gradient(135deg,#e8474f,#c0392b);color:#fff;font-size:14px;font-weight:800;padding:10px 16px;border-radius:12px;border:none;cursor:pointer;box-shadow:0 3px 12px rgba(232,71,79,.4);width:100%;letter-spacing:.5px;margin-bottom:8px';
-        callBtn2.innerHTML = '📞&nbsp; 電話する';
-        (function(url){ callBtn2.onclick = function(){ window.open(url,'_blank'); }; })(_chatUrl);
-      } else {
-        callBtn2.style.cssText = 'background:var(--bg3);color:var(--tx3);font-size:14px;font-weight:700;padding:10px 16px;border-radius:12px;border:1px solid var(--bd);cursor:default;width:100%;margin-bottom:8px';
-        callBtn2.innerHTML = '📞&nbsp; チャット未設定';
-        callBtn2.disabled = true;
-      }
-      acts.insertBefore(callBtn2, acts.firstChild);
 
       // 録音UPボタン（未アップロードの場合・点滅）
       if (needsRecUpload) {
@@ -2669,6 +2676,23 @@ function renderHome(data) {
   // 直近のスケジュール（ホーム）
   _allUpcomingBookings = (data.all_upcoming_bookings || []).slice();
   renderHomeSchedule();
+
+  // ★ 事前レポートアラートバナー
+  var _pra = data.pre_report_alert;
+  var _prBanner = document.getElementById('preReportAlertBanner');
+  if (_prBanner) {
+    if (_pra) {
+      var _prd = new Date(_pra.scheduled_at);
+      var _prdStr = (_prd.getMonth()+1) + '月' + _prd.getDate() + '日';
+      var _titleEl = document.getElementById('preAlertTitle');
+      var _subEl   = document.getElementById('preAlertSub');
+      if (_titleEl) _titleEl.textContent = '📅 ' + _prdStr + 'の月次1on1まで' + _pra.days_left + '日 — 事前レポートを提出してください';
+      if (_subEl)   _subEl.textContent   = String(_pra.target_month||"").replace('-','年') + '月分の事前レポートが未提出です';
+      _prBanner.style.display = '';
+    } else {
+      _prBanner.style.display = 'none';
+    }
+  }
 }
 
 // ── ホーム: 直近のスケジュール（最大3件、近い順） ──
