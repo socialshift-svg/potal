@@ -1087,7 +1087,7 @@ async function apiRequest(endpoint, options) {
   const fetchWithTimeout = (url, opts, ms) => {
     const ctrl = new AbortController();
     const tid  = setTimeout(() => ctrl.abort(), ms);
-    return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(tid));
+    return fetch(url, { ...opts, signal: ctrl.signal, redirect: 'follow' }).finally(() => clearTimeout(tid));
   };
 
   // リトライ処理（最大2回）

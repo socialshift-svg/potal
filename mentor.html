@@ -1105,7 +1105,7 @@ async function gasReq(path, method, body) {
   const fetchWithTimeout = (url, opts, ms) => {
     const ctrl = new AbortController();
     const tid  = setTimeout(() => ctrl.abort(), ms);
-    return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(tid));
+    return fetch(url, { ...opts, signal: ctrl.signal, redirect: 'follow' }).finally(() => clearTimeout(tid));
   };
 
   // リトライ処理（最大2回）
@@ -2058,13 +2058,31 @@ function renderMentorReports() {
   pageItems.forEach(function(r) {
     var published = r.is_published === 'TRUE';
 
-    // 日付表示: booking_scheduled_at を使う
-    var dt = r.booking_scheduled_at ? new Date(r.booking_scheduled_at) : null;
-    var day = (dt && !isNaN(dt)) ? dt.getDate() : '—';
-    var mon = (dt && !isNaN(dt)) ? (dt.getMonth()+1)+'月' : '—';
-    var dateText = (dt && !isNaN(dt))
-      ? (dt.getFullYear()+'/'+(dt.getMonth()+1)+'/'+dt.getDate())
-      : '—';
+    // 日付: GASが返すフィールドを全て試す
+    // booking_scheduled_at → target_month → created_at
+    var _raw = r.booking_scheduled_at
+      || (r.target_month ? r.target_month.replace(/^(\d{4}[\/-]\d{1,2}).*$/, '$1-15') : '')
+      || r.created_at || '';
+    var dt = _raw ? new Date(_raw) : null;
+    var _ok = dt && !isNaN(dt.getTime());
+
+    // target_monthだけの場合は年月のみ表示（日は出さない）
+    var _exactDate = !!(r.booking_scheduled_at);
+    var day = (_exactDate && _ok) ? dt.getDate() : '—';
+    var mon = _ok ? ((dt.getMonth()+1) + '月') : '—';
+
+    // 右側テキスト
+    var dateText;
+    if (_exactDate && _ok) {
+      dateText = dt.getFullYear() + '/' + (dt.getMonth()+1) + '/' + dt.getDate();
+    } else if (r.target_month) {
+      var tm = String(r.target_month).match(/(\d{4})[\/-](\d{1,2})/);
+      dateText = tm ? (tm[1] + '/' + parseInt(tm[2])) : (r.target_month || '—');
+    } else if (_ok) {
+      dateText = dt.getFullYear() + '/' + (dt.getMonth()+1);
+    } else {
+      dateText = '—';
+    }
 
     var item = document.createElement('div');
     item.className = 'rep-item';
@@ -2098,7 +2116,6 @@ function renderMentorReports() {
     (function(rep){ item.onclick = function(){ open1on1ReportDetail(rep); }; })(r);
     listEl.appendChild(item);
   });
-  pagerEl.style.display = 'flex';
   pagerEl.innerHTML = '';
   var pb = document.createElement('button');
   pb.className='btn btn-g btn-sm'; pb.textContent='← 前へ'; pb.disabled=(_mentorRepPage===1);
