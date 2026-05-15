@@ -274,15 +274,6 @@ input[type="month"].inp{padding:11px 14px}
     </div>
   </div>
   <div class="next-card">
-<!-- ★ 事前レポートアラートバナー -->
-<div id="preReportAlertBanner" style="display:none;margin:12px 16px;padding:14px 16px;background:linear-gradient(135deg,#fff8e1,#fff3cd);border:1px solid #ffc107;border-radius:12px;border-left:4px solid #ff9800">
-  <div style="font-size:13px;font-weight:700;color:#e65100;margin-bottom:6px" id="preAlertTitle"></div>
-  <div style="font-size:12px;color:#795548;margin-bottom:10px" id="preAlertSub"></div>
-  <button onclick="goNav('reports'); setTimeout(function(){ switchRepTab('pre'); }, 200)"
-    style="background:#ff9800;color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer">
-    📝 事前レポートを書く →
-  </button>
-</div>
     <div class="next-hd"><div class="next-hd-t">📅 次回の1on1</div><div class="countdown" id="countdown">明日まで</div></div>
     <div class="next-bd">
       <div class="next-date" id="nextDate">2月18日（火）</div>
@@ -2032,7 +2023,10 @@ async function openPreReportForm(reportId) {
   document.getElementById('pr-report-id').value = slot.report_id || '';
   var setV = function(id, val) { var el = document.getElementById(id); if (el) el.value = val || ''; };
   var setT = function(id, val) { var el = document.getElementById(id); if (el) el.textContent = val || '—'; };
-  setV('pr-targetMonth',         (slot.target_month||'').slice(0,7));
+  var _slotTm = String(slot.target_month || '');
+  var _slotTmM = _slotTm.match(/(\d{4})[\/-](\d{1,2})/);
+  var _slotTmNorm = _slotTmM ? (_slotTmM[1] + '-' + ('0'+_slotTmM[2]).slice(-2)) : _slotTm.slice(0,7);
+  setV('pr-targetMonth', _slotTmNorm);
   setV('pr-sessionDate',          slot.session_date || '');
   setV('pr-projectResult',        slot.project_result || '');
   setV('pr-studyHours',           slot.study_hours || '');
@@ -2117,7 +2111,10 @@ function preparePreReportForm() {
 
   // 当月の既存レポートを検索（booking_idなしのもの）
   var existing = (_allPreReports || []).find(function(r) {
-    return !r.booking_id && (r.target_month || '').slice(0,7) === ym;
+    // target_monthがYYYY/MMやYYYY-MM-DDなど混在してもYYYY-MMで比較
+    var _tm = String(r.target_month || '');
+    var _tmNorm = _tm.replace('/', '-').slice(0,7);
+    return !r.booking_id && _tmNorm === ym;
   });
 
   var submitBtn = document.getElementById('preReportSubmitBtn');
@@ -2138,7 +2135,10 @@ function preparePreReportForm() {
         el.textContent = val || '—';
       }
     };
-    setVal('pr-targetMonth',         (existing.target_month || '').slice(0,7));
+    var _existTm = String(existing.target_month || '');
+    var _existTmMatch = _existTm.match(/(\d{4})[\/-](\d{1,2})/);
+    var _existTmNorm = _existTmMatch ? (_existTmMatch[1] + '-' + ('0'+_existTmMatch[2]).slice(-2)) : _existTm.slice(0,7);
+    setVal('pr-targetMonth', _existTmNorm);
     setVal('pr-sessionDate',          existing.session_date            || '');
     setVal('pr-projectResult',        existing.project_result          || '');
     setVal('pr-studyHours',           existing.study_hours             || 0);
@@ -2676,23 +2676,6 @@ function renderHome(data) {
   // 直近のスケジュール（ホーム）
   _allUpcomingBookings = (data.all_upcoming_bookings || []).slice();
   renderHomeSchedule();
-
-  // ★ 事前レポートアラートバナー
-  var _pra = data.pre_report_alert;
-  var _prBanner = document.getElementById('preReportAlertBanner');
-  if (_prBanner) {
-    if (_pra) {
-      var _prd = new Date(_pra.scheduled_at);
-      var _prdStr = (_prd.getMonth()+1) + '月' + _prd.getDate() + '日';
-      var _titleEl = document.getElementById('preAlertTitle');
-      var _subEl   = document.getElementById('preAlertSub');
-      if (_titleEl) _titleEl.textContent = '📅 ' + _prdStr + 'の月次1on1まで' + _pra.days_left + '日 — 事前レポートを提出してください';
-      if (_subEl)   _subEl.textContent   = String(_pra.target_month||"").replace('-','年') + '月分の事前レポートが未提出です';
-      _prBanner.style.display = '';
-    } else {
-      _prBanner.style.display = 'none';
-    }
-  }
 }
 
 // ── ホーム: 直近のスケジュール（最大3件、近い順） ──

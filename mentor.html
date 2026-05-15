@@ -918,11 +918,6 @@ td{padding:10px 14px;font-size:13px}
     <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--tx2);cursor:pointer;white-space:nowrap">
       <input type="checkbox" id="reportsFilterMine" onchange="filterReports()"> 自分の担当のみ
     </label>
-    <select class="inp" id="reportsFilterType" style="display:none;font-size:12px;padding:5px 8px;border-radius:8px;border:1px solid var(--bd)" onchange="filterReports()">
-      <option value="">全種別</option>
-      <option value="monthly">📅 月次1on1</option>
-      <option value="other">💬 その他</option>
-    </select>
     <div id="reportsCount" style="font-size:12px;color:var(--tx3);white-space:nowrap;margin-left:auto">—</div>
   </div>
 
@@ -1964,9 +1959,18 @@ async function execCancel() {
 // ══════════════════════════════════════════════════════════
 // 週次TEL録音未アップロードバナー更新
 function renderTelRecordingBanner() {
-  // ★ ハドル運用終了のため非表示
   var banner = document.getElementById('telRecordingBanner');
-  if (banner) banner.style.display = 'none';
+  if (!banner) return;
+  var missingRec = _allCallReports.filter(function(r){ return !r.recording_url; });
+  if (missingRec.length === 0) { banner.style.display='none'; return; }
+  banner.style.display = '';
+  var btn = document.createElement('button');
+  btn.className = 'btn btn-sm';
+  btn.style.cssText = 'background:var(--am);color:#fff;border:none;flex-shrink:0;font-size:12px';
+  btn.textContent = '録音をアップロード →';
+  btn.onclick = openTelRecordingUploadGuide;
+  banner.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><div>🎙 <strong>' + missingRec.length + '件</strong>のハドル録音がアップロードされていません</div></div>';
+  banner.querySelector('div > div').after(btn);
 }
 
 // TEL録音アップロードガイドを開く
@@ -1998,14 +2002,10 @@ function switchRepTab(tab) {
     document.getElementById('repPane-'+t).style.display = t===tab ? '' : 'none';
   });
   // 確定状態フィルターをTEL以外では非表示
-  var stSel  = document.getElementById('reportsFilterStatus');
-  var typeSel = document.getElementById('reportsFilterType');
-  if (stSel)  stSel.style.display  = tab==='tel'  ? '' : 'none';
-  if (typeSel) typeSel.style.display = tab==='1on1' ? '' : 'none';  // ★ 1on1タブのみ表示
+  var stSel = document.getElementById('reportsFilterStatus');
+  if (stSel) stSel.style.display = tab==='tel' ? '' : 'none';
 
   if (tab === '1on1' && _mentorReports.length === 0) {
-    var tf = document.getElementById('reportsFilterType');
-    if (tf) tf.value = '';  // ★ 全種別にリセット
     loadMentorReports();
   } else if (tab === 'pre' && _preReports.length === 0) {
     loadPreReports();
@@ -2305,11 +2305,15 @@ function renderPreReports() {
   var month    = document.getElementById('reportsFilterMonth').value;
   var mineOnly = document.getElementById('reportsFilterMine').checked;
 
+  // ★ Step1: フィルター適用
   var filtered = _preReports.filter(function(r) {
     var uid = r.user_id || r.mentee_id;
     if (menteeId && uid !== menteeId) return false;
     if (month) {
-      var d = (r.submitted_at || '').slice(0, 7);
+      // target_monthをYYYY-MMに正規化して比較
+      var _tm = String(r.target_month || '');
+      var _tmM = _tm.match(/(\d{4})[\/\-](\d{1,2})/);
+      var d = _tmM ? (_tmM[1] + '-' + ('0'+_tmM[2]).slice(-2)) : _tm.slice(0,7);
       if (d !== month) return false;
     }
     if (mineOnly) {
@@ -2318,6 +2322,30 @@ function renderPreReports() {
     }
     return true;
   });
+
+  // ★ Step2: メンティーごと・月ごとに最新1件だけ残す
+  var latestMap = {}; // key: "uid_YYYY-MM" → 最新レコード
+  filtered.forEach(function(r) {
+    var uid = r.user_id || r.mentee_id || '';
+    var _tm = String(r.target_month || '');
+    var _tmM = _tm.match(/(\d{4})[\/\-](\d{1,2})/);
+    var ym = _tmM ? (_tmM[1] + '-' + ('0'+_tmM[2]).slice(-2)) : _tm.slice(0,7);
+    var key = uid + '_' + ym;
+    var existing = latestMap[key];
+    // submitted_atが新しいもの（未提出なら更新日時で比較）を残す
+    var rDate = r.submitted_at || r.updated_at || r.created_at || '';
+    var eDate = existing ? (existing.submitted_at || existing.updated_at || existing.created_at || '') : '';
+    if (!existing || rDate > eDate) {
+      latestMap[key] = r;
+    }
+  });
+  // ソート: target_month降順 → メンティー名昇順
+  filtered = Object.values(latestMap).sort(function(a, b) {
+    var _ta = String(a.target_month||''), _tb = String(b.target_month||'');
+    if (_tb !== _ta) return _tb.localeCompare(_ta);
+    return (a.mentee_name||'').localeCompare(b.mentee_name||'', 'ja');
+  });
+
   document.getElementById('reportsCount').textContent = filtered.length + '件';
 
   if (filtered.length === 0) {
@@ -2325,21 +2353,28 @@ function renderPreReports() {
     return;
   }
   listEl.innerHTML = '';
-  filtered.slice(0,20).forEach(function(r) {
-    var dt = new Date(r.submitted_at||'');
+  filtered.slice(0, 50).forEach(function(r) {
+    // 左枠: target_monthから月を表示
+    var _tmr  = String(r.target_month || '');
+    var _tmrM = _tmr.match(/(\d{4})[\/-](\d{1,2})/);
+    var dispMon    = _tmrM ? (parseInt(_tmrM[2]) + '月') : '—';
+    var monthLabel = _tmrM ? (_tmrM[1] + '年' + parseInt(_tmrM[2]) + '月分') : '—';
+
     var item = document.createElement('div');
     item.className = 'rep-item'; item.style.cursor = 'pointer';
     var dateEl = document.createElement('div');
     dateEl.className = 'rep-date';
-    dateEl.innerHTML = '<div class="rep-d">'+(isNaN(dt)?'?':dt.getDate())+'</div>'
-      + '<div class="rep-m">'+(isNaN(dt)?'':((dt.getMonth()+1)+'月'))+'</div>';
+    dateEl.innerHTML = '<div class="rep-d">—</div><div class="rep-m">' + dispMon + '</div>';
     var infoEl = document.createElement('div');
     infoEl.className = 'rep-info';
-    var mineTag = r.is_mine ? '<span style="font-size:10px;padding:2px 6px;border-radius:8px;background:var(--pr-light);color:var(--pr);font-weight:600;margin-left:5px">担当</span>' : '';
+    var statusTag = (r.status === 'submitted')
+      ? '<span style="font-size:10px;padding:2px 6px;border-radius:8px;background:#e8f5e9;color:#388e3c;font-weight:600">✅ 提出済</span>'
+      : '<span style="font-size:10px;padding:2px 6px;border-radius:8px;background:var(--am-light);color:var(--am);font-weight:600">📝 下書き</span>';
+    var mineTag = r.is_mine ? '<span style="font-size:10px;padding:2px 6px;border-radius:8px;background:var(--pr-light);color:var(--pr);font-weight:600">担当</span>' : '';
     infoEl.innerHTML =
-      '<div class="rep-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">'+esc(r.mentee_name||r.user_id||'—')+mineTag+'</div>'
-      + '<div class="rep-sub">'+esc((r.mentor_name ? '担当MT: '+r.mentor_name+' / ' : '')+( r.current_project||r.goal_work_6m||'—').slice(0,40))+'</div>'
-      + '<div class="rep-sub">提出: '+fmtDateFull(r.submitted_at)+'</div>';
+      '<div class="rep-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">' + esc(r.mentee_name||r.user_id||'—') + mineTag + statusTag + '</div>'
+      + '<div class="rep-sub">' + monthLabel + '</div>'
+      + '<div class="rep-sub">' + esc((r.current_project||r.goal_work_6m||'—').slice(0,40)) + '</div>';
     var arrEl = document.createElement('div');
     arrEl.className = 'rep-arr'; arrEl.textContent = '›';
     item.appendChild(dateEl); item.appendChild(infoEl); item.appendChild(arrEl);
@@ -2439,20 +2474,6 @@ function filterReports() {
     renderReports();
   } else if (_currentRepTab === '1on1') {
     _mentorRepPage = 1;
-    var typeVal = document.getElementById('reportsFilterType') ? document.getElementById('reportsFilterType').value : '';
-    // ★ meeting_typeがないデータはフィルターをスキップ（旧GAS互換）
-    _mentorReports = _allMenteeReports.filter(function(r) {
-      if (menteeId && r.mentee_id !== menteeId) return false;
-      if (month) {
-        var d = (r.booking_scheduled_at || r.target_month || r.created_at || '').slice(0,7);
-        if (d !== month) return false;
-      }
-      if (mineOnly && r.mentor_id !== _me.user_id) return false;
-      if (typeVal && r.meeting_type) {
-        if (r.meeting_type !== typeVal) return false;
-      }
-      return true;
-    });
     renderMentorReports();
   } else if (_currentRepTab === 'pre') {
     renderPreReports();
@@ -2671,18 +2692,16 @@ async function loadWeeklyTel() {
     var acts = document.createElement('div');
     acts.style.cssText = 'display:flex;flex-direction:column;gap:5px;flex-shrink:0';
 
-    // ★「電話する」大ボタン（チャットURLを開く）
-    var callBtn = document.createElement('button');
+    // チャットアイコンボタン
     if (chatUrl) {
-      callBtn.style.cssText = 'background:linear-gradient(135deg,#e8474f,#c0392b);color:#fff;font-size:14px;font-weight:800;padding:10px 16px;border-radius:12px;border:none;cursor:pointer;box-shadow:0 3px 12px rgba(232,71,79,.4);width:100%;letter-spacing:.5px';
-      callBtn.innerHTML = '📞&nbsp; 電話する';
-      (function(url){ callBtn.onclick = function(){ window.open(url,'_blank'); }; })(chatUrl);
-    } else {
-      callBtn.style.cssText = 'background:var(--bg3);color:var(--tx3);font-size:14px;font-weight:700;padding:10px 16px;border-radius:12px;border:1px solid var(--bd);cursor:default;width:100%';
-      callBtn.innerHTML = '📞&nbsp; チャット未設定';
-      callBtn.disabled = true;
+      var chatBtn = document.createElement('button');
+      chatBtn.className = 'btn btn-sm';
+      chatBtn.style.cssText = 'background:linear-gradient(135deg,#1a73e8,#0d62d1);color:#fff;border:none;font-size:11px;padding:5px 10px';
+      chatBtn.title = 'チャットを開く';
+      chatBtn.innerHTML = '💬';
+      (function(url){ chatBtn.onclick = function(){ window.open(url,'_blank'); }; })(chatUrl);
+      acts.appendChild(chatBtn);
     }
-    acts.appendChild(callBtn);
 
     // レポートボタン
     var repBtn = document.createElement('button');
