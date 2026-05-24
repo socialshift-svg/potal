@@ -365,6 +365,50 @@ td{padding:10px 14px;font-size:13px}
   </div>
 </div>
 
+<div class="modal" id="unprocessedModal">
+  <div class="modal-box" style="max-width:920px">
+    <span class="modal-close" onclick="closeModal('unprocessedModal')">✕</span>
+    <div class="modal-title">未処理ファイルの確認</div>
+    <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
+      <div style="flex:1 1 360px;min-width:260px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
+          <div style="font-size:12px;color:var(--tx3)">Meet Recordings 内でまだ処理済み扱いになっていないファイル</div>
+          <button class="btn btn-g btn-sm" onclick="loadUnprocessedFiles()" style="font-size:12px">再読込</button>
+        </div>
+        <div id="unprocessedList" style="max-height:520px;overflow:auto;border:1px solid var(--bd);border-radius:8px;background:#fff"></div>
+      </div>
+      <div style="flex:0 1 360px;min-width:280px;border:1px solid var(--bd);border-radius:8px;padding:12px;background:#fff">
+        <input type="hidden" id="unprocessed-file-id" value="">
+        <div style="font-size:12px;color:var(--tx3);margin-bottom:4px">選択中</div>
+        <div id="unprocessed-selected-name" style="font-size:13px;font-weight:700;margin-bottom:10px">未選択</div>
+        <div class="form-group">
+          <label class="form-label">処理種別<span class="req">*</span></label>
+          <select class="inp" id="unprocessed-type" style="width:100%">
+            <option value="monthly">月次1on1</option>
+            <option value="tel">週次TEL</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">対象メンティー<span class="req">*</span></label>
+          <select class="inp" id="unprocessed-mentee-id" style="width:100%">
+            <option value="">選択してください</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">実施日時（任意）</label>
+          <input type="datetime-local" class="inp" id="unprocessed-scheduled-at" style="width:100%">
+        </div>
+        <div class="form-group">
+          <label class="form-label">内容プレビュー</label>
+          <div id="unprocessed-preview" style="min-height:120px;max-height:220px;overflow:auto;border:1px solid var(--bd);border-radius:8px;padding:10px;font-size:12px;line-height:1.6;white-space:pre-wrap;color:var(--tx2);background:var(--bg)"></div>
+        </div>
+        <div id="unprocessed-result" style="font-size:12px;min-height:18px;margin-bottom:8px"></div>
+        <button class="btn btn-p" id="unprocessedProcessBtn" onclick="submitUnprocessedProcess()" style="width:100%">選択したファイルを加工する</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- 事前レポート詳細モーダル -->
 <div class="modal" id="preReportDetailModal">
   <div class="modal-content">
@@ -906,7 +950,7 @@ td{padding:10px 14px;font-size:13px}
 
 <!-- ════ REPORTS ════ -->
 <div class="screen" id="s-reports">
-  <div class="topbar"><div><div class="page-title">レポート</div><div class="page-sub">1on1・週次TELの記録</div></div><button class="btn btn-g btn-sm" onclick="openManualTelModal()" style="font-size:12px;white-space:nowrap">📞 TEL手動登録</button></div>
+  <div class="topbar"><div><div class="page-title">レポート</div><div class="page-sub">1on1・週次TELの記録</div></div><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button class="btn btn-g btn-sm" onclick="openUnprocessedModal()" style="font-size:12px;white-space:nowrap">未処理ファイルを確認する</button><button class="btn btn-g btn-sm" onclick="openManualTelModal()" style="font-size:12px;white-space:nowrap">📞 TEL手動登録</button></div></div>
 
   <!-- レポートタブ -->
   <div style="display:flex;gap:0;border-bottom:2px solid var(--bd);margin-bottom:14px">
@@ -1398,9 +1442,9 @@ async function doLogin() {
     var res  = await fetch(GAS_URL, { method:'POST', body:JSON.stringify({ path:'auth/login', _method:'POST', email:email, password_hash:passwordHash }) });
     var text = await res.text();
     var data; try { data=JSON.parse(text); } catch(e){ throw new Error('JSONパース失敗'); }
-    if (data && data.token && data.user) {
+if (data && data.token && data.user) {
       var role = data.user.role;
-      if (role !== 'mentor' && role !== 'admin') {
+      if (role !== 'mentor' && role !== 'admin' && !(role === 'mentee' && hasLeaderRoleUser(data.user))) {
         msgEl.textContent='メンター権限がありません'; btn.textContent='ログイン'; btn.disabled=false; return;
       }
       Auth.setAuth(data.token, data.user);
@@ -1447,7 +1491,7 @@ var _updateSelectedTime = '';
 document.addEventListener('DOMContentLoaded', function() {
   if (!Auth.isLoggedIn()) { showOverlay(); return; }
   var user = Auth.getUser();
-  if (!user || (user.role !== 'mentor' && user.role !== 'admin')) {
+  if (!user || (user.role !== 'mentor' && user.role !== 'admin' && !(user.role === 'mentee' && hasLeaderRoleUser(user)))) {
     Auth.clearAuth(); showOverlay(); return;
   }
   warmupGAS(); // GASウォームアップ（コールドスタート対策）
@@ -1459,10 +1503,18 @@ function initPage(user) {
   loadMentorQuickLinks(); // クイックリンクバー
   document.getElementById('userAva').textContent  = (user.name||'?').slice(0,1);
   document.getElementById('userName').textContent = user.name || 'メンター';
-  if (user.has_leader_role === 'TRUE' || user.has_leader_role === true) {
+  if (hasLeaderRoleUser(user)) {
     document.getElementById('nav-weeklyTel').style.display = '';
   }
   loadAll();
+}
+
+function hasLeaderRoleUser(user) {
+  return !!(user && (user.has_leader_role === true || user.has_leader_role === 'TRUE' || user.has_leader_role === 'true'));
+}
+
+function isLeaderOnlyUser() {
+  return !!(_me && _me.role === 'mentee' && hasLeaderRoleUser(_me));
 }
 
 // クイックリンクバー読み込み
@@ -1487,6 +1539,11 @@ async function loadMentorQuickLinks() {
 }
 
 async function loadAll() {
+  if (isLeaderOnlyUser()) {
+    await loadWeeklyTel();
+    nav('weeklyTel', document.getElementById('nav-weeklyTel'));
+    return;
+  }
   // 起動時はサイドバー描画に必要なメンティー情報のみロード。
   // schedules / callReports / surveys は各タブ初回アクセス時に遅延ロードする。
   // クイックリンクとメンティー情報を並列取得
@@ -2745,14 +2802,141 @@ async function loadWeeklyTel() {
 }
 
 // ══ TEL手動登録 ══
-function openManualTelModal() {
+var _unprocessedFiles = [];
+
+async function populateUnprocessedMentees() {
+  var sel = document.getElementById('unprocessed-mentee-id');
+  if (!sel) return;
+  var current = sel.value || '';
+  var list = (_myMentees && _myMentees.length) ? _myMentees : ((typeof _allMentees !== 'undefined' && _allMentees) ? _allMentees : []);
+  if (isLeaderOnlyUser()) {
+    var data = await gasReq('api/leader/my-assignments');
+    list = (data && data.mentees) ? data.mentees : [];
+  }
+  sel.innerHTML = '<option value="">選択してください</option>' + list.map(function(m) {
+    return '<option value="' + esc(m.user_id || '') + '">' + esc(m.name || m.user_id || '') + '</option>';
+  }).join('');
+  if (current) sel.value = current;
+}
+
+function setDateTimeLocalValue(id, ms) {
+  var el = document.getElementById(id);
+  if (!el || !ms) return;
+  var d = new Date(ms);
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  el.value = d.toISOString().slice(0, 16);
+}
+
+async function openUnprocessedModal() {
+  var modal = document.getElementById('unprocessedModal');
+  if (!modal) return;
+  await populateUnprocessedMentees();
+  document.getElementById('unprocessed-file-id').value = '';
+  document.getElementById('unprocessed-selected-name').textContent = '未選択';
+  document.getElementById('unprocessed-preview').textContent = '';
+  document.getElementById('unprocessed-result').textContent = '';
+  var typeSel = document.getElementById('unprocessed-type');
+  if (typeSel && isLeaderOnlyUser()) {
+    typeSel.value = 'tel';
+    Array.from(typeSel.options).forEach(function(o){ if (o.value === 'monthly') o.disabled = true; });
+  }
+  modal.classList.add('open');
+  loadUnprocessedFiles();
+}
+
+async function loadUnprocessedFiles() {
+  var listEl = document.getElementById('unprocessedList');
+  if (listEl) listEl.innerHTML = '<div class="loading" style="padding:18px">読み込み中...</div>';
+  var r = await gasReq('api/mentor/unprocessed-recordings', 'GET');
+  if (!r || !r.ok) {
+    if (listEl) listEl.innerHTML = '<div class="loading" style="padding:18px;color:var(--rd)">読み込みに失敗しました: ' + esc((r && (r.error || r.message)) || '') + '</div>';
+    return;
+  }
+  _unprocessedFiles = r.files || [];
+  renderUnprocessedFiles();
+}
+
+function renderUnprocessedFiles() {
+  var listEl = document.getElementById('unprocessedList');
+  if (!listEl) return;
+  if (!_unprocessedFiles.length) {
+    listEl.innerHTML = '<div class="loading" style="padding:18px">未処理ファイルはありません</div>';
+    return;
+  }
+  listEl.innerHTML = _unprocessedFiles.map(function(f) {
+    var hint = f.suggested_type === 'tel' ? '週次TEL候補' : (f.suggested_type === 'monthly' ? '月次1on1候補' : '要確認');
+    var preview = (f.preview || '').replace(/\s+/g, ' ').slice(0, 90);
+    return '<div style="padding:12px;border-bottom:1px solid var(--bd);display:flex;gap:10px;align-items:flex-start">'
+      + '<div style="flex:1;min-width:0">'
+      + '<div style="font-size:13px;font-weight:700;word-break:break-all">' + esc(f.name || '') + '</div>'
+      + '<div style="font-size:11px;color:var(--tx3);margin-top:3px">' + esc(hint) + ' / ' + esc(fmtDateFull(f.created_at || f.modified_at || '')) + '</div>'
+      + '<div style="font-size:12px;color:var(--tx2);margin-top:6px;line-height:1.5">' + esc(preview || 'プレビューなし') + '</div>'
+      + '</div>'
+      + '<button class="btn btn-g btn-sm" style="font-size:12px;white-space:nowrap" onclick="selectUnprocessedFile(&quot;' + esc(f.id || '') + '&quot;)">選択</button>'
+      + '</div>';
+  }).join('');
+}
+
+function selectUnprocessedFile(fileId) {
+  var f = (_unprocessedFiles || []).find(function(x){ return x.id === fileId; });
+  if (!f) return;
+  document.getElementById('unprocessed-file-id').value = f.id || '';
+  document.getElementById('unprocessed-selected-name').textContent = f.name || f.id || '';
+  document.getElementById('unprocessed-preview').textContent = f.preview || 'このファイルは直接プレビューできません。Driveで内容を確認してから加工してください。';
+  if (f.suggested_type === 'tel' || f.suggested_type === 'monthly') {
+    document.getElementById('unprocessed-type').value = f.suggested_type;
+  }
+  if (isLeaderOnlyUser()) document.getElementById('unprocessed-type').value = 'tel';
+  setDateTimeLocalValue('unprocessed-scheduled-at', f.meet_start_at || Date.parse(f.created_at || ''));
+}
+
+async function submitUnprocessedProcess() {
+  var fileId = (document.getElementById('unprocessed-file-id') || {}).value || '';
+  var type = (document.getElementById('unprocessed-type') || {}).value || '';
+  var menteeId = (document.getElementById('unprocessed-mentee-id') || {}).value || '';
+  var scheduledLocal = (document.getElementById('unprocessed-scheduled-at') || {}).value || '';
+  var resEl = document.getElementById('unprocessed-result');
+  var btn = document.getElementById('unprocessedProcessBtn');
+  if (!fileId || !type || !menteeId) {
+    if (resEl) { resEl.style.color = 'var(--rd)'; resEl.textContent = 'ファイル、処理種別、対象メンティーを選択してください'; }
+    return;
+  }
+  if (isLeaderOnlyUser() && type !== 'tel') {
+    if (resEl) { resEl.style.color = 'var(--rd)'; resEl.textContent = 'リーダー権限では週次TELのみ処理できます'; }
+    return;
+  }
+  var payload = { file_id: fileId, process_type: type, mentee_id: menteeId };
+  if (scheduledLocal) payload.scheduled_at = new Date(scheduledLocal).toISOString();
+  if (btn) { btn.disabled = true; btn.textContent = '加工中...'; }
+  if (resEl) { resEl.style.color = 'var(--tx3)'; resEl.textContent = '処理しています'; }
+  var r = await gasReq('api/mentor/unprocessed-recordings/process', 'POST', payload);
+  if (btn) { btn.disabled = false; btn.textContent = '選択したファイルを加工する'; }
+  if (r && r.ok) {
+    if (resEl) { resEl.style.color = 'var(--gr)'; resEl.textContent = '処理しました: ' + (r.report_id || r.call_id || ''); }
+    toast('未処理ファイルを処理しました');
+    await loadUnprocessedFiles();
+    if (type === 'tel') await loadCallReportsData();
+    if (type === 'monthly') await loadMentorReports();
+  } else {
+    var err = (r && (r.error || r.message)) || '処理に失敗しました';
+    if (resEl) { resEl.style.color = 'var(--rd)'; resEl.textContent = err; }
+  }
+}
+
+async function openManualTelModal() {
   var resEl = document.getElementById('manualTel-result');
   if (resEl) resEl.textContent = '';
 
   // メンティー選択肢をセット（全メンティー）
   var mSel = document.getElementById('manualTel-menteeId');
-  if (mSel && mSel.options.length <= 1) {
-    (_allMentees || _myMentees || []).forEach(function(m) {
+  if (mSel && (mSel.options.length <= 1 || isLeaderOnlyUser())) {
+    var menteeList = (_allMentees || _myMentees || []);
+    if (isLeaderOnlyUser()) {
+      var data = await gasReq('api/leader/my-assignments');
+      menteeList = (data && data.mentees) ? data.mentees : [];
+      mSel.innerHTML = '<option value="">選択してください</option>';
+    }
+    menteeList.forEach(function(m) {
       var opt = document.createElement('option');
       opt.value = m.user_id;
       opt.textContent = m.name + (m.leader_name ? '（' + m.leader_name + '）' : '');
@@ -2762,7 +2946,15 @@ function openManualTelModal() {
 
   // リーダー選択肢をセット
   var lSel = document.getElementById('manualTel-leaderId');
-  if (lSel && lSel.options.length <= 1) {
+  if (lSel && isLeaderOnlyUser()) {
+    lSel.innerHTML = '';
+    var selfOpt = document.createElement('option');
+    selfOpt.value = _me.user_id;
+    selfOpt.textContent = _me.name || '自分';
+    lSel.appendChild(selfOpt);
+    lSel.value = _me.user_id;
+    lSel.disabled = true;
+  } else if (lSel && lSel.options.length <= 1) {
     (_allUsers || []).filter(function(u){ return u.role === 'leader' || u.has_leader_role; })
       .forEach(function(u) {
         var opt = document.createElement('option');
@@ -2804,6 +2996,7 @@ async function submitManualTel() {
   var resEl     = document.getElementById('manualTel-result');
   var btn       = document.getElementById('manualTelSubmitBtn');
 
+  if (isLeaderOnlyUser()) leaderId = _me.user_id;
   if (!menteeId || !leaderId || !callDate) {
     if (resEl) { resEl.style.color = 'var(--rd)'; resEl.textContent = '❌ 全必須項目を入力してください'; }
     return;
@@ -4080,6 +4273,11 @@ document.addEventListener('click', function(e) {
     }
   }
 });
+
+function openModal(id) {
+  var el = document.getElementById(id);
+  if (el) el.classList.add('open');
+}
 
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 ['delModal','telModal','preDetailModal','telHistModal','bookingCreateModal','bookingUpdateModal'].forEach(function(id){
