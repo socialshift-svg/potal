@@ -2893,7 +2893,9 @@ async function loadWeeklyTel() {
     var uid    = a.mentee_id;
     var mName  = a.mentee_name || uid;
     var mentee = a.mentee || {};
-    var chatUrl = mentee.chat_url || '';
+    // ★ リーダーとしてメンティーのチャットを開く場合は
+    // leader_chat_url（リーダー専用）を優先、未設定なら chat_url
+    var chatUrl = mentee.leader_chat_url || mentee.chat_url || '';
     var myReps  = _allCallReports
       .filter(function(r){ return r.mentee_id===uid && r.leader_id===_me.user_id; })
       .sort(function(x,y){ return (y.created_at||'').localeCompare(x.created_at||''); });
@@ -3707,7 +3709,9 @@ function loadMembersTab() {
 
 function openChatFor(userId) {
   var m = _myMentees.find(function(x){ return x.user_id===userId; });
-  if (m && m.chat_url) window.open(m.chat_url,'_blank');
+  // ★ has_leader_role=true の場合は leader_chat_url を優先
+  var chatTarget = m && (m.has_leader_role ? (m.leader_chat_url || m.chat_url) : m.chat_url);
+  if (chatTarget) window.open(chatTarget,'_blank');
   else toast('チャットURLが登録されていません','err');
 }
 
@@ -3841,7 +3845,9 @@ function openMemberDetailModal(m, booking) {
       // スケジュール外（ダッシュボード等）から開いた場合：従来通りチャットURL
       chatBtn.style.display = m.chat_url ? '' : 'none';
       chatBtn.innerHTML = '💬 チャットを開く';
-      chatBtn.onclick = function(){ window.open(m.chat_url, '_blank'); };
+      // ★ リーダー兼任メンバー(has_leader_role=true)の場合はleader_chat_urlを優先
+      var _chatUrlForModal = (m.has_leader_role ? (m.leader_chat_url || m.chat_url) : m.chat_url) || m.chat_url || '';
+      chatBtn.onclick = function(){ window.open(_chatUrlForModal, '_blank'); };
     }
   }
 
@@ -3892,7 +3898,12 @@ function openMemberDetailWithBooking(userId, booking) {
 }
 
 function openMemberDetailChat() {
-  if (_mdCurrentMentee && _mdCurrentMentee.chat_url) window.open(_mdCurrentMentee.chat_url,'_blank');
+  if (_mdCurrentMentee) {
+    var _mdChat = _mdCurrentMentee.has_leader_role
+      ? (_mdCurrentMentee.leader_chat_url || _mdCurrentMentee.chat_url)
+      : _mdCurrentMentee.chat_url;
+    if (_mdChat) window.open(_mdChat,'_blank');
+  }
   else toast('チャットURLが登録されていません','err');
 }
 

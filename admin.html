@@ -259,6 +259,36 @@ body.login-mode .main { display:none !important; }
   </div>
 </div>
 
+<!-- ★ リーダー兼任用チャット設定モーダル -->
+<div class="modal" id="leaderChatEditModal">
+  <div class="modal-content" style="max-width:520px">
+    <span class="modal-close" onclick="closeModal('leaderChatEditModal')">✕</span>
+    <div class="modal-title">👑 リーダー兼任用チャット設定</div>
+    <div style="font-size:13px;color:var(--tx2);background:var(--cy-light,#e8f4ff);border-radius:10px;padding:12px 14px;margin-bottom:16px;line-height:1.7">
+      このメンバーがリーダーとして担当メンバーと使うチャット・TEL情報を設定します。<br>
+      <span style="font-size:11px;color:var(--tx3)">通常の「チャット/TEL情報」はメンターとの1on1・TEL用です。</span>
+    </div>
+    <div style="font-size:13px;font-weight:700;color:var(--tx);padding:8px 12px;background:var(--bg3);border-radius:8px;margin-bottom:12px" id="leader-chat-edit-name">—</div>
+    <div class="form-group">
+      <label class="form-label">リーダー用チャットURL</label>
+      <input class="inp" id="leader-chat-url-input" type="url" placeholder="https://chat.google.com/room/..."/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">リーダー用Webhook URL</label>
+      <input class="inp" id="leader-chat-webhook-input" type="url" placeholder="https://chat.googleapis.com/v1/spaces/.../messages?key=..."/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">リーダー用TEL Meet URL</label>
+      <input class="inp" id="leader-tel-meet-input" type="url" placeholder="https://meet.google.com/xxx-xxxx-xxx"/>
+    </div>
+    <div id="leader-chat-edit-result" style="font-size:12px;min-height:16px;margin-bottom:8px"></div>
+    <div class="f-foot">
+      <button class="btn btn-g" onclick="closeModal('leaderChatEditModal')">キャンセル</button>
+      <button class="btn btn-p" id="leader-chat-edit-save-btn" onclick="saveLeaderChatSettings()">💾 保存する</button>
+    </div>
+  </div>
+</div>
+
 <!-- TEL Meet URL設定モーダル -->
 <div class="modal" id="telMeetModal">
   <div class="modal-content" style="max-width:520px">
@@ -401,6 +431,16 @@ body.login-mode .main { display:none !important; }
       <button class="btn btn-sm" id="detail-create-chat-btn" style="display:none;background:var(--bg3);color:var(--tx2);border:1px solid var(--bd)" onclick="createChatSpace()">🔗 URLを登録</button>
       <button class="btn btn-sm" id="detail-tel-assign-btn" style="display:none;background:var(--cy-light);color:var(--cy);border:1px solid var(--cy)" onclick="openTelAssignFromDetail()">📞 TEL割り当て</button>
       <button class="btn btn-sm" id="detail-tel-direct-btn" style="display:none;background:var(--am-light);color:var(--am);border:1px solid var(--am)" onclick="openTelDirectModal()">🔗 TEL直接登録</button>
+      <!-- ★ リーダー兼任用チャット設定カード -->
+      <div id="detail-leader-chat-card" style="display:none;margin-top:12px;background:var(--cy-light,#e8f4ff);border-radius:10px;padding:12px 14px;font-size:13px;border:1px solid var(--cy,#4dabf7)">
+        <div style="font-weight:700;color:var(--pr);margin-bottom:8px">👑 リーダー兼任用チャット設定</div>
+        <div style="display:grid;gap:4px;color:var(--tx2)">
+          <div><span style="color:var(--tx3)">チャットURL: </span><span id="detail-leader-chat-url" style="word-break:break-all">未設定</span></div>
+          <div><span style="color:var(--tx3)">Webhook: </span><span id="detail-leader-chat-webhook">未設定</span></div>
+          <div><span style="color:var(--tx3)">TEL Meet URL: </span><span id="detail-leader-tel-meet" style="word-break:break-all">未設定</span></div>
+        </div>
+        <button id="detail-leader-chat-edit-btn" class="btn btn-g btn-sm" style="margin-top:8px">✏️ リーダー用チャット設定</button>
+      </div>
       <button class="btn btn-sm" id="detail-webhook-btn" style="display:none;font-size:11px;padding:5px 10px;background:var(--am-light);color:var(--am);border:1px solid var(--am)" onclick="saveWebhookUrl()">🔔 Webhook登録</button>
       <button class="btn btn-p" id="detail-msg-btn">📨 メッセージ送信</button>
     </div>
@@ -925,7 +965,7 @@ body.login-mode .main { display:none !important; }
 </div>
 
 <!-- ユーザー管理（iframe） -->
-<div id="s-userManagement" style="display:none;padding:0;margin:0;height:100vh;overflow:hidden;position:fixed;top:0;left:240px;right:0;bottom:0;z-index:150;background:var(--bg)">
+<div id="s-userManagement" style="display:none;padding:0;margin:-28px -32px;height:calc(100vh);overflow:hidden;position:fixed;top:0;left:240px;right:0;bottom:0;z-index:50;background:var(--bg)">
   <iframe id="userManagementFrame" src="" style="width:100%;height:100%;border:none;display:block" title="ユーザー管理"></iframe>
 </div>
 
@@ -1402,6 +1442,24 @@ function showMemberDetail(m) {
     if (telAssignBtn) telAssignBtn.style.display = 'none';
     if (telDirectBtn) telDirectBtn.style.display = 'none';
   }
+  // ★ has_leader_role=TRUE の場合: リーダー用チャット設定カードを表示
+  var leaderChatCard = document.getElementById('detail-leader-chat-card');
+  if (leaderChatCard) {
+    if (m.has_leader_role === 'TRUE' || m.has_leader_role === true) {
+      leaderChatCard.style.display = '';
+      var lcUrl  = document.getElementById('detail-leader-chat-url');
+      var lcWh   = document.getElementById('detail-leader-chat-webhook');
+      var lcMeet = document.getElementById('detail-leader-tel-meet');
+      if (lcUrl)  lcUrl.textContent  = m.leader_chat_url          || '未設定';
+      if (lcWh)   lcWh.textContent   = m.leader_chat_webhook_url  ? '設定済み' : '未設定';
+      if (lcMeet) lcMeet.textContent = m.leader_tel_meet_url      || '未設定';
+      var lcEditBtn = document.getElementById('detail-leader-chat-edit-btn');
+      if (lcEditBtn) lcEditBtn.onclick = function(){ openLeaderChatEditModal(m); };
+    } else {
+      leaderChatCard.style.display = 'none';
+    }
+  }
+
   // 旧ボタン（後方互換）
   var telMeetBtn = document.getElementById('detail-tel-meet-btn');
   if (telMeetBtn) telMeetBtn.style.display = 'none';
@@ -2032,6 +2090,58 @@ async function saveTelMeetUrl() {
   } else {
     resultEl.style.color = 'var(--rd)';
     resultEl.textContent = '❌ 保存に失敗: ' + ((r && (r.error || r.message)) || 'GAS応答なし');
+  }
+}
+
+// ★ リーダー兼任用チャット設定モーダルを開く
+function openLeaderChatEditModal(m) {
+  document.getElementById('leader-chat-edit-name').textContent   = m.name + '（リーダー兼任）';
+  document.getElementById('leader-chat-url-input').value         = m.leader_chat_url         || '';
+  document.getElementById('leader-chat-webhook-input').value     = m.leader_chat_webhook_url || '';
+  document.getElementById('leader-tel-meet-input').value         = m.leader_tel_meet_url     || '';
+  document.getElementById('leader-chat-edit-result').textContent = '';
+  document.getElementById('leaderChatEditModal').classList.add('open');
+}
+
+// ★ リーダー兼任用チャット設定を保存
+async function saveLeaderChatSettings() {
+  var chatUrl    = document.getElementById('leader-chat-url-input').value.trim();
+  var webhookUrl = document.getElementById('leader-chat-webhook-input').value.trim();
+  var meetUrl    = document.getElementById('leader-tel-meet-input').value.trim();
+  var resEl      = document.getElementById('leader-chat-edit-result');
+  var btn        = document.getElementById('leader-chat-edit-save-btn');
+  if (!_currentDetailMember) return;
+  if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
+  try {
+    var r = await gasReq('api/admin/users/update-profile', 'POST', {
+      user_id:                  _currentDetailMember.user_id,
+      leader_chat_url:          chatUrl,
+      leader_chat_webhook_url:  webhookUrl,
+      leader_tel_meet_url:      meetUrl,
+    });
+    if (r && r.ok) {
+      resEl.style.color = 'var(--gr)';
+      resEl.textContent = '✅ 保存しました';
+      _currentDetailMember.leader_chat_url         = chatUrl;
+      _currentDetailMember.leader_chat_webhook_url = webhookUrl;
+      _currentDetailMember.leader_tel_meet_url     = meetUrl;
+      var idx = _allMembers.findIndex(function(m){ return m.user_id === _currentDetailMember.user_id; });
+      if (idx >= 0) {
+        _allMembers[idx].leader_chat_url         = chatUrl;
+        _allMembers[idx].leader_chat_webhook_url = webhookUrl;
+        _allMembers[idx].leader_tel_meet_url     = meetUrl;
+      }
+      showMemberDetail(_currentDetailMember);
+      setTimeout(function(){ closeModal('leaderChatEditModal'); }, 1200);
+    } else {
+      resEl.style.color = 'var(--rd)';
+      resEl.textContent = '❌ ' + ((r && r.error) || '保存失敗');
+    }
+  } catch(e) {
+    resEl.style.color = 'var(--rd)';
+    resEl.textContent = '❌ ' + e.message;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '💾 保存する'; }
   }
 }
 
