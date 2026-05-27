@@ -520,63 +520,107 @@ td{padding:10px 14px;font-size:13px}
   </div>
 </div>
 
-<!-- ════ メンティー修正モーダル ════ -->
+<!-- ════ レポート修正モーダル ════ -->
 <div class="modal" id="fixMisprocessedModal">
-  <div class="modal-content" style="max-width:500px">
+  <div class="modal-content" style="max-width:520px">
     <span class="modal-close" onclick="closeModal('fixMisprocessedModal')">✕</span>
-    <div class="modal-title">🔄 メンティー修正</div>
+    <div class="modal-title">🔄 レポート修正</div>
 
-    <!-- Step1: メンティー・対象月・文字起こし選択 -->
+    <!-- Step1: 修正内容の選択 -->
     <div id="fix-step1">
-      <div style="font-size:13px;color:var(--tx2);background:var(--am-light);border-radius:10px;padding:11px 14px;margin-bottom:16px;line-height:1.7">
-        正しいメンティーと対象月を選択し、文字起こしファイルを検索してください。
-      </div>
-      <div class="form-group">
-        <label class="form-label">種別 <span style="color:var(--rd)">*</span></label>
-        <div style="display:flex;gap:16px;padding:6px 0">
-          <label style="display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer">
-            <input type="radio" name="fix-record-type" value="1on1" checked style="accent-color:var(--pr)"> 月次1on1
-          </label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer">
-            <input type="radio" name="fix-record-type" value="tel" style="accent-color:var(--pr)"> 週次TEL
-          </label>
+      <!-- 現在の情報（変更不可） -->
+      <div style="background:var(--bg3);border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:13px">
+        <div style="font-weight:700;color:var(--tx3);font-size:11px;margin-bottom:6px">現在の情報</div>
+        <div style="display:grid;grid-template-columns:80px 1fr;gap:4px 8px;color:var(--tx2)">
+          <span style="color:var(--tx3)">種類</span><span id="fix-cur-type">—</span>
+          <span style="color:var(--tx3)">メンティー</span><span id="fix-cur-mentee" style="font-weight:600;color:var(--rd)">—</span>
+          <span style="color:var(--tx3)">メンター</span><span id="fix-cur-mentor">—</span>
+          <span style="color:var(--tx3)">対象月</span><span id="fix-cur-month">—</span>
         </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">現在のメンティー（誤）</label>
-        <div id="fix-wrong-mentee" style="font-size:14px;font-weight:600;color:var(--rd);padding:8px 12px;background:var(--bg3);border-radius:8px">—</div>
+
+      <!-- 場合分け1: 種類変換 -->
+      <div class="form-group" style="border:1px solid var(--bd);border-radius:10px;padding:12px 14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <label style="font-weight:600;font-size:13px">① レポート種類</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="fix-chk-type" onchange="onFixToggle('type')"> 変更する
+          </label>
+        </div>
+        <div id="fix-body-type" style="display:none">
+          <div style="font-size:12px;color:var(--tx3);margin-bottom:8px">変換先を選択してください</div>
+          <div style="display:flex;gap:16px">
+            <label style="display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer">
+              <input type="radio" name="fix-convert-type" value="1on1_to_tel" style="accent-color:var(--pr)"> 1on1 → 週次TEL
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer">
+              <input type="radio" name="fix-convert-type" value="tel_to_1on1" style="accent-color:var(--pr)"> 週次TEL → 1on1
+            </label>
+          </div>
+        </div>
+        <div id="fix-cur-type-label" style="font-size:13px;color:var(--tx3)">変更しない</div>
       </div>
-      <div class="form-group">
-        <label class="form-label">正しいメンティー <span style="color:var(--rd)">*</span></label>
-        <select class="inp" id="fix-correct-mentee-select" style="font-size:14px" onchange="onFixMenteeChange()">
-          <option value="">読み込み中…</option>
-        </select>
+
+      <!-- 場合分け2: メンティー・メンター変更 -->
+      <div class="form-group" style="border:1px solid var(--bd);border-radius:10px;padding:12px 14px;margin-top:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <label style="font-weight:600;font-size:13px">② メンティー / メンター</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="fix-chk-people" onchange="onFixToggle('people')"> 変更する
+          </label>
+        </div>
+        <div id="fix-body-people" style="display:none">
+          <div class="form-group" style="margin-bottom:10px">
+            <label class="form-label" style="font-size:12px">正しいメンティー</label>
+            <select class="inp" id="fix-correct-mentee-select" style="font-size:13px">
+              <option value="">（変更しない）</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label" style="font-size:12px">正しいメンター / リーダー</label>
+            <select class="inp" id="fix-correct-mentor-select" style="font-size:13px">
+              <option value="">（変更しない）</option>
+            </select>
+          </div>
+        </div>
+        <div id="fix-cur-people-label" style="font-size:13px;color:var(--tx3)">変更しない</div>
       </div>
-      <div class="form-group">
-        <label class="form-label">正しいメンター / リーダー</label>
-        <select class="inp" id="fix-correct-mentor-select" style="font-size:14px">
-          <option value="">読み込み中…</option>
-        </select>
+
+      <!-- 場合分け3: 対象月 -->
+      <div class="form-group" style="border:1px solid var(--bd);border-radius:10px;padding:12px 14px;margin-top:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <label style="font-weight:600;font-size:13px">③ 対象月</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="fix-chk-month" onchange="onFixToggle('month')"> 変更する
+          </label>
+        </div>
+        <div id="fix-body-month" style="display:none">
+          <input type="month" class="inp" id="fix-year-month" style="font-size:13px"/>
+          <div style="font-size:11px;color:var(--tx3);margin-top:4px">※ 対象月のみの変更はAI再生成を行いません</div>
+        </div>
+        <div id="fix-cur-month-label" style="font-size:13px;color:var(--tx3)">変更しない</div>
       </div>
-      <div class="form-group">
-        <label class="form-label">対象月（任意・絞り込み用）</label>
-        <input type="month" class="inp" id="fix-year-month" style="font-size:14px" onchange="onFixMenteeChange()"/>
-      </div>
-      <div id="fix-step1-msg" style="font-size:12px;color:var(--tx3);min-height:16px;margin-bottom:8px"></div>
-      <div class="f-foot">
+
+      <div id="fix-step1-msg" style="font-size:13px;min-height:18px;margin-top:10px"></div>
+      <div class="f-foot" style="margin-top:12px">
         <button class="btn btn-g" onclick="closeModal('fixMisprocessedModal')">キャンセル</button>
-        <button class="btn btn-p" id="fix-search-btn" onclick="searchTranscripts()">🔍 文字起こしを検索</button>
+        <button class="btn btn-p" id="fix-next-btn" onclick="onFixNext()">次へ →</button>
       </div>
     </div>
 
-    <!-- Step2: 文字起こしファイル選択 → 修正実行 -->
+    <!-- Step2: 文字起こしファイル選択（メンティー変更・種類変換時のみ） -->
     <div id="fix-step2" style="display:none">
-      <div style="font-size:13px;color:var(--tx2);margin-bottom:12px">
-        正しい文字起こしファイルを選択してください。
+      <div style="font-size:13px;color:var(--tx2);background:var(--am-light);border-radius:8px;padding:10px 12px;margin-bottom:12px;line-height:1.6">
+        <strong id="fix-step2-label">誤ったメンティーのフォルダ</strong>内から文字起こしファイルを選択してください。
       </div>
       <div class="form-group">
-        <label class="form-label">文字起こしファイル <span style="color:var(--rd)">*</span></label>
-        <div id="fix-transcript-list" style="border:1px solid var(--bd);border-radius:8px;overflow:hidden;max-height:220px;overflow-y:auto"></div>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <input type="month" class="inp" id="fix-search-month" style="font-size:13px;flex:1" placeholder="月で絞り込み（任意）"/>
+          <button class="btn btn-g btn-sm" onclick="searchTranscripts()">🔍 検索</button>
+        </div>
+        <div id="fix-transcript-list" style="border:1px solid var(--bd);border-radius:8px;overflow:hidden;max-height:220px;overflow-y:auto">
+          <div style="padding:20px;text-align:center;color:var(--tx3);font-size:13px">🔍 検索ボタンで文字起こしを表示</div>
+        </div>
       </div>
       <div id="fix-modal-msg" style="font-size:13px;min-height:18px;margin-bottom:8px"></div>
       <div class="f-foot">
@@ -632,6 +676,7 @@ td{padding:10px 14px;font-size:13px}
     <div class="f-foot">
       <button class="btn btn-g" onclick="closeModal('telReportDetailModal')">閉じる</button>
       <button id="trd-delete-btn" class="btn btn-sm" style="background:var(--rd-light,#fff0f0);color:var(--rd,#d32f2f);border:1px solid var(--rd,#d32f2f)">🗑 削除</button>
+      <button id="trd-fix-btn" class="btn btn-sm" style="background:var(--cy-light,#e8f4ff);color:var(--cy,#1976d2);border:1px solid var(--cy,#1976d2)" onclick="openFixModalFromTel()">🔄 修正</button>
       <button id="trd-confirm-btn" class="btn btn-p" style="display:none">✅ このレポートを確定する</button>
     </div>
   </div>
@@ -2964,6 +3009,12 @@ function renderReports() {
 // ══════════════════════════════════════════════════════════
 //  週次TEL
 // ══════════════════════════════════════════════════════════
+async function loadMenteeReports() {
+  var data = await gasReq('api/mentor/mentee-reports', 'GET', {});
+  _allMenteeReports = (data && data.reports) ? data.reports : _allMenteeReports;
+  _mentorReports    = _allMenteeReports;
+}
+
 async function loadCallReportsData() {
   // キャッシュがあれば再利用（5分間）
   var cached = Cache.get('call_reports_' + (_me ? _me.user_id : ''));
@@ -4475,6 +4526,7 @@ function openRecordingUploadGuide() {
 function openTelReportDetail(r) {
   var modal = document.getElementById('telReportDetailModal');
   if (!modal) return;
+  window._currentTelReportId = r.report_id || '';  // ★ 修正モーダル用に記憶
   var dt = new Date(r.created_at);
   var dtStr = dt.getFullYear()+'/'+(dt.getMonth()+1)+'/'+dt.getDate()
     + ' ' + ('0'+dt.getHours()).slice(-2)+':'+('0'+dt.getMinutes()).slice(-2);
@@ -4547,151 +4599,246 @@ async function confirmTelReport(reportId) {
 }
 
 // ── メンティー修正モーダルを開く ──
+// ═══════════════════════════════════════════════════════════
+// レポート修正モーダル（フェーズ2）
+// ═══════════════════════════════════════════════════════════
 var _fixSelectedTranscriptFileId = '';
+var _fixWrongMenteeId  = '';   // 誤ったメンティーID（文字起こし検索先）
+var _fixSourceType     = '';   // 'mentor_report' | 'call_report'
+var _fixCurrentReport  = null; // 現在修正対象のレポートオブジェクト
 
+// ── 1on1タブから起動 ──
 function openFixMisprocessedModal() {
-  var reportId    = document.getElementById('mrd-report-id').value;
-  var wrongMentee = document.getElementById('mrd-mentee').textContent.replace(/（在籍.*）$/, '').trim();
+  var reportId = document.getElementById('mrd-report-id').value;
   if (!reportId) { toast('レポートIDが取得できません', 'err'); return; }
+  var report = (_allMenteeReports || []).find(function(r){ return r.report_id === reportId; });
+  if (!report) { toast('レポートが見つかりません', 'err'); return; }
+  closeModal('mentorReportDetailModal');
+  _openFixModal(report, 'mentor_report');
+}
 
-  // Step1を表示、Step2を隠す
-  document.getElementById('fix-step1').style.display = '';
-  document.getElementById('fix-step2').style.display = 'none';
+// ── 週次TELタブから起動 ──
+function openFixModalFromTel() {
+  var reportId = _fixGetTelReportId();
+  if (!reportId) { toast('レポートIDが取得できません', 'err'); return; }
+  var report = (_allCallReports || []).find(function(r){ return r.report_id === reportId; });
+  if (!report) { toast('レポートが見つかりません', 'err'); return; }
+  closeModal('telReportDetailModal');
+  _openFixModal(report, 'call_report');
+}
+
+function _fixGetTelReportId() {
+  // openTelReportDetail で設定されたIDを取得
+  if (window._currentTelReportId) return window._currentTelReportId;
+  return '';
+}
+
+// ── モーダルを開く共通処理 ──
+function _openFixModal(report, sourceType) {
+  _fixCurrentReport  = report;
+  _fixSourceType     = sourceType;
+  _fixWrongMenteeId  = report.mentee_id || '';
   _fixSelectedTranscriptFileId = '';
 
-  document.getElementById('fix-wrong-mentee').textContent  = wrongMentee || '—';
-  document.getElementById('fix-step1-msg').textContent     = '';
-  document.getElementById('fix-year-month').value          = '';
+  // 全トグルをリセット
+  ['type','people','month'].forEach(function(k) {
+    document.getElementById('fix-chk-' + k).checked = false;
+    document.getElementById('fix-body-' + k).style.display = 'none';
+  });
+  document.getElementById('fix-cur-type-label').style.display  = '';
+  document.getElementById('fix-cur-people-label').style.display = '';
+  document.getElementById('fix-cur-month-label').style.display  = '';
+  document.getElementById('fix-year-month').value = '';
+  document.getElementById('fix-step1-msg').textContent = '';
+  document.getElementById('fix-step1').style.display = '';
+  document.getElementById('fix-step2').style.display = 'none';
+  document.getElementById('fix-execute-btn').disabled = true;
 
-  // メンティー・メンター/リーダーセレクトを非同期で構築
+  // 現在の情報を表示
+  var typeLabel = sourceType === 'call_report' ? '週次TEL' : '月次1on1';
+  document.getElementById('fix-cur-type').textContent = typeLabel;
+
+  var menteeName = report.mentee_name || report.mentee_id || '—';
+  document.getElementById('fix-cur-mentee').textContent = menteeName;
+
+  var mentorName = sourceType === 'call_report'
+    ? (report.leader_name || report.leader_id || '—')
+    : (report.mentor_name || report.mentor_id || '—');
+  document.getElementById('fix-cur-mentor').textContent = mentorName;
+
+  var tm = report.target_month || report.created_at || '';
+  document.getElementById('fix-cur-month').textContent = tm ? tm.slice(0,7) : '—';
+
+  // 変換可能な方向を設定（現在の種類に応じてラジオを初期選択）
+  var radios = document.querySelectorAll('input[name="fix-convert-type"]');
+  radios.forEach(function(r) {
+    if (sourceType === 'mentor_report' && r.value === '1on1_to_tel') r.checked = true;
+    else if (sourceType === 'call_report' && r.value === 'tel_to_1on1') r.checked = true;
+    else r.checked = false;
+  });
+
+  // メンティー・メンターセレクトを非同期構築
   var menteeSelect = document.getElementById('fix-correct-mentee-select');
   var mentorSelect = document.getElementById('fix-correct-mentor-select');
-  menteeSelect.innerHTML = '<option value="">読み込み中…</option>';
-  mentorSelect.innerHTML = '<option value="">読み込み中…</option>';
+  menteeSelect.innerHTML = '<option value="">（変更しない）</option>';
+  mentorSelect.innerHTML = '<option value="">（変更しない）</option>';
 
-  closeModal('mentorReportDetailModal');
-  document.getElementById('fixMisprocessedModal').classList.add('open');
-
-  // 全メンバー取得（担当外も含む）
   gasReq('api/mentor/members', 'GET', {}).then(function(d) {
-    menteeSelect.innerHTML = '<option value="">選択してください</option>';
-    var members = (d && d.members) ? d.members.slice().sort(function(a,b){ return (a.name||'').localeCompare(b.name||'','ja'); }) : [];
+    var members = (d && d.members) ? d.members.slice().sort(function(a,b){
+      return (a.name||'').localeCompare(b.name||'','ja');
+    }) : [];
     members.forEach(function(m) {
       var opt = document.createElement('option');
       opt.value = m.user_id;
       opt.textContent = m.name + (m.mentor_name && m.mentor_name !== '—' ? '（担当: ' + m.mentor_name + '）' : '');
       menteeSelect.appendChild(opt);
     });
-  }).catch(function(){ menteeSelect.innerHTML = '<option value="">取得失敗</option>'; });
+  }).catch(function(){});
 
-  // 全メンター＋リーダー取得
   gasReq('api/mentor/mentor-leader-list', 'GET', {}).then(function(d) {
-    mentorSelect.innerHTML = '<option value="">（自動）</option>';
-    var users = (d && d.users) ? d.users : [];
-    users.forEach(function(u) {
+    (d && d.users ? d.users : []).forEach(function(u) {
       var opt = document.createElement('option');
       opt.value = u.user_id;
-      var label = u.name;
-      if (u.role === 'mentor' || u.role === 'admin') label += '（メンター）';
-      else if (u.has_leader_role) label += '（リーダー）';
-      opt.textContent = label;
-      if (_me && u.user_id === _me.user_id) opt.selected = true;
+      var lbl = u.name;
+      if (u.role === 'mentor' || u.role === 'admin') lbl += '（メンター）';
+      else if (u.has_leader_role) lbl += '（リーダー）';
+      opt.textContent = lbl;
       mentorSelect.appendChild(opt);
     });
-  }).catch(function(){ mentorSelect.innerHTML = '<option value="">取得失敗</option>'; });
+  }).catch(function(){});
+
+  document.getElementById('fixMisprocessedModal').classList.add('open');
 }
 
-// メンティー変更 or 月変更時に自動検索（200ms debounce）
-var _fixSearchTimer = null;
-function onFixMenteeChange() {
-  clearTimeout(_fixSearchTimer);
-  _fixSearchTimer = setTimeout(function(){}, 0); // 手動検索なのでここでは何もしない
+// ── トグルON/OFF ──
+function onFixToggle(key) {
+  var checked = document.getElementById('fix-chk-' + key).checked;
+  document.getElementById('fix-body-' + key).style.display  = checked ? '' : 'none';
+  document.getElementById('fix-cur-' + key + '-label').style.display = checked ? 'none' : '';
 }
 
-// 文字起こし検索
-async function searchTranscripts() {
-  var menteeId  = document.getElementById('fix-correct-mentee-select').value;
-  var yearMonth = document.getElementById('fix-year-month').value;
-  var msgEl     = document.getElementById('fix-step1-msg');
-  var btn       = document.getElementById('fix-search-btn');
+// ── 「次へ」ボタン ──
+function onFixNext() {
+  var msgEl    = document.getElementById('fix-step1-msg');
+  var chkType  = document.getElementById('fix-chk-type').checked;
+  var chkPeople= document.getElementById('fix-chk-people').checked;
+  var chkMonth = document.getElementById('fix-chk-month').checked;
 
-  if (!menteeId) { msgEl.style.color='var(--rd)'; msgEl.textContent='正しいメンティーを選択してください'; return; }
+  msgEl.textContent = '';
 
-  btn.disabled = true; btn.textContent = '検索中…';
-  msgEl.style.color = 'var(--tx3)'; msgEl.textContent = 'フォルダを検索しています…';
+  // 何も選択されていない
+  if (!chkType && !chkPeople && !chkMonth) {
+    msgEl.style.color = 'var(--rd)';
+    msgEl.textContent = '変更する項目を1つ以上選択してください';
+    return;
+  }
 
-  try {
-    var recordType = document.querySelector('input[name="fix-record-type"]:checked');
-    var r = await gasReq('api/mentor/mentor-reports/list-transcripts', 'POST',
-      { mentee_id: menteeId, year_month: yearMonth || '', record_type: recordType ? recordType.value : '1on1' });
-
-    if (!r || !r.ok) {
+  // 種類変換 + 変換先が未選択
+  if (chkType) {
+    var convertType = document.querySelector('input[name="fix-convert-type"]:checked');
+    if (!convertType) {
       msgEl.style.color = 'var(--rd)';
-      msgEl.textContent = '❌ ' + (r && (r.error || r.message) || 'GAS応答なし');
+      msgEl.textContent = '変換先を選択してください';
       return;
     }
+  }
 
-    var files = r.files || [];
-    if (files.length === 0) {
-      msgEl.style.color = 'var(--am)';
-      msgEl.textContent = '⚠️ 該当するファイルが見つかりませんでした';
-      return;
-    }
-
-    msgEl.textContent = '';
-    // Step2へ進む
-    renderTranscriptList(files);
-    document.getElementById('fix-step1').style.display = 'none';
-    document.getElementById('fix-step2').style.display = '';
+  // メンティー変更あり or 種類変換あり → Step2（文字起こし選択）へ
+  if (chkPeople || chkType) {
+    var menteeId = document.getElementById('fix-correct-mentee-select').value || _fixWrongMenteeId;
+    // 検索先は誤ったメンティーのフォルダ
+    var label = '誤ったメンティー（' + (document.getElementById('fix-cur-mentee').textContent) + '）のフォルダ';
+    document.getElementById('fix-step2-label').textContent = label;
+    document.getElementById('fix-transcript-list').innerHTML =
+      '<div style="padding:20px;text-align:center;color:var(--tx3);font-size:13px">🔍 検索ボタンで文字起こしを表示</div>';
     document.getElementById('fix-modal-msg').textContent = '';
     document.getElementById('fix-execute-btn').disabled = true;
+    document.getElementById('fix-step1').style.display = 'none';
+    document.getElementById('fix-step2').style.display = '';
+    return;
+  }
 
+  // 対象月のみ変更 → 直接実行
+  executeFixMisprocessed();
+}
+
+// ── 文字起こし検索（Step2） ──
+async function searchTranscripts() {
+  var btn       = document.querySelector('#fix-step2 .btn-g');
+  var monthVal  = document.getElementById('fix-search-month').value;
+  var listEl    = document.getElementById('fix-transcript-list');
+
+  // 検索対象は「誤ったメンティー」のフォルダ
+  var searchMenteeId = _fixWrongMenteeId;
+  if (!searchMenteeId) {
+    listEl.innerHTML = '<div style="padding:16px;color:var(--rd);font-size:13px">誤ったメンティーIDが取得できません</div>';
+    return;
+  }
+
+  if (btn) { btn.disabled = true; btn.textContent = '検索中…'; }
+  listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--tx3);font-size:13px">検索中…</div>';
+
+  try {
+    // 種別は現在のレポートの種類に合わせる（種類変換の場合も元の種類で検索）
+    var recordType = _fixSourceType === 'call_report' ? 'tel' : '1on1';
+    var r = await gasReq('api/mentor/mentor-reports/list-transcripts', 'POST',
+      { mentee_id: searchMenteeId, year_month: monthVal || '', record_type: recordType });
+
+    if (!r || !r.ok) {
+      listEl.innerHTML = '<div style="padding:16px;color:var(--rd);font-size:13px">❌ ' + ((r && (r.error || r.message)) || 'GAS応答なし') + '</div>';
+      return;
+    }
+    var files = r.files || [];
+    if (files.length === 0) {
+      listEl.innerHTML = '<div style="padding:16px;color:var(--am);font-size:13px">⚠️ 該当するファイルが見つかりませんでした</div>';
+      return;
+    }
+    renderTranscriptList(files);
   } catch(err) {
-    msgEl.style.color = 'var(--rd)';
-    msgEl.textContent = '❌ ' + err.message;
+    listEl.innerHTML = '<div style="padding:16px;color:var(--rd);font-size:13px">❌ ' + err.message + '</div>';
   } finally {
-    btn.disabled = false; btn.textContent = '🔍 文字起こしを検索';
+    if (btn) { btn.disabled = false; btn.textContent = '🔍 検索'; }
   }
 }
 
-// 文字起こしファイル一覧を描画
+// ── 文字起こしファイル一覧描画 ──
 function renderTranscriptList(files) {
   var listEl = document.getElementById('fix-transcript-list');
   listEl.innerHTML = '';
+  _fixSelectedTranscriptFileId = '';
+  document.getElementById('fix-execute-btn').disabled = true;
+
   files.forEach(function(f) {
     var row = document.createElement('div');
-    row.style.cssText = 'padding:10px 14px;border-bottom:1px solid var(--bd);cursor:pointer;display:flex;align-items:center;gap:10px;font-size:13px;transition:background .15s';
-    row.onmouseover = function(){ this.style.background='var(--bg3)'; };
-    row.onmouseout  = function(){ this.style.background = this._selected ? 'var(--pr-light)' : ''; };
+    row.style.cssText = 'padding:10px 14px;border-bottom:1px solid var(--bd);cursor:pointer;display:flex;align-items:center;gap:10px;font-size:13px';
+    row.onmouseover = function(){ if (!this._sel) this.style.background='var(--bg3)'; };
+    row.onmouseout  = function(){ if (!this._sel) this.style.background=''; };
 
     var radio = document.createElement('input');
     radio.type = 'radio'; radio.name = 'fix-transcript-radio'; radio.value = f.file_id;
     radio.style.cssText = 'flex-shrink:0;cursor:pointer;accent-color:var(--pr)';
     radio.onchange = function() {
-      // 全行の背景をリセット
-      listEl.querySelectorAll('[data-file-id]').forEach(function(r){ r.style.background=''; r._selected=false; });
-      row.style.background = 'var(--pr-light)'; row._selected = true;
+      listEl.querySelectorAll('div[data-fid]').forEach(function(r){ r.style.background=''; r._sel=false; });
+      row.style.background = 'var(--pr-light)'; row._sel = true;
       _fixSelectedTranscriptFileId = f.file_id;
       document.getElementById('fix-execute-btn').disabled = false;
     };
 
     var info = document.createElement('div');
-    info.setAttribute('data-file-id', f.file_id);
-    var dt = f.created_at ? new Date(f.created_at) : null;
-    var dtStr = dt ? (dt.getFullYear() + '/' + ('0'+(dt.getMonth()+1)).slice(-2) + '/' + ('0'+dt.getDate()).slice(-2)
-      + ' ' + ('0'+dt.getHours()).slice(-2) + ':' + ('0'+dt.getMinutes()).slice(-2)) : '';
-    var sizeKb = f.size_bytes ? Math.round(f.size_bytes / 1024) + 'KB' : '';
+    info.setAttribute('data-fid', f.file_id);
+    var dt    = f.created_at ? new Date(f.created_at) : null;
+    var dtStr = dt ? (dt.getFullYear() + '/' + ('0'+(dt.getMonth()+1)).slice(-2) + '/' + ('0'+dt.getDate()).slice(-2)) : '';
+    var sizeKb = f.size_bytes ? Math.round(f.size_bytes/1024) + 'KB' : '';
     info.innerHTML = '<div style="font-weight:600;color:var(--tx)">' + esc(f.file_name) + '</div>'
       + '<div style="font-size:11px;color:var(--tx3)">' + dtStr + (sizeKb ? '　' + sizeKb : '') + '</div>';
 
-    row.appendChild(radio);
-    row.appendChild(info);
+    row.appendChild(radio); row.appendChild(info);
     row.onclick = function(e){ if (e.target !== radio) { radio.checked = true; radio.onchange(); } };
     listEl.appendChild(row);
   });
 }
 
-// Step2 → Step1 に戻る
+// ── Step2 → Step1 に戻る ──
 function fixGoBack() {
   _fixSelectedTranscriptFileId = '';
   document.getElementById('fix-step1').style.display = '';
@@ -4701,65 +4848,94 @@ function fixGoBack() {
 
 // ── 修正実行 ──
 async function executeFixMisprocessed() {
-  var reportId        = document.getElementById('mrd-report-id').value;
-  var correctMenteeId = document.getElementById('fix-correct-mentee-select').value;
-  var correctMentorId = document.getElementById('fix-correct-mentor-select').value;
-  var yearMonth       = document.getElementById('fix-year-month').value;
-  var msgEl           = document.getElementById('fix-modal-msg');
-  var btn             = document.getElementById('fix-execute-btn');
+  var msgEl  = document.getElementById('fix-modal-msg') || document.getElementById('fix-step1-msg');
+  var btn    = document.getElementById('fix-execute-btn');
 
-  if (!_fixSelectedTranscriptFileId) {
-    msgEl.style.color='var(--rd)'; msgEl.textContent='文字起こしファイルを選択してください'; return;
+  var chkType   = document.getElementById('fix-chk-type').checked;
+  var chkPeople = document.getElementById('fix-chk-people').checked;
+  var chkMonth  = document.getElementById('fix-chk-month').checked;
+
+  // パラメータ組み立て
+  var params = {
+    report_id:   _fixCurrentReport.report_id,
+    source_type: _fixSourceType,
+  };
+
+  if (chkType) {
+    var convertEl = document.querySelector('input[name="fix-convert-type"]:checked');
+    if (!convertEl) {
+      if (msgEl) { msgEl.style.color='var(--rd)'; msgEl.textContent='変換先を選択してください'; }
+      return;
+    }
+    params.convert_type = convertEl.value;
   }
-  var menteeName = document.getElementById('fix-correct-mentee-select')
-    .options[document.getElementById('fix-correct-mentee-select').selectedIndex].text;
-  if (!confirm('「' + menteeName + '」のレポートとして修正します。\nAI要約が再生成されます（1〜2分）。\n\nよろしいですか？')) return;
 
-  btn.disabled = true; btn.textContent = '修正中…';
-  msgEl.style.color = 'var(--tx3)'; msgEl.textContent = '文字起こしを移動してAIを再生成しています…';
+  if (chkPeople) {
+    var correctMenteeId = document.getElementById('fix-correct-mentee-select').value;
+    var correctMentorId = document.getElementById('fix-correct-mentor-select').value;
+    if (correctMenteeId) params.correct_mentee_id = correctMenteeId;
+    if (correctMentorId) params.correct_mentor_id = correctMentorId;
+    if (_fixSelectedTranscriptFileId) params.transcript_file_id = _fixSelectedTranscriptFileId;
+  }
+
+  if (chkType && _fixSelectedTranscriptFileId) {
+    params.transcript_file_id = _fixSelectedTranscriptFileId;
+  }
+
+  if (chkMonth) {
+    var ym = document.getElementById('fix-year-month').value;
+    if (ym) params.target_year_month = ym;
+  }
+
+  // 確認ダイアログ
+  var lines = [];
+  if (chkType) lines.push('種類変換: ' + (params.convert_type === '1on1_to_tel' ? '1on1 → 週次TEL' : '週次TEL → 1on1'));
+  if (chkPeople && params.correct_mentee_id) {
+    var mSel = document.getElementById('fix-correct-mentee-select');
+    lines.push('メンティー変更: ' + mSel.options[mSel.selectedIndex].text.replace(/（担当.*）/, ''));
+  }
+  if (chkMonth && params.target_year_month) lines.push('対象月変更: ' + params.target_year_month);
+  if (!confirm('以下の修正を実行します。\n\n' + lines.join('\n') + '\n\nAI要約が再生成されます（1〜2分）。\nよろしいですか？')) return;
+
+  if (btn) { btn.disabled = true; btn.textContent = '修正中…'; }
+  if (msgEl) { msgEl.style.color = 'var(--tx3)'; msgEl.textContent = 'レポートを修正しています…（1〜2分）'; }
 
   try {
-    var recordTypeEl = document.querySelector('input[name="fix-record-type"]:checked');
-    var r = await gasReq(
-      'api/mentor/mentor-reports/fix-misprocessed', 'POST',
-      {
-        report_id:            reportId,
-        correct_mentee_id:    correctMenteeId,
-        correct_mentor_id:    correctMentorId || undefined,
-        transcript_file_id:   _fixSelectedTranscriptFileId,
-        target_year_month:    yearMonth || undefined,
-        record_type:          recordTypeEl ? recordTypeEl.value : '1on1',
-      },
-      120000
-    );
+    var endpoint = _fixSourceType === 'call_report'
+      ? 'api/mentor/call-reports/fix'
+      : 'api/mentor/reports/fix';
+    var r = await gasReq(endpoint, 'POST', params, 180000);
+
     if (r && r.ok) {
       closeModal('fixMisprocessedModal');
-      var idx = _allMenteeReports.findIndex(function(x){ return x.report_id === reportId; });
-      if (idx >= 0) {
-        _allMenteeReports[idx].mentee_id              = correctMenteeId;
-        _allMenteeReports[idx].mentee_name            = r.correct_mentee;
-        _allMenteeReports[idx].target_month           = r.target_month || '';
-        _allMenteeReports[idx].ai_summary             = r.ai_summary   || '';
-        _allMenteeReports[idx].ai_advice              = r.ai_advice    || '';
-        _allMenteeReports[idx].next_goal              = r.next_goal    || '';
-        _allMenteeReports[idx].next_month_project_goal = r.next_month_project_goal || '';
-        _allMenteeReports[idx].next_month_study_goal   = r.next_month_study_goal   || '';
-        _allMenteeReports[idx].transcript_file_url    = r.transcript_file_url || '';
-      }
-      _mentorRepPage = 1;
+
+      // ★ キャッシュ全破棄→再取得（リスク🔴2対策）
+      _allMenteeReports = [];
+      _allCallReports   = [];
+      Cache.bust('call_reports_');
+      await Promise.all([
+        loadMenteeReports(),
+        loadCallReportsData(),
+      ]);
       renderMentorReports();
-      toast('✅ 修正完了: ' + r.wrong_mentee + ' → ' + r.correct_mentee);
+      renderReports();
+
+      var msg = r.convert_type
+        ? '✅ 種類変換完了: ' + r.mentee_name
+        : '✅ 修正完了: ' + r.mentee_name;
+      toast(msg);
     } else {
-      msgEl.style.color = 'var(--rd)';
-      msgEl.textContent = '❌ ' + (r && (r.error || r.message) || 'GAS応答なし');
+      if (msgEl) { msgEl.style.color = 'var(--rd)'; msgEl.textContent = '❌ ' + ((r && (r.error || r.message)) || 'GAS応答なし'); }
     }
   } catch(err) {
-    msgEl.style.color = 'var(--rd)';
-    msgEl.textContent = '❌ ' + err.message;
+    if (msgEl) { msgEl.style.color = 'var(--rd)'; msgEl.textContent = '❌ ' + err.message; }
   } finally {
-    btn.disabled = false; btn.textContent = '🔄 修正実行';
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 修正実行'; }
   }
 }
+
+// ── openTelReportDetail で report_id を記憶 ──
+// （既存関数に追記のみ）
 
 // ── 1on1レポート削除 ──
 async function deleteMentorReport() {
