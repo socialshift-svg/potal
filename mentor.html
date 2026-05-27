@@ -330,6 +330,7 @@ td{padding:10px 14px;font-size:13px}
       <button class="btn btn-g" onclick="saveMentorReport()">💾 保存</button>
       <button id="mrd-unpublish-btn" class="btn" style="display:none;background:var(--am-light);color:var(--am);border:1px solid var(--am)" onclick="unpublishMentorReport()">↩ 下書きに戻す</button>
       <button id="mrd-delete-btn" class="btn btn-sm" style="background:var(--rd-light,#fff0f0);color:var(--rd,#d32f2f);border:1px solid var(--rd,#d32f2f)" onclick="deleteMentorReport()">🗑 削除</button>
+      <button id="mrd-fix-btn" class="btn btn-sm" style="background:var(--cy-light,#e8f4ff);color:var(--cy,#1976d2);border:1px solid var(--cy,#1976d2)" onclick="openFixMisprocessedModal()">🔄 メンティー修正</button>
       <button id="mrd-publish-btn" class="btn btn-p" onclick="publishMentorReport()">📤 メンティーに公開</button>
     </div>
   </div>
@@ -516,6 +517,62 @@ td{padding:10px 14px;font-size:13px}
     </div>
     <div id="telUpload-result" style="font-size:12px;min-height:18px;margin-bottom:8px"></div>
     <button class="btn btn-p" id="telUploadSubmitBtn" onclick="submitTelRecordingUpload()" style="width:100%">録音をアップロードして処理する</button>
+  </div>
+</div>
+
+<!-- ════ メンティー修正モーダル ════ -->
+<div class="modal" id="fixMisprocessedModal">
+  <div class="modal-content" style="max-width:500px">
+    <span class="modal-close" onclick="closeModal('fixMisprocessedModal')">✕</span>
+    <div class="modal-title">🔄 メンティー修正</div>
+
+    <!-- Step1: メンティー・対象月・文字起こし選択 -->
+    <div id="fix-step1">
+      <div style="font-size:13px;color:var(--tx2);background:var(--am-light);border-radius:10px;padding:11px 14px;margin-bottom:16px;line-height:1.7">
+        正しいメンティーと対象月を選択し、文字起こしファイルを検索してください。
+      </div>
+      <div class="form-group">
+        <label class="form-label">現在のメンティー（誤）</label>
+        <div id="fix-wrong-mentee" style="font-size:14px;font-weight:600;color:var(--rd);padding:8px 12px;background:var(--bg3);border-radius:8px">—</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">正しいメンティー <span style="color:var(--rd)">*</span></label>
+        <select class="inp" id="fix-correct-mentee-select" style="font-size:14px" onchange="onFixMenteeChange()">
+          <option value="">選択してください</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">正しいメンター</label>
+        <select class="inp" id="fix-correct-mentor-select" style="font-size:14px">
+          <option value="">（自動）</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">対象月（任意・絞り込み用）</label>
+        <input type="month" class="inp" id="fix-year-month" style="font-size:14px" onchange="onFixMenteeChange()"/>
+      </div>
+      <div id="fix-step1-msg" style="font-size:12px;color:var(--tx3);min-height:16px;margin-bottom:8px"></div>
+      <div class="f-foot">
+        <button class="btn btn-g" onclick="closeModal('fixMisprocessedModal')">キャンセル</button>
+        <button class="btn btn-p" id="fix-search-btn" onclick="searchTranscripts()">🔍 文字起こしを検索</button>
+      </div>
+    </div>
+
+    <!-- Step2: 文字起こしファイル選択 → 修正実行 -->
+    <div id="fix-step2" style="display:none">
+      <div style="font-size:13px;color:var(--tx2);margin-bottom:12px">
+        正しい文字起こしファイルを選択してください。
+      </div>
+      <div class="form-group">
+        <label class="form-label">文字起こしファイル <span style="color:var(--rd)">*</span></label>
+        <div id="fix-transcript-list" style="border:1px solid var(--bd);border-radius:8px;overflow:hidden;max-height:220px;overflow-y:auto"></div>
+      </div>
+      <div id="fix-modal-msg" style="font-size:13px;min-height:18px;margin-bottom:8px"></div>
+      <div class="f-foot">
+        <button class="btn btn-g" onclick="fixGoBack()">← 戻る</button>
+        <button class="btn btn-p" id="fix-execute-btn" onclick="executeFixMisprocessed()" disabled>🔄 修正実行</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -4413,6 +4470,216 @@ async function confirmTelReport(reportId) {
     toast('TELレポートを確定しました');
   } else {
     toast('確定に失敗しました: '+(r&&(r.error||r.message)||'GAS応答なし'), 'err');
+  }
+}
+
+// ── メンティー修正モーダルを開く ──
+var _fixSelectedTranscriptFileId = '';
+
+function openFixMisprocessedModal() {
+  var reportId    = document.getElementById('mrd-report-id').value;
+  var wrongMentee = document.getElementById('mrd-mentee').textContent.replace(/（在籍.*）$/, '').trim();
+  if (!reportId) { toast('レポートIDが取得できません', 'err'); return; }
+
+  // Step1を表示、Step2を隠す
+  document.getElementById('fix-step1').style.display = '';
+  document.getElementById('fix-step2').style.display = 'none';
+  _fixSelectedTranscriptFileId = '';
+
+  document.getElementById('fix-wrong-mentee').textContent  = wrongMentee || '—';
+  document.getElementById('fix-step1-msg').textContent     = '';
+  document.getElementById('fix-year-month').value          = '';
+
+  // 正しいメンティーのセレクト構築
+  var menteeSelect = document.getElementById('fix-correct-mentee-select');
+  menteeSelect.innerHTML = '<option value="">選択してください</option>';
+  (_myMentees || []).forEach(function(m) {
+    var opt = document.createElement('option');
+    opt.value = m.user_id; opt.textContent = m.name;
+    menteeSelect.appendChild(opt);
+  });
+
+  // メンターセレクト: 自分（メンター）＋担当メンティーのうちリーダー兼任の人
+  var mentorSelect = document.getElementById('fix-correct-mentor-select');
+  mentorSelect.innerHTML = '<option value="">（自動）</option>';
+  if (_me) {
+    var optMe = document.createElement('option');
+    optMe.value = _me.user_id;
+    optMe.textContent = _me.name + '（メンター・自分）';
+    optMe.selected = true;
+    mentorSelect.appendChild(optMe);
+  }
+  // has_leader_role=TRUE のメンティーをリーダーとして追加
+  (_myMentees || []).filter(function(m){
+    return m.has_leader_role === true || m.has_leader_role === 'TRUE';
+  }).forEach(function(m) {
+    var optL = document.createElement('option');
+    optL.value = m.user_id;
+    optL.textContent = m.name + '（リーダー）';
+    mentorSelect.appendChild(optL);
+  });
+
+  closeModal('mentorReportDetailModal');
+  document.getElementById('fixMisprocessedModal').classList.add('open');
+}
+
+// メンティー変更 or 月変更時に自動検索（200ms debounce）
+var _fixSearchTimer = null;
+function onFixMenteeChange() {
+  clearTimeout(_fixSearchTimer);
+  _fixSearchTimer = setTimeout(function(){}, 0); // 手動検索なのでここでは何もしない
+}
+
+// 文字起こし検索
+async function searchTranscripts() {
+  var menteeId  = document.getElementById('fix-correct-mentee-select').value;
+  var yearMonth = document.getElementById('fix-year-month').value;
+  var msgEl     = document.getElementById('fix-step1-msg');
+  var btn       = document.getElementById('fix-search-btn');
+
+  if (!menteeId) { msgEl.style.color='var(--rd)'; msgEl.textContent='正しいメンティーを選択してください'; return; }
+
+  btn.disabled = true; btn.textContent = '検索中…';
+  msgEl.style.color = 'var(--tx3)'; msgEl.textContent = 'フォルダを検索しています…';
+
+  try {
+    var r = await gasReq('api/mentor/mentor-reports/list-transcripts', 'POST',
+      { mentee_id: menteeId, year_month: yearMonth || '' });
+
+    if (!r || !r.ok) {
+      msgEl.style.color = 'var(--rd)';
+      msgEl.textContent = '❌ ' + (r && (r.error || r.message) || 'GAS応答なし');
+      return;
+    }
+
+    var files = r.files || [];
+    if (files.length === 0) {
+      msgEl.style.color = 'var(--am)';
+      msgEl.textContent = '⚠️ 該当するファイルが見つかりませんでした';
+      return;
+    }
+
+    msgEl.textContent = '';
+    // Step2へ進む
+    renderTranscriptList(files);
+    document.getElementById('fix-step1').style.display = 'none';
+    document.getElementById('fix-step2').style.display = '';
+    document.getElementById('fix-modal-msg').textContent = '';
+    document.getElementById('fix-execute-btn').disabled = true;
+
+  } catch(err) {
+    msgEl.style.color = 'var(--rd)';
+    msgEl.textContent = '❌ ' + err.message;
+  } finally {
+    btn.disabled = false; btn.textContent = '🔍 文字起こしを検索';
+  }
+}
+
+// 文字起こしファイル一覧を描画
+function renderTranscriptList(files) {
+  var listEl = document.getElementById('fix-transcript-list');
+  listEl.innerHTML = '';
+  files.forEach(function(f) {
+    var row = document.createElement('div');
+    row.style.cssText = 'padding:10px 14px;border-bottom:1px solid var(--bd);cursor:pointer;display:flex;align-items:center;gap:10px;font-size:13px;transition:background .15s';
+    row.onmouseover = function(){ this.style.background='var(--bg3)'; };
+    row.onmouseout  = function(){ this.style.background = this._selected ? 'var(--pr-light)' : ''; };
+
+    var radio = document.createElement('input');
+    radio.type = 'radio'; radio.name = 'fix-transcript-radio'; radio.value = f.file_id;
+    radio.style.cssText = 'flex-shrink:0;cursor:pointer;accent-color:var(--pr)';
+    radio.onchange = function() {
+      // 全行の背景をリセット
+      listEl.querySelectorAll('[data-file-id]').forEach(function(r){ r.style.background=''; r._selected=false; });
+      row.style.background = 'var(--pr-light)'; row._selected = true;
+      _fixSelectedTranscriptFileId = f.file_id;
+      document.getElementById('fix-execute-btn').disabled = false;
+    };
+
+    var info = document.createElement('div');
+    info.setAttribute('data-file-id', f.file_id);
+    var dt = f.created_at ? new Date(f.created_at) : null;
+    var dtStr = dt ? (dt.getFullYear() + '/' + ('0'+(dt.getMonth()+1)).slice(-2) + '/' + ('0'+dt.getDate()).slice(-2)
+      + ' ' + ('0'+dt.getHours()).slice(-2) + ':' + ('0'+dt.getMinutes()).slice(-2)) : '';
+    var sizeKb = f.size_bytes ? Math.round(f.size_bytes / 1024) + 'KB' : '';
+    info.innerHTML = '<div style="font-weight:600;color:var(--tx)">' + esc(f.file_name) + '</div>'
+      + '<div style="font-size:11px;color:var(--tx3)">' + dtStr + (sizeKb ? '　' + sizeKb : '') + '</div>';
+
+    row.appendChild(radio);
+    row.appendChild(info);
+    row.onclick = function(e){ if (e.target !== radio) { radio.checked = true; radio.onchange(); } };
+    listEl.appendChild(row);
+  });
+}
+
+// Step2 → Step1 に戻る
+function fixGoBack() {
+  _fixSelectedTranscriptFileId = '';
+  document.getElementById('fix-step1').style.display = '';
+  document.getElementById('fix-step2').style.display = 'none';
+  document.getElementById('fix-execute-btn').disabled = true;
+}
+
+// ── 修正実行 ──
+async function executeFixMisprocessed() {
+  var reportId        = document.getElementById('mrd-report-id').value;
+  var correctMenteeId = document.getElementById('fix-correct-mentee-select').value;
+  var correctMentorId = document.getElementById('fix-correct-mentor-select').value;
+  var yearMonth       = document.getElementById('fix-year-month').value;
+  var msgEl           = document.getElementById('fix-modal-msg');
+  var btn             = document.getElementById('fix-execute-btn');
+
+  if (!_fixSelectedTranscriptFileId) {
+    msgEl.style.color='var(--rd)'; msgEl.textContent='文字起こしファイルを選択してください'; return;
+  }
+  var menteeName = document.getElementById('fix-correct-mentee-select')
+    .options[document.getElementById('fix-correct-mentee-select').selectedIndex].text;
+  if (!confirm('「' + menteeName + '」のレポートとして修正します。
+AI要約が再生成されます（1〜2分）。
+
+よろしいですか？')) return;
+
+  btn.disabled = true; btn.textContent = '修正中…';
+  msgEl.style.color = 'var(--tx3)'; msgEl.textContent = '文字起こしを移動してAIを再生成しています…';
+
+  try {
+    var r = await gasReq(
+      'api/mentor/mentor-reports/fix-misprocessed', 'POST',
+      {
+        report_id:            reportId,
+        correct_mentee_id:    correctMenteeId,
+        correct_mentor_id:    correctMentorId || undefined,
+        transcript_file_id:   _fixSelectedTranscriptFileId,
+        target_year_month:    yearMonth || undefined,
+      },
+      120000
+    );
+    if (r && r.ok) {
+      closeModal('fixMisprocessedModal');
+      var idx = _allMenteeReports.findIndex(function(x){ return x.report_id === reportId; });
+      if (idx >= 0) {
+        _allMenteeReports[idx].mentee_id              = correctMenteeId;
+        _allMenteeReports[idx].mentee_name            = r.correct_mentee;
+        _allMenteeReports[idx].target_month           = r.target_month || '';
+        _allMenteeReports[idx].ai_summary             = r.ai_summary   || '';
+        _allMenteeReports[idx].ai_advice              = r.ai_advice    || '';
+        _allMenteeReports[idx].next_goal              = r.next_goal    || '';
+        _allMenteeReports[idx].next_month_project_goal = r.next_month_project_goal || '';
+        _allMenteeReports[idx].next_month_study_goal   = r.next_month_study_goal   || '';
+        _allMenteeReports[idx].transcript_file_url    = r.transcript_file_url || '';
+      }
+      _mentorRepPage = 1;
+      renderMentorReports();
+      toast('✅ 修正完了: ' + r.wrong_mentee + ' → ' + r.correct_mentee);
+    } else {
+      msgEl.style.color = 'var(--rd)';
+      msgEl.textContent = '❌ ' + (r && (r.error || r.message) || 'GAS応答なし');
+    }
+  } catch(err) {
+    msgEl.style.color = 'var(--rd)';
+    msgEl.textContent = '❌ ' + err.message;
+  } finally {
+    btn.disabled = false; btn.textContent = '🔄 修正実行';
   }
 }
 
