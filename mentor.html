@@ -489,31 +489,32 @@ td{padding:10px 14px;font-size:13px}
   <div class="modal-content">
     <span class="modal-close" onclick="closeModal('telUploadGuideModal')">✕</span>
     <div class="modal-title">🎙 ハドル録音のアップロード</div>
-    <div style="font-size:13px;color:var(--tx2);margin-bottom:16px">
-      ハドルの録音をフォルダにアップロードすると、<br>
-      <strong>文字起こし → AI要約（4項目）→ レポート自動生成</strong>が行われます。
+    <div style="font-size:13px;color:var(--tx2);margin-bottom:16px">録音ファイルを選択すると、システム側でファイル名を整えて保存し、文字起こしとTELレポート下書きを作成します。</div>
+    <div class="form-group">
+      <label class="form-label">対象メンティー<span class="req">*</span></label>
+      <select class="inp" id="telUpload-menteeId" style="width:100%">
+        <option value="">選択してください</option>
+      </select>
     </div>
-    <div style="background:var(--bg3);border-radius:12px;padding:16px;margin-bottom:14px">
-      <div style="font-size:12px;font-weight:700;color:var(--tx3);margin-bottom:10px">📋 手順</div>
-      <ol style="font-size:13px;color:var(--tx2);padding-left:18px;margin:0;line-height:2.2">
-        <li>ハドル終了後、録音ファイルをダウンロード<br>
-          <span style="font-size:11px;color:var(--tx3)">（マイドライブ → Meet Recordings）</span></li>
-        <li>下のボタンから録音フォルダを開く</li>
-        <li>ファイルをドラッグ＆ドロップ</li>
-        <li>10分以内に自動処理開始 ✅</li>
-      </ol>
+    <div class="form-group">
+      <label class="form-label">実施日時<span class="req">*</span></label>
+      <input type="datetime-local" class="inp" id="telUpload-callDate" style="width:100%">
+    </div>
+    <div class="form-group">
+      <label class="form-label">録音ファイル<span class="req">*</span></label>
+      <input type="file" class="inp" id="telUpload-file" accept=".m4a,.mp3,.wav,.mp4,.webm,audio/*,video/*" style="width:100%">
+      <div style="font-size:11px;color:var(--tx3);margin-top:6px">20MBを超えるファイルはDriveへ分割アップロードします。</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">メモ（任意）</label>
+      <input type="text" class="inp" id="telUpload-memo" placeholder="例: ハドル録音 / TEL開始ボタン押し忘れ" style="width:100%">
     </div>
     <div style="background:var(--pr-light);border-radius:10px;padding:12px;margin-bottom:14px;font-size:12px;color:var(--tx2);line-height:1.9">
-      <div style="font-weight:700;color:var(--pr);margin-bottom:4px">🤖 自動処理内容</div>
-      ① ファイル名リネーム（yymm_名前_TEL.m4a）<br>
-      ② メンティー名フォルダに格納（ない場合は自動作成）<br>
-      ③ 文字起こしを保存<br>
-      ④ AI4項目レポート自動生成 → 週次TELに下書き表示
+      <div style="font-weight:700;color:var(--pr);margin-bottom:4px">保存名</div>
+      TEL_日付_時刻_リーダー名_メンティー名_callId_huddle.ext
     </div>
-    <a href="https://drive.google.com/drive/folders/1JcnHWPQq1mV6NZeDWNZ4s7fLfS9vOBQE" target="_blank"
-       style="display:block;background:var(--pr);color:#fff;text-align:center;padding:14px;border-radius:12px;text-decoration:none;font-weight:700;font-size:15px">
-      📁 録音フォルダを開く →
-    </a>
+    <div id="telUpload-result" style="font-size:12px;min-height:18px;margin-bottom:8px"></div>
+    <button class="btn btn-p" id="telUploadSubmitBtn" onclick="submitTelRecordingUpload()" style="width:100%">録音をアップロードして処理する</button>
   </div>
 </div>
 
@@ -1004,7 +1005,7 @@ td{padding:10px 14px;font-size:13px}
 
 <!-- ════ WEEKLY TEL ════ -->
 <div class="screen" id="s-weeklyTel">
-  <div class="topbar"><div><div class="page-title">週次TEL</div><div class="page-sub">担当メンティーへの週次電話レポート</div></div></div>
+  <div class="topbar"><div><div class="page-title">週次TEL</div><div class="page-sub">担当メンティーへの週次電話レポート</div></div><button class="btn btn-g btn-sm" onclick="openTelRecordingUploadGuide()" style="font-size:12px;white-space:nowrap">🎙 録音アップロード</button></div>
   <!-- 録音未アップロードバナー（非表示：UIシンプル化） -->
   <div id="telRecordingBanner" style="display:none;background:var(--am-light);border:1px solid var(--am);border-radius:12px;padding:12px 16px;margin-bottom:12px;font-size:13px;color:var(--am)"></div>
   <div class="grid3" id="telKpiGrid" style="display:none">
@@ -1158,7 +1159,8 @@ async function gasReq(path, method, body) {
   const payload = { path: path, _method: method, _auth: token ? 'Bearer '+token : '' };
   if (body) Object.assign(payload, body);
 
-  // タイムアウト付きfetch（30秒）
+  // タイムアウト付きfetch（デフォルト30秒、gasReqの第4引数で変更可）
+  var timeoutMs = (arguments[3] && typeof arguments[3] === 'number') ? arguments[3] : 30000;
   const fetchWithTimeout = (url, opts, ms) => {
     const ctrl = new AbortController();
     const tid  = setTimeout(() => ctrl.abort(), ms);
@@ -1168,7 +1170,7 @@ async function gasReq(path, method, body) {
   // リトライ処理（最大2回）
   for (var attempt = 0; attempt < 2; attempt++) {
     try {
-      const res  = await fetchWithTimeout(GAS_URL, { method:'POST', body:JSON.stringify(payload) }, 30000);
+      const res  = await fetchWithTimeout(GAS_URL, { method:'POST', body:JSON.stringify(payload) }, timeoutMs);
       const text = await res.text();
       var data;
       try { data = JSON.parse(text); } catch(e) { console.error('[GAS] parse error', text.slice(0,200)); return null; }
@@ -2043,9 +2045,154 @@ function renderTelRecordingBanner() {
   banner.querySelector('div > div').after(btn);
 }
 
-// TEL録音アップロードガイドを開く
-function openTelRecordingUploadGuide() {
+function fileToBase64(file) {
+  return new Promise(function(resolve, reject) {
+    var reader = new FileReader();
+    reader.onload = function() {
+      resolve(String(reader.result || '').replace(/^data:[^,]+,/, ''));
+    };
+    reader.onerror = function() { reject(reader.error || new Error('file read failed')); };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadFileToDriveResumable(uploadUrl, file, onProgress) {
+  var chunkSize = 8 * 1024 * 1024;
+  var offset = 0;
+  var finalData = null;
+  while (offset < file.size) {
+    var end = Math.min(offset + chunkSize, file.size);
+    var chunk = file.slice(offset, end);
+    var res = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': file.type || 'application/octet-stream',
+        'Content-Range': 'bytes ' + offset + '-' + (end - 1) + '/' + file.size
+      },
+      body: chunk
+    });
+    if (res.status === 308) {
+      offset = end;
+      if (onProgress) onProgress(Math.round(offset / file.size * 100));
+      continue;
+    }
+    if (res.ok) {
+      finalData = await res.json();
+      if (onProgress) onProgress(100);
+      return finalData;
+    }
+    var text = await res.text().catch(function(){ return ''; });
+    throw new Error('Drive upload failed: HTTP ' + res.status + ' ' + text.slice(0, 120));
+  }
+  return finalData;
+}
+
+async function populateTelUploadMentees() {
+  var sel = document.getElementById('telUpload-menteeId');
+  if (!sel) return;
+  var list = [];
+  if (isLeaderOnlyUser()) {
+    var data = await gasReq('api/leader/my-assignments');
+    list = (data && data.mentees) ? data.mentees : [];
+  } else {
+    list = (_myMentees && _myMentees.length) ? _myMentees : ((typeof _allMentees !== 'undefined' && _allMentees) ? _allMentees : []);
+  }
+  sel.innerHTML = '<option value="">選択してください</option>' + list.map(function(m) {
+    return '<option value="' + esc(m.user_id || '') + '">' + esc(m.name || m.user_id || '') + '</option>';
+  }).join('');
+}
+
+// TEL録音アップロードを開く
+async function openTelRecordingUploadGuide() {
+  await populateTelUploadMentees();
+  var now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  var dtEl = document.getElementById('telUpload-callDate');
+  if (dtEl && !dtEl.value) dtEl.value = now.toISOString().slice(0,16);
+  var resEl = document.getElementById('telUpload-result');
+  if (resEl) resEl.textContent = '';
   document.getElementById('telUploadGuideModal').classList.add('open');
+}
+
+async function submitTelRecordingUpload() {
+  var menteeId = (document.getElementById('telUpload-menteeId') || {}).value || '';
+  var callDate = (document.getElementById('telUpload-callDate') || {}).value || '';
+  var fileEl = document.getElementById('telUpload-file');
+  var memo = (document.getElementById('telUpload-memo') || {}).value || '';
+  var resEl = document.getElementById('telUpload-result');
+  var btn = document.getElementById('telUploadSubmitBtn');
+  var file = fileEl && fileEl.files && fileEl.files[0];
+
+  if (!menteeId || !callDate || !file) {
+    if (resEl) { resEl.style.color = 'var(--rd)'; resEl.textContent = '対象メンティー、実施日時、録音ファイルを選択してください'; }
+    return;
+  }
+  if (btn) { btn.disabled = true; btn.textContent = 'アップロード中...'; }
+  if (resEl) { resEl.style.color = 'var(--tx3)'; resEl.textContent = 'ファイルを読み込んでいます'; }
+  try {
+    var scheduledIso = new Date(callDate).toISOString();
+    var r;
+    if (file.size > 20 * 1024 * 1024) {
+      if (resEl) resEl.textContent = '大容量アップロードの準備中...';
+      var session = await gasReq('api/mentor/tel-recording/upload-session', 'POST', {
+        mentee_id: menteeId,
+        scheduled_at: scheduledIso,
+        file_name: file.name,
+        mime_type: file.type || 'application/octet-stream',
+        file_size: file.size,
+        memo: memo
+      });
+      if (!session || !session.ok || !session.upload_url) {
+        throw new Error((session && (session.error || session.message)) || 'アップロードURLの作成に失敗しました');
+      }
+      if (resEl) resEl.textContent = 'Driveへアップロード中... 0%';
+      var uploaded = await uploadFileToDriveResumable(session.upload_url, file, function(pct) {
+        if (resEl) resEl.textContent = 'Driveへアップロード中... ' + pct + '%';
+      });
+      if (!uploaded || !uploaded.id) {
+        throw new Error('Driveアップロードは完了しましたが、ファイルIDを取得できませんでした');
+      }
+      if (resEl) resEl.textContent = 'アップロード完了。文字起こしとAI生成を実行しています';
+      r = await gasReq('api/mentor/tel-recording/process-uploaded', 'POST', {
+        mentee_id: menteeId,
+        scheduled_at: scheduledIso,
+        call_id: session.call_id,
+        file_id: uploaded && uploaded.id,
+        memo: memo
+      });
+    } else {
+      var base64 = await fileToBase64(file);
+      if (resEl) resEl.textContent = 'アップロードして処理しています';
+      r = await gasReq('api/mentor/tel-recording/upload', 'POST', {
+        mentee_id: menteeId,
+        scheduled_at: scheduledIso,
+        file_name: file.name,
+        mime_type: file.type || 'application/octet-stream',
+        file_base64: base64,
+        memo: memo
+      });
+    }
+    if (r && r.ok) {
+      if (resEl) {
+        resEl.style.color = r.no_transcript ? 'var(--am)' : 'var(--gr)';
+        resEl.textContent = r.no_transcript
+          ? 'アップロードしました。文字起こしは未処理ファイル確認から再処理してください。'
+          : '処理しました: ' + (r.report_id || r.call_id || '');
+      }
+      Cache.bust('call_reports_');
+      _allCallReports = [];
+      await loadCallReportsData();
+      await loadWeeklyTel();
+      toast(r.no_transcript ? '録音をアップロードしました' : '録音を処理しました');
+    } else {
+      var err = (r && (r.error || r.message)) || 'アップロードに失敗しました';
+      if (resEl) { resEl.style.color = 'var(--rd)'; resEl.textContent = err; }
+    }
+  } catch(e) {
+    if (resEl) { resEl.style.color = 'var(--rd)'; resEl.textContent = 'アップロードエラー: ' + e.message; }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '録音をアップロードして処理する'; }
+  }
 }
 
 // ── レポート追加状態管理 ──
@@ -2218,25 +2365,45 @@ function open1on1ReportDetail(r) {
   document.getElementById('mrd-date').textContent   = fmtDateFull(r.created_at);
   document.getElementById('mrd-status').textContent = published ? '✅ 公開済み' : '📝 未公開';
   document.getElementById('mrd-status').style.color = published ? 'var(--gr)' : 'var(--am)';
-  // ★ ai_summary にJSONコードが混入している場合は自動クリーンアップ
+  // ★ ai_summary にJSONコードが混入している場合は全フィールドをクリーンアップ
   var rawSummary = r.ai_summary || '';
-  if (rawSummary.trim().startsWith('{') && rawSummary.includes('"ai_summary"')) {
+  var rawAdvice  = r.ai_advice  || '';
+  var rawGoal    = r.next_goal  || '';
+  var rawProject = r.next_month_project_goal || '';
+  var rawStudy   = r.next_month_study_goal   || '';
+  if (rawSummary.trim().startsWith('{') || rawSummary.includes('"ai_summary"')) {
     try {
-      var parsed = JSON.parse(rawSummary);
-      rawSummary = parsed.ai_summary || '';
-      if (!r.ai_advice && parsed.ai_advice) {
-        r = Object.assign({}, r, { ai_advice: parsed.ai_advice });
-      }
+      // 末尾が切れている場合に閉じてからパース
+      var jsonText = rawSummary;
+      if (!jsonText.trim().endsWith('}')) jsonText = jsonText.replace(/,?\s*$/, '') + '"}';
+      var parsed = JSON.parse(jsonText);
+      rawSummary = parsed.ai_summary              || rawSummary;
+      rawAdvice  = parsed.ai_advice               || rawAdvice;
+      rawGoal    = parsed.next_goal               || rawGoal;
+      rawProject = parsed.next_month_project_goal || rawProject;
+      rawStudy   = parsed.next_month_study_goal   || rawStudy;
     } catch(pe) {
-      var m = rawSummary.match(/"ai_summary"\s*:\s*"([\s\S]*?)(?<!\\)"/);
-      rawSummary = m ? m[1].replace(/\\"/g,'"') : rawSummary;
+      // パース失敗時は正規表現で各フィールドを個別抽出
+      function extractJsonField(src, field) {
+        var m = src.match(new RegExp('"' + field + '"\\s*:\\s*"([\\s\\S]*?)"(?:\\s*[,}])'));
+        if (m) return m[1].replace(/\\"/g, '"').replace(/\\n/g, ' ');
+        var m2 = src.match(new RegExp('"' + field + '"\\s*:\\s*"([\\s\\S]{1,300})'));
+        return m2 ? m2[1].replace(/[",\s]+$/, '').replace(/\\"/g, '"').replace(/\\n/g, ' ') : '';
+      }
+      var extracted = extractJsonField(rawSummary, 'ai_summary');
+      rawAdvice  = extractJsonField(rawSummary, 'ai_advice')               || rawAdvice;
+      rawGoal    = extractJsonField(rawSummary, 'next_goal')               || rawGoal;
+      rawProject = extractJsonField(rawSummary, 'next_month_project_goal') || rawProject;
+      rawStudy   = extractJsonField(rawSummary, 'next_month_study_goal')   || rawStudy;
+      // rawSummaryがまだJSONなら抽出値か空に置き換え
+      if (rawSummary.trim().startsWith('{')) rawSummary = extracted || '';
     }
   }
   document.getElementById('mrd-summary').value      = rawSummary;
-  document.getElementById('mrd-advice').value       = r.ai_advice               || '';
-  document.getElementById('mrd-goal').value         = r.next_goal               || '';
-  document.getElementById('mrd-next-project').value = r.next_month_project_goal || '';
-  document.getElementById('mrd-next-study').value   = r.next_month_study_goal   || '';
+  document.getElementById('mrd-advice').value       = rawAdvice;
+  document.getElementById('mrd-goal').value         = rawGoal;
+  document.getElementById('mrd-next-project').value = rawProject;
+  document.getElementById('mrd-next-study').value   = rawStudy;
   document.getElementById('mrd-report-id').value    = r.report_id               || '';
   var pubBtn    = document.getElementById('mrd-publish-btn');
   var unpubBtn  = document.getElementById('mrd-unpublish-btn');
@@ -2281,13 +2448,29 @@ async function regenerateMentorAi() {
   btn.textContent = '⏳ 生成中…';
   if (msgEl) { msgEl.style.color = 'var(--tx3)'; msgEl.textContent = 'AI生成中です。しばらくお待ちください…'; }
 
-  var r = await gasReq('api/mentor/mentor-reports/regenerate-ai', 'POST', { report_id: reportId });
+  // AI再生成はGAS側でAI呼び出し＋リトライが走るため120秒タイムアウト
+  var r = await gasReq('api/mentor/mentor-reports/regenerate-ai', 'POST', { report_id: reportId }, 120000);
 
   btn.disabled = false;
   btn.textContent = '🤖 AI再生成';
 
   if (r && r.ok) {
     console.log('[AI再生成レスポンス]', JSON.stringify(r));
+    var hasGeneratedText = !!(
+      r.ai_summary ||
+      r.ai_advice ||
+      r.next_goal ||
+      r.next_month_project_goal ||
+      r.next_month_study_goal
+    );
+    if (!hasGeneratedText) {
+      if (msgEl) {
+        msgEl.style.color = 'var(--rd)';
+        msgEl.textContent = '❌ AI生成は完了しましたが、レポート項目を抽出できませんでした（文字起こし: ' + (r.transcript_length || 0) + '文字）';
+      }
+      toast('AI生成結果を抽出できませんでした', 'err');
+      return;
+    }
     // フォームに反映（空でも上書き）
     document.getElementById('mrd-summary').value      = r.ai_summary                || '';
     document.getElementById('mrd-advice').value       = r.ai_advice                 || '';
@@ -2309,6 +2492,9 @@ async function regenerateMentorAi() {
   } else if (r && r.no_transcript) {
     if (msgEl) { msgEl.style.color = 'var(--am)'; msgEl.textContent = '⚠ 文字起こしが見つかりませんでした。Meet録音の文字起こし機能を確認してください。'; }
     toast('文字起こしが見つかりません', 'err');
+  } else if (r && r.ai_empty) {
+    if (msgEl) { msgEl.style.color = 'var(--rd)'; msgEl.textContent = '❌ ' + (r.message || 'AI応答からレポート項目を抽出できませんでした') + '（文字起こし: ' + (r.transcript_length || 0) + '文字）'; }
+    toast('AI生成結果を抽出できませんでした', 'err');
   } else {
     if (msgEl) { msgEl.style.color = 'var(--rd)'; msgEl.textContent = '❌ 生成に失敗しました: ' + ((r && r.error) || 'GAS応答なし'); }
     toast('AI再生成に失敗しました', 'err');
@@ -2762,13 +2948,23 @@ async function loadWeeklyTel() {
     var acts = document.createElement('div');
     acts.style.cssText = 'display:flex;flex-direction:column;gap:5px;flex-shrink:0';
 
+    // TEL開始ボタン
+    var telStartBtn = document.createElement('button');
+    telStartBtn.className = 'btn btn-sm';
+    telStartBtn.style.cssText = 'background:linear-gradient(135deg,var(--pr),var(--pr2));color:#fff;border:none;font-size:12px;padding:7px 12px;white-space:nowrap';
+    telStartBtn.textContent = '📞 TEL開始';
+    telStartBtn.disabled = !mentee.tel_meet_url;
+    telStartBtn.title = mentee.tel_meet_url ? 'TEL用Meetを開始する' : 'TEL用Meet URLが未設定です';
+    (function(m, btn){ telStartBtn.onclick = function(){ startTelCallForMentee(m, btn); }; })(mentee, telStartBtn);
+    acts.appendChild(telStartBtn);
+
     // チャットアイコンボタン
     if (chatUrl) {
       var chatBtn = document.createElement('button');
       chatBtn.className = 'btn btn-sm';
       chatBtn.style.cssText = 'background:linear-gradient(135deg,#1a73e8,#0d62d1);color:#fff;border:none;font-size:11px;padding:5px 10px';
       chatBtn.title = 'チャットを開く';
-      chatBtn.innerHTML = '💬';
+      chatBtn.textContent = '💬 チャット';
       (function(url){ chatBtn.onclick = function(){ window.open(url,'_blank'); }; })(chatUrl);
       acts.appendChild(chatBtn);
     }
@@ -3817,10 +4013,14 @@ function openMenteeChat() {
 async function startTelCall() {
   var m = _currentMentee;
   if (!m) return;
+  await startTelCallForMentee(m, document.getElementById('panelTelBtn'));
+}
+
+async function startTelCallForMentee(m, btn) {
   if (!m.tel_meet_url) { toast('TEL用Meet URLが設定されていません','err'); return; }
 
   // ボタンを無効化
-  var btn = document.getElementById('panelTelBtn');
+  var originalText = btn ? btn.textContent : '';
   if (btn) { btn.disabled = true; btn.textContent = '発信中…'; }
 
   try {
@@ -3844,7 +4044,7 @@ async function startTelCall() {
   } catch(e) {
     toast('通信エラー: ' + e.message, 'err');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '📞 TEL開始'; }
+    if (btn) { btn.disabled = false; btn.textContent = originalText || '📞 TEL開始'; }
   }
 }
 
