@@ -532,19 +532,30 @@ td{padding:10px 14px;font-size:13px}
         正しいメンティーと対象月を選択し、文字起こしファイルを検索してください。
       </div>
       <div class="form-group">
+        <label class="form-label">種別 <span style="color:var(--rd)">*</span></label>
+        <div style="display:flex;gap:16px;padding:6px 0">
+          <label style="display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer">
+            <input type="radio" name="fix-record-type" value="1on1" checked style="accent-color:var(--pr)"> 月次1on1
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer">
+            <input type="radio" name="fix-record-type" value="tel" style="accent-color:var(--pr)"> 週次TEL
+          </label>
+        </div>
+      </div>
+      <div class="form-group">
         <label class="form-label">現在のメンティー（誤）</label>
         <div id="fix-wrong-mentee" style="font-size:14px;font-weight:600;color:var(--rd);padding:8px 12px;background:var(--bg3);border-radius:8px">—</div>
       </div>
       <div class="form-group">
         <label class="form-label">正しいメンティー <span style="color:var(--rd)">*</span></label>
         <select class="inp" id="fix-correct-mentee-select" style="font-size:14px" onchange="onFixMenteeChange()">
-          <option value="">選択してください</option>
+          <option value="">読み込み中…</option>
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">正しいメンター</label>
+        <label class="form-label">正しいメンター / リーダー</label>
         <select class="inp" id="fix-correct-mentor-select" style="font-size:14px">
-          <option value="">（自動）</option>
+          <option value="">読み込み中…</option>
         </select>
       </div>
       <div class="form-group">
@@ -1058,6 +1069,7 @@ td{padding:10px 14px;font-size:13px}
   <div id="repPane-pre" style="display:none">
     <div class="card">
       <div id="preReportsList"><div class="loading">読み込み中…</div></div>
+      <div id="preReportsPager" style="display:none;justify-content:center;gap:6px;margin-top:16px;flex-wrap:wrap"></div>
     </div>
   </div>
 </div>
@@ -1218,7 +1230,8 @@ async function gasReq(path, method, body) {
   const payload = { path: path, _method: method, _auth: token ? 'Bearer '+token : '' };
   if (body) Object.assign(payload, body);
 
-  // タイムアウト付きfetch（30秒）
+  // タイムアウト付きfetch（デフォルト30秒、第4引数で変更可）
+  var timeoutMs = (arguments[3] && typeof arguments[3] === 'number') ? arguments[3] : 30000;
   const fetchWithTimeout = (url, opts, ms) => {
     const ctrl = new AbortController();
     const tid  = setTimeout(() => ctrl.abort(), ms);
@@ -1228,7 +1241,7 @@ async function gasReq(path, method, body) {
   // リトライ処理（最大2回）
   for (var attempt = 0; attempt < 2; attempt++) {
     try {
-      const res  = await fetchWithTimeout(GAS_URL, { method:'POST', body:JSON.stringify(payload) }, 30000);
+      const res  = await fetchWithTimeout(GAS_URL, { method:'POST', body:JSON.stringify(payload) }, timeoutMs);
       const text = await res.text();
       var data;
       try { data = JSON.parse(text); } catch(e) { console.error('[GAS] parse error', text.slice(0,200)); return null; }
@@ -2211,16 +2224,18 @@ async function submitTelRecordingUpload() {
         throw new Error('Driveアップロードは完了しましたが、ファイルIDを取得できませんでした');
       }
       if (resEl) resEl.textContent = 'アップロード完了。文字起こしとAI生成を実行しています';
+      // 文字起こし＋AI生成が走るため180秒タイムアウト
       r = await gasReq('api/mentor/tel-recording/process-uploaded', 'POST', {
         mentee_id: menteeId,
         scheduled_at: scheduledIso,
         call_id: session.call_id,
         file_id: uploaded && uploaded.id,
         memo: memo
-      });
+      }, 180000);
     } else {
       var base64 = await fileToBase64(file);
       if (resEl) resEl.textContent = 'アップロードして処理しています';
+      // 文字起こし＋AI生成が走るため180秒タイムアウト
       r = await gasReq('api/mentor/tel-recording/upload', 'POST', {
         mentee_id: menteeId,
         scheduled_at: scheduledIso,
@@ -2228,7 +2243,7 @@ async function submitTelRecordingUpload() {
         mime_type: file.type || 'application/octet-stream',
         file_base64: base64,
         memo: memo
-      });
+      }, 180000);
     }
     if (r && r.ok) {
       if (resEl) {
@@ -2259,6 +2274,8 @@ var _mentorReports   = []; // mentor_reports
 var _preReports      = []; // pre_reports
 var _mentorRepPage   = 1;
 var MENTOR_REP_PER   = 10;
+var _preRepPage      = 1;
+var PRE_REP_PER      = 10;
 
 async function loadReports() {
   // TELレポート
@@ -2423,25 +2440,42 @@ function open1on1ReportDetail(r) {
   document.getElementById('mrd-date').textContent   = fmtDateFull(r.created_at);
   document.getElementById('mrd-status').textContent = published ? '✅ 公開済み' : '📝 未公開';
   document.getElementById('mrd-status').style.color = published ? 'var(--gr)' : 'var(--am)';
-  // ★ ai_summary にJSONコードが混入している場合は自動クリーンアップ
+  // ★ ai_summary にJSONコードが混入している場合は全フィールドをクリーンアップ
   var rawSummary = r.ai_summary || '';
-  if (rawSummary.trim().startsWith('{') && rawSummary.includes('"ai_summary"')) {
+  var rawAdvice  = r.ai_advice  || '';
+  var rawGoal    = r.next_goal  || '';
+  var rawProject = r.next_month_project_goal || '';
+  var rawStudy   = r.next_month_study_goal   || '';
+  if (rawSummary.trim().startsWith('{') || rawSummary.includes('"ai_summary"')) {
     try {
-      var parsed = JSON.parse(rawSummary);
-      rawSummary = parsed.ai_summary || '';
-      if (!r.ai_advice && parsed.ai_advice) {
-        r = Object.assign({}, r, { ai_advice: parsed.ai_advice });
-      }
+      var jsonText = rawSummary;
+      if (!jsonText.trim().endsWith('}')) jsonText = jsonText.replace(/,?\s*$/, '') + '"}';
+      var parsed = JSON.parse(jsonText);
+      rawSummary = parsed.ai_summary              || rawSummary;
+      rawAdvice  = parsed.ai_advice               || rawAdvice;
+      rawGoal    = parsed.next_goal               || rawGoal;
+      rawProject = parsed.next_month_project_goal || rawProject;
+      rawStudy   = parsed.next_month_study_goal   || rawStudy;
     } catch(pe) {
-      var m = rawSummary.match(/"ai_summary"\s*:\s*"([\s\S]*?)(?<!\\)"/);
-      rawSummary = m ? m[1].replace(/\\"/g,'"') : rawSummary;
+      function extractJsonField(src, field) {
+        var m = src.match(new RegExp('"' + field + '"\\s*:\\s*"([\\s\\S]*?)"(?:\\s*[,}])'));
+        if (m) return m[1].replace(/\\"/g, '"').replace(/\\n/g, ' ');
+        var m2 = src.match(new RegExp('"' + field + '"\\s*:\\s*"([\\s\\S]{1,300})'));
+        return m2 ? m2[1].replace(/[",\s]+$/, '').replace(/\\"/g, '"').replace(/\\n/g, ' ') : '';
+      }
+      var extracted = extractJsonField(rawSummary, 'ai_summary');
+      rawAdvice  = extractJsonField(rawSummary, 'ai_advice')               || rawAdvice;
+      rawGoal    = extractJsonField(rawSummary, 'next_goal')               || rawGoal;
+      rawProject = extractJsonField(rawSummary, 'next_month_project_goal') || rawProject;
+      rawStudy   = extractJsonField(rawSummary, 'next_month_study_goal')   || rawStudy;
+      if (rawSummary.trim().startsWith('{')) rawSummary = extracted || '';
     }
   }
   document.getElementById('mrd-summary').value      = rawSummary;
-  document.getElementById('mrd-advice').value       = r.ai_advice               || '';
-  document.getElementById('mrd-goal').value         = r.next_goal               || '';
-  document.getElementById('mrd-next-project').value = r.next_month_project_goal || '';
-  document.getElementById('mrd-next-study').value   = r.next_month_study_goal   || '';
+  document.getElementById('mrd-advice').value       = rawAdvice;
+  document.getElementById('mrd-goal').value         = rawGoal;
+  document.getElementById('mrd-next-project').value = rawProject;
+  document.getElementById('mrd-next-study').value   = rawStudy;
   document.getElementById('mrd-report-id').value    = r.report_id               || '';
   var pubBtn    = document.getElementById('mrd-publish-btn');
   var unpubBtn  = document.getElementById('mrd-unpublish-btn');
@@ -2486,7 +2520,8 @@ async function regenerateMentorAi() {
   btn.textContent = '⏳ 生成中…';
   if (msgEl) { msgEl.style.color = 'var(--tx3)'; msgEl.textContent = 'AI生成中です。しばらくお待ちください…'; }
 
-  var r = await gasReq('api/mentor/mentor-reports/regenerate-ai', 'POST', { report_id: reportId });
+  // AI再生成はGAS側でAI呼び出し＋リトライが走るため120秒タイムアウト
+  var r = await gasReq('api/mentor/mentor-reports/regenerate-ai', 'POST', { report_id: reportId }, 120000);
 
   btn.disabled = false;
   btn.textContent = '🤖 AI再生成';
@@ -2639,14 +2674,23 @@ function renderPreReports() {
     return (a.mentee_name||'').localeCompare(b.mentee_name||'', 'ja');
   });
 
+  var pagerEl = document.getElementById('preReportsPager');
   document.getElementById('reportsCount').textContent = filtered.length + '件';
 
   if (filtered.length === 0) {
     listEl.innerHTML = '<div class="loading" style="padding:24px">事前レポートがありません</div>';
+    if (pagerEl) pagerEl.style.display = 'none';
     return;
   }
+
+  var total     = filtered.length;
+  var totalPage = Math.ceil(total / PRE_REP_PER);
+  if (_preRepPage > totalPage) _preRepPage = 1;
+  var start     = (_preRepPage - 1) * PRE_REP_PER;
+  var pageItems = filtered.slice(start, start + PRE_REP_PER);
+
   listEl.innerHTML = '';
-  filtered.slice(0, 50).forEach(function(r) {
+  pageItems.forEach(function(r) {
     // 左枠: target_monthから月を表示
     var _tmr  = String(r.target_month || '');
     var _tmrM = _tmr.match(/(\d{4})[\/-](\d{1,2})/);
@@ -2674,6 +2718,34 @@ function renderPreReports() {
     (function(rep){ item.onclick = function(){ openPreReportDetail(rep); }; })(r);
     listEl.appendChild(item);
   });
+
+  // ── ページネーション ──
+  if (!pagerEl) return;
+  if (totalPage <= 1) { pagerEl.style.display = 'none'; return; }
+  pagerEl.style.display = 'flex';
+  pagerEl.innerHTML = '';
+  var prevBtn = document.createElement('button');
+  prevBtn.className = 'btn btn-g btn-sm'; prevBtn.textContent = '← 前へ';
+  prevBtn.disabled = (_preRepPage === 1);
+  prevBtn.onclick = function(){ _preRepPage--; renderPreReports(); };
+  pagerEl.appendChild(prevBtn);
+  var startPage = Math.max(1, _preRepPage - 2);
+  var endPage   = Math.min(totalPage, startPage + 4);
+  for (var p = startPage; p <= endPage; p++) {
+    (function(pg) {
+      var pgBtn = document.createElement('button');
+      pgBtn.className = 'btn btn-sm' + (pg === _preRepPage ? ' btn-p' : ' btn-g');
+      pgBtn.textContent = pg;
+      pgBtn.onclick = function(){ _preRepPage = pg; renderPreReports(); };
+      pagerEl.appendChild(pgBtn);
+    })(p);
+  }
+  var nextBtn = document.createElement('button');
+  nextBtn.className = 'btn btn-g btn-sm'; nextBtn.textContent = '次へ →';
+  nextBtn.disabled = (_preRepPage === totalPage);
+  nextBtn.onclick = function(){ _preRepPage++; renderPreReports(); };
+  pagerEl.appendChild(nextBtn);
+  listEl.scrollIntoView({ behavior:'smooth', block:'start' });
 }
 
 function openPreReportDetail(r) {
@@ -2769,6 +2841,7 @@ function filterReports() {
     _mentorRepPage = 1;
     renderMentorReports();
   } else if (_currentRepTab === 'pre') {
+    _preRepPage = 1;
     renderPreReports();
   }
 }
@@ -4490,37 +4563,42 @@ function openFixMisprocessedModal() {
   document.getElementById('fix-step1-msg').textContent     = '';
   document.getElementById('fix-year-month').value          = '';
 
-  // 正しいメンティーのセレクト構築
+  // メンティー・メンター/リーダーセレクトを非同期で構築
   var menteeSelect = document.getElementById('fix-correct-mentee-select');
-  menteeSelect.innerHTML = '<option value="">選択してください</option>';
-  (_myMentees || []).forEach(function(m) {
-    var opt = document.createElement('option');
-    opt.value = m.user_id; opt.textContent = m.name;
-    menteeSelect.appendChild(opt);
-  });
-
-  // メンターセレクト: 自分（メンター）＋担当メンティーのうちリーダー兼任の人
   var mentorSelect = document.getElementById('fix-correct-mentor-select');
-  mentorSelect.innerHTML = '<option value="">（自動）</option>';
-  if (_me) {
-    var optMe = document.createElement('option');
-    optMe.value = _me.user_id;
-    optMe.textContent = _me.name + '（メンター・自分）';
-    optMe.selected = true;
-    mentorSelect.appendChild(optMe);
-  }
-  // has_leader_role=TRUE のメンティーをリーダーとして追加
-  (_myMentees || []).filter(function(m){
-    return m.has_leader_role === true || m.has_leader_role === 'TRUE';
-  }).forEach(function(m) {
-    var optL = document.createElement('option');
-    optL.value = m.user_id;
-    optL.textContent = m.name + '（リーダー）';
-    mentorSelect.appendChild(optL);
-  });
+  menteeSelect.innerHTML = '<option value="">読み込み中…</option>';
+  mentorSelect.innerHTML = '<option value="">読み込み中…</option>';
 
   closeModal('mentorReportDetailModal');
   document.getElementById('fixMisprocessedModal').classList.add('open');
+
+  // 全メンバー取得（担当外も含む）
+  gasReq('api/mentor/members', 'GET', {}).then(function(d) {
+    menteeSelect.innerHTML = '<option value="">選択してください</option>';
+    var members = (d && d.members) ? d.members.slice().sort(function(a,b){ return (a.name||'').localeCompare(b.name||'','ja'); }) : [];
+    members.forEach(function(m) {
+      var opt = document.createElement('option');
+      opt.value = m.user_id;
+      opt.textContent = m.name + (m.mentor_name && m.mentor_name !== '—' ? '（担当: ' + m.mentor_name + '）' : '');
+      menteeSelect.appendChild(opt);
+    });
+  }).catch(function(){ menteeSelect.innerHTML = '<option value="">取得失敗</option>'; });
+
+  // 全メンター＋リーダー取得
+  gasReq('api/mentor/mentor-leader-list', 'GET', {}).then(function(d) {
+    mentorSelect.innerHTML = '<option value="">（自動）</option>';
+    var users = (d && d.users) ? d.users : [];
+    users.forEach(function(u) {
+      var opt = document.createElement('option');
+      opt.value = u.user_id;
+      var label = u.name;
+      if (u.role === 'mentor' || u.role === 'admin') label += '（メンター）';
+      else if (u.has_leader_role) label += '（リーダー）';
+      opt.textContent = label;
+      if (_me && u.user_id === _me.user_id) opt.selected = true;
+      mentorSelect.appendChild(opt);
+    });
+  }).catch(function(){ mentorSelect.innerHTML = '<option value="">取得失敗</option>'; });
 }
 
 // メンティー変更 or 月変更時に自動検索（200ms debounce）
@@ -4543,8 +4621,9 @@ async function searchTranscripts() {
   msgEl.style.color = 'var(--tx3)'; msgEl.textContent = 'フォルダを検索しています…';
 
   try {
+    var recordType = document.querySelector('input[name="fix-record-type"]:checked');
     var r = await gasReq('api/mentor/mentor-reports/list-transcripts', 'POST',
-      { mentee_id: menteeId, year_month: yearMonth || '' });
+      { mentee_id: menteeId, year_month: yearMonth || '', record_type: recordType ? recordType.value : '1on1' });
 
     if (!r || !r.ok) {
       msgEl.style.color = 'var(--rd)';
@@ -4640,6 +4719,7 @@ async function executeFixMisprocessed() {
   msgEl.style.color = 'var(--tx3)'; msgEl.textContent = '文字起こしを移動してAIを再生成しています…';
 
   try {
+    var recordTypeEl = document.querySelector('input[name="fix-record-type"]:checked');
     var r = await gasReq(
       'api/mentor/mentor-reports/fix-misprocessed', 'POST',
       {
@@ -4648,6 +4728,7 @@ async function executeFixMisprocessed() {
         correct_mentor_id:    correctMentorId || undefined,
         transcript_file_id:   _fixSelectedTranscriptFileId,
         target_year_month:    yearMonth || undefined,
+        record_type:          recordTypeEl ? recordTypeEl.value : '1on1',
       },
       120000
     );
