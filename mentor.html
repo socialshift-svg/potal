@@ -329,6 +329,7 @@ td{padding:10px 14px;font-size:13px}
       <button class="btn btn-g" onclick="closeModal('mentorReportDetailModal')">閉じる</button>
       <button class="btn btn-g" onclick="saveMentorReport()">💾 保存</button>
       <button id="mrd-unpublish-btn" class="btn" style="display:none;background:var(--am-light);color:var(--am);border:1px solid var(--am)" onclick="unpublishMentorReport()">↩ 下書きに戻す</button>
+      <button id="mrd-delete-btn" class="btn btn-sm" style="background:var(--rd-light,#fff0f0);color:var(--rd,#d32f2f);border:1px solid var(--rd,#d32f2f)" onclick="deleteMentorReport()">🗑 削除</button>
       <button id="mrd-publish-btn" class="btn btn-p" onclick="publishMentorReport()">📤 メンティーに公開</button>
     </div>
   </div>
@@ -562,6 +563,7 @@ td{padding:10px 14px;font-size:13px}
     </div>
     <div class="f-foot">
       <button class="btn btn-g" onclick="closeModal('telReportDetailModal')">閉じる</button>
+      <button id="trd-delete-btn" class="btn btn-sm" style="background:var(--rd-light,#fff0f0);color:var(--rd,#d32f2f);border:1px solid var(--rd,#d32f2f)">🗑 削除</button>
       <button id="trd-confirm-btn" class="btn btn-p" style="display:none">✅ このレポートを確定する</button>
     </div>
   </div>
@@ -1159,8 +1161,7 @@ async function gasReq(path, method, body) {
   const payload = { path: path, _method: method, _auth: token ? 'Bearer '+token : '' };
   if (body) Object.assign(payload, body);
 
-  // タイムアウト付きfetch（デフォルト30秒、gasReqの第4引数で変更可）
-  var timeoutMs = (arguments[3] && typeof arguments[3] === 'number') ? arguments[3] : 30000;
+  // タイムアウト付きfetch（30秒）
   const fetchWithTimeout = (url, opts, ms) => {
     const ctrl = new AbortController();
     const tid  = setTimeout(() => ctrl.abort(), ms);
@@ -1170,7 +1171,7 @@ async function gasReq(path, method, body) {
   // リトライ処理（最大2回）
   for (var attempt = 0; attempt < 2; attempt++) {
     try {
-      const res  = await fetchWithTimeout(GAS_URL, { method:'POST', body:JSON.stringify(payload) }, timeoutMs);
+      const res  = await fetchWithTimeout(GAS_URL, { method:'POST', body:JSON.stringify(payload) }, 30000);
       const text = await res.text();
       var data;
       try { data = JSON.parse(text); } catch(e) { console.error('[GAS] parse error', text.slice(0,200)); return null; }
@@ -2365,45 +2366,25 @@ function open1on1ReportDetail(r) {
   document.getElementById('mrd-date').textContent   = fmtDateFull(r.created_at);
   document.getElementById('mrd-status').textContent = published ? '✅ 公開済み' : '📝 未公開';
   document.getElementById('mrd-status').style.color = published ? 'var(--gr)' : 'var(--am)';
-  // ★ ai_summary にJSONコードが混入している場合は全フィールドをクリーンアップ
+  // ★ ai_summary にJSONコードが混入している場合は自動クリーンアップ
   var rawSummary = r.ai_summary || '';
-  var rawAdvice  = r.ai_advice  || '';
-  var rawGoal    = r.next_goal  || '';
-  var rawProject = r.next_month_project_goal || '';
-  var rawStudy   = r.next_month_study_goal   || '';
-  if (rawSummary.trim().startsWith('{') || rawSummary.includes('"ai_summary"')) {
+  if (rawSummary.trim().startsWith('{') && rawSummary.includes('"ai_summary"')) {
     try {
-      // 末尾が切れている場合に閉じてからパース
-      var jsonText = rawSummary;
-      if (!jsonText.trim().endsWith('}')) jsonText = jsonText.replace(/,?\s*$/, '') + '"}';
-      var parsed = JSON.parse(jsonText);
-      rawSummary = parsed.ai_summary              || rawSummary;
-      rawAdvice  = parsed.ai_advice               || rawAdvice;
-      rawGoal    = parsed.next_goal               || rawGoal;
-      rawProject = parsed.next_month_project_goal || rawProject;
-      rawStudy   = parsed.next_month_study_goal   || rawStudy;
-    } catch(pe) {
-      // パース失敗時は正規表現で各フィールドを個別抽出
-      function extractJsonField(src, field) {
-        var m = src.match(new RegExp('"' + field + '"\\s*:\\s*"([\\s\\S]*?)"(?:\\s*[,}])'));
-        if (m) return m[1].replace(/\\"/g, '"').replace(/\\n/g, ' ');
-        var m2 = src.match(new RegExp('"' + field + '"\\s*:\\s*"([\\s\\S]{1,300})'));
-        return m2 ? m2[1].replace(/[",\s]+$/, '').replace(/\\"/g, '"').replace(/\\n/g, ' ') : '';
+      var parsed = JSON.parse(rawSummary);
+      rawSummary = parsed.ai_summary || '';
+      if (!r.ai_advice && parsed.ai_advice) {
+        r = Object.assign({}, r, { ai_advice: parsed.ai_advice });
       }
-      var extracted = extractJsonField(rawSummary, 'ai_summary');
-      rawAdvice  = extractJsonField(rawSummary, 'ai_advice')               || rawAdvice;
-      rawGoal    = extractJsonField(rawSummary, 'next_goal')               || rawGoal;
-      rawProject = extractJsonField(rawSummary, 'next_month_project_goal') || rawProject;
-      rawStudy   = extractJsonField(rawSummary, 'next_month_study_goal')   || rawStudy;
-      // rawSummaryがまだJSONなら抽出値か空に置き換え
-      if (rawSummary.trim().startsWith('{')) rawSummary = extracted || '';
+    } catch(pe) {
+      var m = rawSummary.match(/"ai_summary"\s*:\s*"([\s\S]*?)(?<!\\)"/);
+      rawSummary = m ? m[1].replace(/\\"/g,'"') : rawSummary;
     }
   }
   document.getElementById('mrd-summary').value      = rawSummary;
-  document.getElementById('mrd-advice').value       = rawAdvice;
-  document.getElementById('mrd-goal').value         = rawGoal;
-  document.getElementById('mrd-next-project').value = rawProject;
-  document.getElementById('mrd-next-study').value   = rawStudy;
+  document.getElementById('mrd-advice').value       = r.ai_advice               || '';
+  document.getElementById('mrd-goal').value         = r.next_goal               || '';
+  document.getElementById('mrd-next-project').value = r.next_month_project_goal || '';
+  document.getElementById('mrd-next-study').value   = r.next_month_study_goal   || '';
   document.getElementById('mrd-report-id').value    = r.report_id               || '';
   var pubBtn    = document.getElementById('mrd-publish-btn');
   var unpubBtn  = document.getElementById('mrd-unpublish-btn');
@@ -2448,8 +2429,7 @@ async function regenerateMentorAi() {
   btn.textContent = '⏳ 生成中…';
   if (msgEl) { msgEl.style.color = 'var(--tx3)'; msgEl.textContent = 'AI生成中です。しばらくお待ちください…'; }
 
-  // AI再生成はGAS側でAI呼び出し＋リトライが走るため120秒タイムアウト
-  var r = await gasReq('api/mentor/mentor-reports/regenerate-ai', 'POST', { report_id: reportId }, 120000);
+  var r = await gasReq('api/mentor/mentor-reports/regenerate-ai', 'POST', { report_id: reportId });
 
   btn.disabled = false;
   btn.textContent = '🤖 AI再生成';
@@ -4398,6 +4378,9 @@ function openTelReportDetail(r) {
       confirmBtn.style.display = 'none';
     }
   }
+  // 削除ボタンにreport_idをセット
+  var delBtn = document.getElementById('trd-delete-btn');
+  if (delBtn) delBtn.onclick = function(){ deleteTelReport(r.report_id); };
   modal.classList.add('open');
 }
 
@@ -4419,6 +4402,65 @@ async function confirmTelReport(reportId) {
     toast('TELレポートを確定しました');
   } else {
     toast('確定に失敗しました: '+(r&&(r.error||r.message)||'GAS応答なし'), 'err');
+  }
+}
+
+// ── 1on1レポート削除 ──
+async function deleteMentorReport() {
+  var reportId = document.getElementById('mrd-report-id').value;
+  if (!reportId) { toast('レポートIDが取得できません', 'err'); return; }
+
+  // 公開済みかどうかを確認して警告文を変える
+  var isPublished = document.getElementById('mrd-publish-btn') &&
+                    document.getElementById('mrd-publish-btn').style.display === 'none';
+  var msg = isPublished
+    ? '【公開済みレポート】\nMentee画面から非表示になります。\nこの操作は元に戻せません。\n\n本当に削除しますか？'
+    : 'このレポートを削除します。\nこの操作は元に戻せません。\n\n本当に削除しますか？';
+  if (!confirm(msg)) return;
+
+  var btn = document.getElementById('mrd-delete-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '削除中…'; }
+  try {
+    var r = await gasReq('api/mentor/mentor-reports/delete', 'POST', { report_id: reportId });
+    if (r && r.ok) {
+      closeModal('mentorReportDetailModal');
+      // キャッシュから除外
+      _allMenteeReports = _allMenteeReports.filter(function(x){ return x.report_id !== reportId; });
+      _mentorReports    = _allMenteeReports;
+      _mentorRepPage    = 1;
+      renderMentorReports();
+      toast('レポートを削除しました');
+    } else {
+      toast('削除に失敗しました: ' + (r && (r.error || r.message) || 'GAS応答なし'), 'err');
+    }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🗑 削除'; }
+  }
+}
+
+// ── 週次TELレポート削除 ──
+async function deleteTelReport(reportId) {
+  if (!reportId) { toast('レポートIDが取得できません', 'err'); return; }
+  if (!confirm('このTELレポートを削除します。\nこの操作は元に戻せません。\n\n本当に削除しますか？')) return;
+
+  var btn = document.getElementById('trd-delete-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '削除中…'; }
+  try {
+    var r = await gasReq('api/mentor/call-reports/delete', 'POST', { report_id: reportId });
+    if (r && r.ok) {
+      closeModal('telReportDetailModal');
+      // キャッシュから除外
+      _allCallReports   = _allCallReports.filter(function(x){ return x.report_id !== reportId; });
+      _myReports        = _myReports.filter(function(x){ return x.report_id !== reportId; });
+      _reportsFiltered  = _reportsFiltered.filter(function(x){ return x.report_id !== reportId; });
+      renderReports();
+      await loadWeeklyTel();
+      toast('TELレポートを削除しました');
+    } else {
+      toast('削除に失敗しました: ' + (r && (r.error || r.message) || 'GAS応答なし'), 'err');
+    }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🗑 削除'; }
   }
 }
 
