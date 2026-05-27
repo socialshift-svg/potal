@@ -4634,10 +4634,7 @@ async function executeFixMisprocessed() {
   }
   var menteeName = document.getElementById('fix-correct-mentee-select')
     .options[document.getElementById('fix-correct-mentee-select').selectedIndex].text;
-  if (!confirm('「' + menteeName + '」のレポートとして修正します。
-AI要約が再生成されます（1〜2分）。
-
-よろしいですか？')) return;
+  if (!confirm('「' + menteeName + '」のレポートとして修正します。\nAI要約が再生成されます（1〜2分）。\n\nよろしいですか？')) return;
 
   btn.disabled = true; btn.textContent = '修正中…';
   msgEl.style.color = 'var(--tx3)'; msgEl.textContent = '文字起こしを移動してAIを再生成しています…';
