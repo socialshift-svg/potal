@@ -2453,6 +2453,17 @@ function renderMentorReports() {
     (function(rep){ item.onclick = function(){ open1on1ReportDetail(rep); }; })(r);
     listEl.appendChild(item);
   });
+  // ★ ページ範囲を超えていたらリセット（フィルター変更後の対策）
+  if (_mentorRepPage > totalPage) _mentorRepPage = 1;
+
+  // ★ 1ページのみの場合はページャーを非表示
+  if (totalPage <= 1) {
+    if (pagerEl) pagerEl.style.display = 'none';
+    return;
+  }
+
+  // ★ ページャーを表示
+  pagerEl.style.display = 'flex';
   pagerEl.innerHTML = '';
   var pb = document.createElement('button');
   pb.className='btn btn-g btn-sm'; pb.textContent='← 前へ'; pb.disabled=(_mentorRepPage===1);
@@ -2470,6 +2481,8 @@ function renderMentorReports() {
   nb.className='btn btn-g btn-sm'; nb.textContent='次へ →'; nb.disabled=(_mentorRepPage===totalPage);
   nb.onclick=function(){ _mentorRepPage++; renderMentorReports(); };
   pagerEl.appendChild(nb);
+
+  listEl.scrollIntoView({ behavior:'smooth', block:'start' });
 }
 
 // 1on1レポート詳細モーダルを開く
