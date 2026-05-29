@@ -669,7 +669,11 @@ td{padding:10px 14px;font-size:13px}
         <div id="trd-memo" style="font-size:13px;color:var(--tx2);line-height:1.7;white-space:pre-wrap">—</div>
       </div>
       <div style="background:var(--pr-light);border-radius:10px;padding:10px 14px">
-        <div style="font-size:11px;font-weight:700;color:var(--pr);margin-bottom:4px">🤖 AIサマリー</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+          <div style="font-size:11px;font-weight:700;color:var(--pr)">🤖 AIサマリー</div>
+          <button id="trd-regen-btn" class="btn btn-sm" style="font-size:11px;padding:3px 8px" onclick="regenerateTelAi()">🤖 AI再生成</button>
+        </div>
+        <div id="trd-regen-msg" style="font-size:11px;color:var(--tx3);margin-bottom:4px"></div>
         <div id="trd-summary" style="font-size:13px;color:var(--tx2);line-height:1.7">—</div>
       </div>
     </div>
@@ -3025,7 +3029,8 @@ function renderReports() {
 async function loadMenteeReports() {
   var data = await gasReq('api/mentor/mentee-reports', 'GET', {});
   _allMenteeReports = (data && data.reports) ? data.reports : _allMenteeReports;
-  _mentorReports    = _allMenteeReports;
+  // ★ renderMentorReports が参照する _mentorReports も同期して更新
+  _mentorReports    = _allMenteeReports.slice();
 }
 
 async function loadCallReportsData() {
@@ -4539,7 +4544,7 @@ function openRecordingUploadGuide() {
 function openTelReportDetail(r) {
   var modal = document.getElementById('telReportDetailModal');
   if (!modal) return;
-  window._currentTelReportId = r.report_id || '';  // ★ 修正モーダル用に記憶
+  window._currentTelReportId = r.report_id || '';  // ★ 修正・再生成モーダル用に記憶
   var dt = new Date(r.created_at);
   var dtStr = dt.getFullYear()+'/'+(dt.getMonth()+1)+'/'+dt.getDate()
     + ' ' + ('0'+dt.getHours()).slice(-2)+':'+('0'+dt.getMinutes()).slice(-2);
@@ -4757,9 +4762,8 @@ function onFixNext() {
   }
 
   // メンティー変更あり or 種類変換あり → Step2（文字起こし選択）へ
+  // ★ 種類変換のみの場合もStep2を経由させ、文字起こしファイルを確認させる
   if (chkPeople || chkType) {
-    var menteeId = document.getElementById('fix-correct-mentee-select').value || _fixWrongMenteeId;
-    // 検索先は誤ったメンティーのフォルダ
     var label = '誤ったメンティー（' + (document.getElementById('fix-cur-mentee').textContent) + '）のフォルダ';
     document.getElementById('fix-step2-label').textContent = label;
     document.getElementById('fix-transcript-list').innerHTML =
@@ -4883,16 +4887,14 @@ async function executeFixMisprocessed() {
     params.convert_type = convertEl.value;
   }
 
-  if (chkPeople) {
+  // ★ chkPeople または chkType のいずれかがONなら人物情報を送る
+  // （種類変換のみの場合でもメンティー・メンターを確定させる必要がある）
+  if (chkPeople || chkType) {
     var correctMenteeId = document.getElementById('fix-correct-mentee-select').value;
     var correctMentorId = document.getElementById('fix-correct-mentor-select').value;
     if (correctMenteeId) params.correct_mentee_id = correctMenteeId;
     if (correctMentorId) params.correct_mentor_id = correctMentorId;
     if (_fixSelectedTranscriptFileId) params.transcript_file_id = _fixSelectedTranscriptFileId;
-  }
-
-  if (chkType && _fixSelectedTranscriptFileId) {
-    params.transcript_file_id = _fixSelectedTranscriptFileId;
   }
 
   if (chkMonth) {
@@ -4925,11 +4927,15 @@ async function executeFixMisprocessed() {
       // ★ キャッシュ全破棄→再取得（リスク🔴2対策）
       _allMenteeReports = [];
       _allCallReports   = [];
-      Cache.bust('call_reports_');
+      _mentorReports    = [];
+      try { Cache.bust('call_reports_'); } catch(e) {}
+      try { Cache.bust('mentor_reports'); } catch(e) {}
+      try { Cache.bust('mentee_reports'); } catch(e) {}
       await Promise.all([
         loadMenteeReports(),
         loadCallReportsData(),
       ]);
+      // _mentorReports は loadMenteeReports 内で更新済み
       renderMentorReports();
       renderReports();
 
@@ -4949,6 +4955,52 @@ async function executeFixMisprocessed() {
 
 // ── openTelReportDetail で report_id を記憶 ──
 // （既存関数に追記のみ）
+
+// ── 週次TEL AI再生成 ──
+async function regenerateTelAi() {
+  var reportId = window._currentTelReportId;
+  if (!reportId) { toast('レポートIDが取得できません', 'err'); return; }
+
+  var btn   = document.getElementById('trd-regen-btn');
+  var msgEl = document.getElementById('trd-regen-msg');
+  if (btn)   { btn.disabled = true; btn.textContent = '⏳ 生成中…'; }
+  if (msgEl) { msgEl.style.color = 'var(--tx3)'; msgEl.textContent = 'AI生成中です。しばらくお待ちください…'; }
+
+  try {
+    var r = await gasReq('api/leader/call-reports/regenerate-ai', 'POST', { report_id: reportId }, 120000);
+
+    if (r && r.ok) {
+      // モーダル内の各フィールドを更新
+      var el = function(id){ return document.getElementById(id); };
+      if (el('trd-talk'))    el('trd-talk').textContent    = r.talk_content  || '—';
+      if (el('trd-concerns'))el('trd-concerns').textContent= r.concerns      || '（なし）';
+      if (el('trd-good'))    el('trd-good').textContent    = r.good_points   || '（なし）';
+      if (el('trd-memo'))    el('trd-memo').textContent    = r.memo          || '（なし）';
+      if (el('trd-summary')) el('trd-summary').textContent = r.ai_summary    || '—';
+
+      // キャッシュも更新
+      var cached = (_allCallReports || []).find(function(x){ return x.report_id === reportId; });
+      if (cached) {
+        cached.talk_content  = r.talk_content  || '';
+        cached.concerns      = r.concerns      || '';
+        cached.good_points   = r.good_points   || '';
+        cached.memo          = r.memo          || '';
+        cached.ai_summary    = r.ai_summary    || '';
+        cached.ai_mentee_status = r.ai_mentee_status || cached.ai_mentee_status;
+      }
+
+      if (msgEl) { msgEl.style.color = 'var(--gr)'; msgEl.textContent = '✅ AI生成が完了しました'; }
+      toast('AI再生成が完了しました');
+    } else {
+      var errMsg = r && (r.error || r.message) ? (r.error || r.message) : 'GAS応答なし';
+      if (msgEl) { msgEl.style.color = 'var(--rd)'; msgEl.textContent = '❌ 生成に失敗しました: ' + errMsg; }
+    }
+  } catch(err) {
+    if (msgEl) { msgEl.style.color = 'var(--rd)'; msgEl.textContent = '❌ ' + err.message; }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🤖 AI再生成'; }
+  }
+}
 
 // ── 1on1レポート削除 ──
 async function deleteMentorReport() {
