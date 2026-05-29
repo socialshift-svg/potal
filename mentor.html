@@ -668,12 +668,13 @@ td{padding:10px 14px;font-size:13px}
         <div style="font-size:11px;font-weight:700;color:var(--tx3);margin-bottom:4px">📝 メモ</div>
         <div id="trd-memo" style="font-size:13px;color:var(--tx2);line-height:1.7;white-space:pre-wrap">—</div>
       </div>
+      <!-- AIサマリー（1on1と同じ構造） -->
       <div style="background:var(--pr-light);border-radius:10px;padding:10px 14px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
           <div style="font-size:11px;font-weight:700;color:var(--pr)">🤖 AIサマリー</div>
-          <button id="trd-regen-btn" class="btn btn-sm" style="font-size:11px;padding:3px 8px" onclick="regenerateTelAi()">🤖 AI再生成</button>
+          <button id="trd-regen-btn" class="btn btn-g" style="font-size:11px;padding:4px 10px;white-space:nowrap" onclick="regenerateTelAi()">🤖 AI再生成</button>
         </div>
-        <div id="trd-regen-msg" style="font-size:11px;color:var(--tx3);margin-bottom:4px"></div>
+        <div id="trd-regen-msg" style="font-size:11px;color:var(--tx3);margin-bottom:4px;min-height:14px"></div>
         <div id="trd-summary" style="font-size:13px;color:var(--tx2);line-height:1.7">—</div>
       </div>
     </div>
@@ -681,6 +682,7 @@ td{padding:10px 14px;font-size:13px}
       <button class="btn btn-g" onclick="closeModal('telReportDetailModal')">閉じる</button>
       <button id="trd-delete-btn" class="btn btn-sm" style="background:var(--rd-light,#fff0f0);color:var(--rd,#d32f2f);border:1px solid var(--rd,#d32f2f)">🗑 削除</button>
       <button id="trd-fix-btn" class="btn btn-sm" style="background:var(--cy-light,#e8f4ff);color:var(--cy,#1976d2);border:1px solid var(--cy,#1976d2)" onclick="openFixModalFromTel()">🔄 修正</button>
+      <button id="trd-save-btn" class="btn btn-g" style="display:none" onclick="saveTelReport()">💾 保存</button>
       <button id="trd-confirm-btn" class="btn btn-p" style="display:none">✅ このレポートを確定する</button>
     </div>
   </div>
@@ -4544,7 +4546,12 @@ function openRecordingUploadGuide() {
 function openTelReportDetail(r) {
   var modal = document.getElementById('telReportDetailModal');
   if (!modal) return;
-  window._currentTelReportId = r.report_id || '';  // ★ 修正・再生成モーダル用に記憶
+  window._currentTelReportId = r.report_id || '';  // ★ 修正・再生成・保存用に記憶
+  // 保存ボタンをリセット（再生成後のみ表示）
+  var saveBtn = document.getElementById('trd-save-btn');
+  if (saveBtn) saveBtn.style.display = 'none';
+  var msgElTrd = document.getElementById('trd-regen-msg');
+  if (msgElTrd) msgElTrd.textContent = '';
   var dt = new Date(r.created_at);
   var dtStr = dt.getFullYear()+'/'+(dt.getMonth()+1)+'/'+dt.getDate()
     + ' ' + ('0'+dt.getHours()).slice(-2)+':'+('0'+dt.getMinutes()).slice(-2);
@@ -4989,8 +4996,11 @@ async function regenerateTelAi() {
         cached.ai_mentee_status = r.ai_mentee_status || cached.ai_mentee_status;
       }
 
-      if (msgEl) { msgEl.style.color = 'var(--gr)'; msgEl.textContent = '✅ AI生成が完了しました'; }
-      toast('AI再生成が完了しました');
+      if (msgEl) { msgEl.style.color = 'var(--gr)'; msgEl.textContent = '✅ AI生成が完了しました。「保存」を押して確定してください。'; }
+      // 保存ボタンを表示
+      var saveBtn = document.getElementById('trd-save-btn');
+      if (saveBtn) saveBtn.style.display = '';
+      toast('AI再生成が完了しました。内容を確認して保存してください。');
     } else {
       var errMsg = r && (r.error || r.message) ? (r.error || r.message) : 'GAS応答なし';
       if (msgEl) { msgEl.style.color = 'var(--rd)'; msgEl.textContent = '❌ 生成に失敗しました: ' + errMsg; }
@@ -4999,6 +5009,55 @@ async function regenerateTelAi() {
     if (msgEl) { msgEl.style.color = 'var(--rd)'; msgEl.textContent = '❌ ' + err.message; }
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '🤖 AI再生成'; }
+  }
+}
+
+// ── 週次TEL レポート保存 ──
+async function saveTelReport() {
+  var reportId = window._currentTelReportId;
+  if (!reportId) { toast('レポートIDが取得できません', 'err'); return; }
+
+  var btn   = document.getElementById('trd-save-btn');
+  var msgEl = document.getElementById('trd-regen-msg');
+  if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
+
+  // モーダル内の現在値を収集
+  var payload = {
+    report_id:        reportId,
+    talk_content:     (document.getElementById('trd-talk')     || {}).textContent || '',
+    concerns:         (document.getElementById('trd-concerns') || {}).textContent || '',
+    good_points:      (document.getElementById('trd-good')     || {}).textContent || '',
+    memo:             (document.getElementById('trd-memo')     || {}).textContent || '',
+    ai_summary:       (document.getElementById('trd-summary')  || {}).textContent || '',
+  };
+  // 空文字（デフォルト表示）は除外
+  ['talk_content','concerns','good_points','memo','ai_summary'].forEach(function(k) {
+    if (payload[k] === '—' || payload[k] === '（なし）') payload[k] = '';
+  });
+
+  try {
+    var r = await gasReq('api/mentor/call-reports/save', 'POST', payload);
+    if (r && r.ok) {
+      // キャッシュ更新
+      var cached = (_allCallReports || []).find(function(x){ return x.report_id === reportId; });
+      if (cached) {
+        cached.talk_content = payload.talk_content;
+        cached.concerns     = payload.concerns;
+        cached.good_points  = payload.good_points;
+        cached.memo         = payload.memo;
+        cached.ai_summary   = payload.ai_summary;
+      }
+      if (msgEl) { msgEl.style.color = 'var(--gr)'; msgEl.textContent = '✅ 保存しました'; }
+      if (btn) btn.style.display = 'none';
+      renderReports();
+      toast('保存しました');
+    } else {
+      if (msgEl) { msgEl.style.color = 'var(--rd)'; msgEl.textContent = '❌ ' + ((r && (r.error || r.message)) || '保存失敗'); }
+    }
+  } catch(err) {
+    if (msgEl) { msgEl.style.color = 'var(--rd)'; msgEl.textContent = '❌ ' + err.message; }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '💾 保存'; }
   }
 }
 
