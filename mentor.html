@@ -682,7 +682,7 @@ td{padding:10px 14px;font-size:13px}
       <button class="btn btn-g" onclick="closeModal('telReportDetailModal')">閉じる</button>
       <button id="trd-delete-btn" class="btn btn-sm" style="background:var(--rd-light,#fff0f0);color:var(--rd,#d32f2f);border:1px solid var(--rd,#d32f2f)">🗑 削除</button>
       <button id="trd-fix-btn" class="btn btn-sm" style="background:var(--cy-light,#e8f4ff);color:var(--cy,#1976d2);border:1px solid var(--cy,#1976d2)" onclick="openFixModalFromTel()">🔄 修正</button>
-      <button id="trd-save-btn" class="btn btn-g" style="display:none" onclick="saveTelReport()">💾 保存</button>
+      <button id="trd-save-btn" class="btn btn-g" onclick="saveTelReport()">💾 保存</button>
       <button id="trd-confirm-btn" class="btn btn-p" style="display:none">✅ このレポートを確定する</button>
     </div>
   </div>
@@ -4547,9 +4547,6 @@ function openTelReportDetail(r) {
   var modal = document.getElementById('telReportDetailModal');
   if (!modal) return;
   window._currentTelReportId = r.report_id || '';  // ★ 修正・再生成・保存用に記憶
-  // 保存ボタンをリセット（再生成後のみ表示）
-  var saveBtn = document.getElementById('trd-save-btn');
-  if (saveBtn) saveBtn.style.display = 'none';
   var msgElTrd = document.getElementById('trd-regen-msg');
   if (msgElTrd) msgElTrd.textContent = '';
   var dt = new Date(r.created_at);
@@ -4997,10 +4994,7 @@ async function regenerateTelAi() {
       }
 
       if (msgEl) { msgEl.style.color = 'var(--gr)'; msgEl.textContent = '✅ AI生成が完了しました。「保存」を押して確定してください。'; }
-      // 保存ボタンを表示
-      var saveBtn = document.getElementById('trd-save-btn');
-      if (saveBtn) saveBtn.style.display = '';
-      toast('AI再生成が完了しました。内容を確認して保存してください。');
+      toast('AI再生成が完了しました。内容を確認して「保存」を押してください。');
     } else {
       var errMsg = r && (r.error || r.message) ? (r.error || r.message) : 'GAS応答なし';
       if (msgEl) { msgEl.style.color = 'var(--rd)'; msgEl.textContent = '❌ 生成に失敗しました: ' + errMsg; }
@@ -5048,7 +5042,6 @@ async function saveTelReport() {
         cached.ai_summary   = payload.ai_summary;
       }
       if (msgEl) { msgEl.style.color = 'var(--gr)'; msgEl.textContent = '✅ 保存しました'; }
-      if (btn) btn.style.display = 'none';
       renderReports();
       toast('保存しました');
     } else {
