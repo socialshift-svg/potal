@@ -1154,6 +1154,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     var wtTab = document.getElementById('ni-weeklyTel');
     if (wtTab) wtTab.style.display = '';
     loadWeeklyTelMentee();
+    if (window.location.hash === '#weeklyTel') {
+      goNav('weeklyTel');
+    }
   }
   const firstName = (user.name || '').slice(0, 1);
   document.getElementById('userAva').textContent = firstName || '木';
@@ -2256,11 +2259,18 @@ async function submitPreReport(status) {
 
 // ══ プロフィール保存 ══
 async function saveProfile() {
-  var name  = (document.getElementById('set-name')  || {value:''}).value;
-  var email = (document.getElementById('set-email') || {value:''}).value;
-  var phone = (document.getElementById('set-tel')   || {value:''}).value;
+  function profileValue(inputId, displayId) {
+    var input = document.getElementById(inputId);
+    var disp  = document.getElementById(displayId);
+    var v = input ? input.value : (disp ? disp.textContent : '');
+    v = (v || '').trim();
+    return v === '—' ? '' : v;
+  }
+  var name  = profileValue('set-name', 'set-name-disp');
+  var email = profileValue('set-email', 'set-email-disp');
+  var phone = profileValue('set-tel', 'set-tel-disp');
   var result = await apiRequest('/api/mentee/profile', {
-    method: 'POST', body: JSON.stringify({ name: name, email: email, phone_number: phone })
+    method: 'PATCH', body: JSON.stringify({ name: name, email: email, phone_number: phone })
   });
   if (result && result.ok) showToast('✅ プロフィールを保存しました');
   else showToast('❌ 保存に失敗しました');
