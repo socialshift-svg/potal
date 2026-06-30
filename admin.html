@@ -206,7 +206,8 @@ body.login-mode .main { display:none !important; }
 <div class="modal" id="linkModal">
   <div class="modal-content">
     <span class="modal-close" onclick="closeModal('linkModal')">✕</span>
-    <div class="modal-title">🔗 リンク追加</div>
+    <div class="modal-title" id="lk-modal-title">🔗 リンク追加</div>
+    <input type="hidden" id="lk-edit-id" value="">
     <div class="form-group"><label class="form-label">タイトル*</label><input class="inp" id="lk-title" placeholder="社内Wiki"/></div>
     <div class="form-group"><label class="form-label">URL*</label><input class="inp" id="lk-url" placeholder="https://..."/></div>
     <div class="form-group">
@@ -222,7 +223,7 @@ body.login-mode .main { display:none !important; }
         <div style="margin-top:8px;font-size:11px;color:var(--tx3)">※ SVGアイコンはテキストコードで保存し、表示時に画像として描画します</div>
       </div>
     </div>
-    <div class="f-foot"><button class="btn btn-g" onclick="closeModal('linkModal')">キャンセル</button><button class="btn btn-p" onclick="addLink()">追加</button></div>
+    <div class="f-foot"><button class="btn btn-g" onclick="closeModal('linkModal')">キャンセル</button><button class="btn btn-p" id="lk-submit-btn" onclick="submitLink()">追加</button></div>
   </div>
 </div>
 
@@ -509,7 +510,7 @@ body.login-mode .main { display:none !important; }
 
 <!-- リンク集 -->
 <div class="screen" id="s-links">
-  <div class="topbar"><div><div class="page-title">リンク集管理</div><div class="page-sub">業務リンクの登録・管理</div></div><div class="topbar-r"><button class="btn btn-p" onclick="openModal('linkModal')">＋ 新規追加</button></div></div>
+  <div class="topbar"><div><div class="page-title">リンク集管理</div><div class="page-sub">業務リンクの登録・管理</div></div><div class="topbar-r"><button class="btn btn-p" onclick="openLinkCreate()">＋ 新規追加</button></div></div>
   <div class="card" id="linksCard"><div class="ch"><div class="ct">登録済みリンク</div></div><div class="loading">読み込み中…</div></div>
 </div>
 
@@ -2481,31 +2482,87 @@ async function loadLinks() {
   const data=await gasReq('api/admin/links');
   const card=document.getElementById('linksCard');
   if(!data||!data.links){card.innerHTML='<div class="ch"><div class="ct">登録済みリンク</div></div><div class="loading">取得に失敗しました</div>';return;}
-  const items=data.links.map(l=>{
+  const links=(data.links||[]).slice().sort((a,b)=>{
+    const ao=Number(a.display_order||a.order||9999), bo=Number(b.display_order||b.order||9999);
+    if(ao!==bo)return ao-bo;
+    return String(a.created_at||'').localeCompare(String(b.created_at||''));
+  });
+  window._adminLinks=links;
+  renderLinksFromCache();
+}
+
+function renderLinksFromCache(){
+  const card=document.getElementById('linksCard');
+  const links=window._adminLinks||[];
+  const items=links.map((l,idx)=>{
     const icon = l.icon && ICON_LIST.find(i=>i.code===l.icon)
       ? `<span style="display:inline-flex;width:24px;height:24px;color:var(--pr)">${ICON_LIST.find(i=>i.code===l.icon).svg}</span>`
       : `<span style="font-size:20px">${esc(l.icon||'🔗')}</span>`;
+    const first=idx===0, last=idx===links.length-1;
     return `<div class="content-item">
       <div class="ci-ic" style="display:flex;align-items:center;justify-content:center">${icon}</div>
       <div class="ci-info"><div class="ci-title">${esc(l.title)}</div><div class="ci-meta">リンク — ${esc(l.url)}</div></div>
       <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="btn btn-g btn-sm" onclick="moveLink('${esc(l.link_id)}',-1)" ${first?'disabled style="opacity:.45;cursor:not-allowed"':''}>↑</button>
+        <button class="btn btn-g btn-sm" onclick="moveLink('${esc(l.link_id)}',1)" ${last?'disabled style="opacity:.45;cursor:not-allowed"':''}>↓</button>
         <a href="${esc(l.url)}" target="_blank" class="btn btn-g btn-sm" style="text-decoration:none">開く</a>
-        <button class="btn btn-sm" style="background:var(--rd-light);color:var(--rd);border:none" onclick="deleteLink('${esc(l.link_id)}','${esc(l.title)}')">削除</button>
+        <button class="btn btn-g btn-sm" onclick="openLinkEdit('${esc(l.link_id)}')">編集</button>
+        <button class="btn btn-sm" style="background:var(--rd-light);color:var(--rd);border:none" onclick="deleteLink('${esc(l.link_id)}')">削除</button>
       </div>
     </div>`;
   }).join('')||'<div class="loading">リンクがありません</div>';
-  card.innerHTML=`<div class="ch"><div class="ct">登録済みリンク（${data.links.length}件）</div></div>`+items;
+  card.innerHTML=`<div class="ch"><div class="ct">登録済みリンク（${links.length}件）</div></div>`+items;
 }
 
-async function addLink() {
+function openLinkCreate(){
+  document.getElementById('lk-modal-title').textContent='🔗 リンク追加';
+  document.getElementById('lk-submit-btn').textContent='追加';
+  document.getElementById('lk-edit-id').value='';
+  document.getElementById('lk-title').value='';
+  document.getElementById('lk-url').value='';
+  document.getElementById('lk-icon').value='';
+  openModal('linkModal');
+}
+
+function openLinkEdit(linkId){
+  const l=(window._adminLinks||[]).find(x=>String(x.link_id)===String(linkId));
+  if(!l){toast('リンク情報が見つかりません','err');return;}
+  document.getElementById('lk-modal-title').textContent='🔗 リンク編集';
+  document.getElementById('lk-submit-btn').textContent='保存';
+  document.getElementById('lk-edit-id').value=l.link_id||'';
+  document.getElementById('lk-title').value=l.title||'';
+  document.getElementById('lk-url').value=l.url||'';
+  document.getElementById('lk-icon').value=l.icon||'';
+  openModal('linkModal');
+}
+
+async function submitLink() {
+  const linkId=document.getElementById('lk-edit-id').value;
   const payload={title:document.getElementById('lk-title').value.trim(),url:document.getElementById('lk-url').value.trim(),icon:document.getElementById('lk-icon').value.trim()||'🔗'};
   if(!payload.title||!payload.url){toast('タイトルとURLは必須です','err');return;}
-  const r=await gasReq('api/admin/links','POST',payload);
-  if(r&&(r.ok||!r.error)){closeModal('linkModal');await loadLinks();toast('リンクを追加しました');}
-  else toast('追加に失敗: '+(r&&r.error||r&&r.message||'GAS応答なし'),'err');
+  const path=linkId?'api/admin/links/update':'api/admin/links';
+  if(linkId)payload.link_id=linkId;
+  const r=await gasReq(path,'POST',payload);
+  if(r&&(r.ok||!r.error)){closeModal('linkModal');await loadLinks();toast(linkId?'リンクを更新しました':'リンクを追加しました');}
+  else toast((linkId?'更新':'追加')+'に失敗: '+(r&&r.error||r&&r.message||'GAS応答なし'),'err');
+}
+
+async function moveLink(linkId, direction){
+  const links=(window._adminLinks||[]).slice();
+  const idx=links.findIndex(l=>String(l.link_id)===String(linkId));
+  const next=idx+direction;
+  if(idx<0||next<0||next>=links.length)return;
+  const tmp=links[idx]; links[idx]=links[next]; links[next]=tmp;
+  window._adminLinks=links;
+  renderLinksFromCache();
+  const orders=links.map((l,i)=>({link_id:l.link_id,order:i+1}));
+  const r=await gasReq('api/admin/links/reorder','POST',{orders:orders});
+  if(r&&(r.ok||!r.error)){toast('順番を更新しました');}
+  else {toast('順番の保存に失敗しました','err');await loadLinks();}
 }
 
 async function deleteLink(linkId, title) {
+  title=title||(window._adminLinks||[]).find(l=>String(l.link_id)===String(linkId))?.title||'このリンク';
   if(!confirm('「'+title+'」を削除しますか？'))return;
   const r=await gasReq('api/admin/links/delete','POST',{link_id:linkId});
   if(r&&(r.ok||!r.error)){await loadLinks();toast('削除しました');}
