@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TELスペース ストック追加マニュアル</title>
+  <style>
+    :root {
+      --ink: #17202a;
+      --muted: #637083;
+      --line: #d8e0ea;
+      --paper: #ffffff;
+      --bg: #f5f7fb;
+      --blue: #2563eb;
+      --blue-soft: #eaf2ff;
+      --green: #16a34a;
+      --green-soft: #eaf8ef;
+      --amber: #d97706;
+      --amber-soft: #fff5df;
+      --red: #dc2626;
+      --shadow: 0 14px 34px rgba(24, 38, 60, .10);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Meiryo", "Yu Gothic", "Hiragino Kaku Gothic ProN", Arial, sans-serif;
+      line-height: 1.72;
+    }
+
+    a { color: var(--blue); }
+    .page {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 28px 24px 56px;
+    }
+
+    .cover {
+      background: linear-gradient(135deg, #f8fbff 0%, #ffffff 54%, #f0fbf5 100%);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      padding: 34px;
+      margin-bottom: 22px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 11px;
+      border: 1px solid #b9d1ff;
+      background: var(--blue-soft);
+      color: #174ea6;
+      font-size: 13px;
+      font-weight: 700;
+      border-radius: 999px;
+    }
+
+    h1 {
+      margin: 16px 0 8px;
+      font-size: 34px;
+      line-height: 1.28;
+      letter-spacing: 0;
+    }
+
+    .lead {
+      margin: 0;
+      max-width: 840px;
+      color: var(--muted);
+      font-size: 17px;
+    }
+
+    .quick-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    .quick-card {
+      border: 1px solid var(--line);
+      background: var(--paper);
+      padding: 15px;
+      min-height: 118px;
+    }
+
+    .quick-card strong {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 15px;
+    }
+
+    .quick-card span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .section {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      padding: 26px;
+      margin-top: 18px;
+    }
+
+    .section h2 {
+      margin: 0 0 10px;
+      font-size: 24px;
+      letter-spacing: 0;
+    }
+
+    .section-intro {
+      margin: 0 0 18px;
+      color: var(--muted);
+    }
+
+    .checklist {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin: 16px 0 4px;
+    }
+
+    .check {
+      border: 1px solid #b7dfc5;
+      background: var(--green-soft);
+      padding: 12px;
+      font-weight: 700;
+      color: #126432;
+      text-align: center;
+    }
+
+    .steps {
+      display: grid;
+      gap: 18px;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 1.05fr 1.25fr;
+      gap: 18px;
+      align-items: start;
+      border: 1px solid var(--line);
+      background: #fbfdff;
+      padding: 18px;
+    }
+
+    .step.slim {
+      grid-template-columns: 1fr;
+    }
+
+    .step-head {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .num {
+      flex: 0 0 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: var(--blue);
+      color: white;
+      font-weight: 800;
+      font-size: 15px;
+    }
+
+    .step h3 {
+      margin: 0;
+      font-size: 19px;
+      line-height: 1.42;
+      letter-spacing: 0;
+    }
+
+    .step p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .do {
+      margin-top: 12px;
+      background: #fff;
+      border-left: 5px solid var(--blue);
+      padding: 10px 12px;
+      font-weight: 700;
+    }
+
+    .warn {
+      margin-top: 12px;
+      background: var(--amber-soft);
+      border-left: 5px solid var(--amber);
+      padding: 10px 12px;
+      font-size: 14px;
+    }
+
+    .danger {
+      margin-top: 12px;
+      background: #fff0f0;
+      border-left: 5px solid var(--red);
+      padding: 10px 12px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    figure {
+      margin: 0;
+      border: 1px solid var(--line);
+      background: white;
+      overflow: hidden;
+    }
+
+    figure img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    figcaption {
+      border-top: 1px solid var(--line);
+      padding: 8px 10px;
+      color: var(--muted);
+      font-size: 12px;
+      background: #f9fbfe;
+    }
+
+    .memo-sheet {
+      display: grid;
+      grid-template-columns: 170px 1fr;
+      border: 1px solid var(--line);
+      margin-top: 16px;
+      background: white;
+    }
+
+    .memo-sheet div {
+      padding: 12px;
+      border-bottom: 1px solid var(--line);
+      min-height: 48px;
+    }
+
+    .memo-sheet div:nth-child(odd) {
+      background: #f7faff;
+      font-weight: 700;
+    }
+
+    .memo-sheet div:nth-last-child(-n + 2) { border-bottom: 0; }
+
+    .admin-ui {
+      border: 1px solid var(--line);
+      background: #f8fafc;
+      padding: 18px;
+      margin-top: 14px;
+    }
+
+    .admin-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .admin-title {
+      font-size: 21px;
+      font-weight: 800;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #e6edf5;
+      color: #1f2937;
+      min-height: 40px;
+      padding: 8px 14px;
+      font-weight: 800;
+      border: 1px solid #cbd5e1;
+    }
+
+    .button.primary {
+      background: var(--blue);
+      border-color: var(--blue);
+      color: white;
+    }
+
+    .modal-demo {
+      background: white;
+      border: 1px solid var(--line);
+      padding: 18px;
+      box-shadow: 0 8px 24px rgba(24, 38, 60, .08);
+    }
+
+    .modal-demo h3 {
+      margin: 0 0 10px;
+      font-size: 20px;
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin: 14px 0;
+    }
+
+    .field label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 800;
+      margin-bottom: 5px;
+    }
+
+    .input-demo {
+      border: 1px solid #cbd5e1;
+      background: white;
+      color: #94a3b8;
+      padding: 10px;
+      min-height: 42px;
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .flow div {
+      border: 1px solid var(--line);
+      background: white;
+      padding: 12px;
+      text-align: center;
+      font-weight: 800;
+      min-height: 72px;
+      display: grid;
+      place-items: center;
+    }
+
+    .source-list {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .source-list li { margin-bottom: 6px; }
+
+    @media (max-width: 820px) {
+      .page { padding: 14px; }
+      .cover, .section { padding: 18px; }
+      h1 { font-size: 28px; }
+      .quick-grid, .checklist, .field-grid, .flow { grid-template-columns: 1fr; }
+      .step { grid-template-columns: 1fr; }
+    }
+
+    @media print {
+      body { background: white; }
+      .page { max-width: none; padding: 0; }
+      .cover, .section, .step, .quick-card, figure, .admin-ui, .modal-demo {
+        box-shadow: none;
+        break-inside: avoid;
+      }
+      .section { margin-top: 12px; }
+      a { color: #174ea6; text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="cover">
+      <span class="eyebrow">管理者向け・PC操作手順</span>
+      <h1>TELスペース ストック追加マニュアル</h1>
+      <p class="lead">
+        Google ChatでTEL用スペースを作り、スペースURL・Webhook URL・Meet URLの3つを控えて、Admin画面の「ストック追加」に登録します。
+        画面を見ながら順番に進めれば完了できるよう、操作箇所をスクショ中心でまとめています。
+      </p>
+      <div class="quick-grid">
+        <div class="quick-card">
+          <strong>使うGoogleアカウント</strong>
+          <span>test.admin@socialshift.work でログインしてから作業します。</span>
+        </div>
+        <div class="quick-card">
+          <strong>登録するもの</strong>
+          <span>スペースURL、Webhook URL、Meet URL の3つです。</span>
+        </div>
+        <div class="quick-card">
+          <strong>スペース名</strong>
+          <span>作成時は TEL: と入力します。T・E・L・: はすべて半角です。</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>作業前チェック</h2>
+      <p class="section-intro">途中でURLを3つコピーします。先にメモ帳などを開いておくと迷いません。</p>
+      <div class="checklist">
+        <div class="check">Google Chatを開く</div>
+        <div class="check">メモ帳を開く</div>
+        <div class="check">Admin画面を開く</div>
+      </div>
+      <div class="memo-sheet">
+        <div>スペースURL</div><div>https://chat.google.com/...</div>
+        <div>Webhook URL</div><div>https://chat.googleapis.com/v1/spaces/...</div>
+        <div>Meet URL</div><div>https://meet.google.com/xxx-xxxx-xxx</div>
+      </div>
+      <div class="danger">Webhook URLは外部に共有しないでください。知っている人がChatへ通知を送れるURLです。</div>
+    </section>
+
+    <section class="section">
+      <h2>1. スペースURL・Webhook URL・Meet URLを用意する</h2>
+      <p class="section-intro">Google Chat上でTEL用スペースを作り、Adminに貼り付ける3つのURLを集めます。</p>
+
+      <div class="steps">
+        <article class="step">
+          <div>
+            <div class="step-head"><div class="num">1</div><h3>Google Chatで「スペースを作成」を選ぶ</h3></div>
+            <p>test.admin@socialshift.work でログインし、Google Chatに移動します。左側のメニューから「スペースを作成」をクリックします。</p>
+            <div class="do">押す場所: 新しいチャット付近のメニュー → スペースを作成</div>
+          </div>
+          <figure>
+            <img src="tel-stock-assets/step01-create-space-menu.png" alt="Google Chatでスペースを作成するメニュー">
+            <figcaption>スクショ1: 「スペースを作成」を選びます。</figcaption>
+          </figure>
+        </article>
+
+        <article class="step">
+          <div>
+            <div class="step-head"><div class="num">2</div><h3>スペース名に「TEL:」と入力して作成する</h3></div>
+            <p>スペース名の入力欄に TEL: と入力します。用途は「共同作業」のままで大丈夫です。</p>
+            <div class="warn">注意: TEL: はすべて半角で入力します。全角の「ＴＥＬ：」にしないでください。</div>
+          </div>
+          <figure>
+            <img src="tel-stock-assets/step02-space-name.png" alt="スペース名にTELコロンを入力する画面">
+            <figcaption>スクショ2: スペース名は「TEL:」にします。</figcaption>
+          </figure>
+        </article>
+
+        <article class="step">
+          <div>
+            <div class="step-head"><div class="num">3</div><h3>スペースURLをコピーして控える</h3></div>
+            <p>スペースが開いたら、ブラウザ上部のアドレスバーをクリックしてURLをコピーします。</p>
+            <div class="do">控えるもの: スペースURL</div>
+          </div>
+          <figure>
+            <img src="tel-stock-assets/step03-space-url.png" alt="ブラウザのアドレスバーからスペースURLをコピーする画面">
+            <figcaption>スクショ3: アドレスバーのURLがスペースURLです。</figcaption>
+          </figure>
+        </article>
+
+        <article class="step">
+          <div>
+            <div class="step-head"><div class="num">4</div><h3>スペース名横のメニューから「アプリと統合」を開く</h3></div>
+            <p>画面上部のスペース名「TEL:」の横にある下向きのマークをクリックします。メニュー内の「アプリと統合」を選びます。</p>
+            <div class="do">押す場所: TEL: の横の下向きマーク → アプリと統合</div>
+          </div>
+          <figure>
+            <img src="tel-stock-assets/step04-apps-integrations.png" alt="スペースメニューからアプリと統合を選ぶ画面">
+            <figcaption>スクショ4: 「アプリと統合」を開きます。</figcaption>
+          </figure>
+        </article>
+
+        <article class="step">
+          <div>
+            <div class="step-head"><div class="num">5</div><h3>Webhookを追加する</h3></div>
+            <p>左側で「Webhook」を選び、下にスクロールして「+ Webhookを追加」をクリックします。Webhook名は TEL、アバターは空欄で登録します。</p>
+            <div class="do">入力する名前: TEL</div>
+          </div>
+          <figure>
+            <img src="tel-stock-assets/step05-add-webhook.png" alt="Webhook追加ボタンを押す画面">
+            <figcaption>スクショ5: 「+ Webhookを追加」をクリックします。</figcaption>
+          </figure>
+        </article>
+
+        <article class="step">
+          <div>
+            <div class="step-head"><div class="num">6</div><h3>Webhook URLをコピーして控える</h3></div>
+            <p>作成されたWebhookの右側にある三点リーダーをクリックし、「リンクをコピー」を選びます。</p>
+            <div class="do">控えるもの: Webhook URL</div>
+            <div class="danger">Webhook URLはパスワードに近い扱いです。マニュアルやチャットに貼りっぱなしにしないでください。</div>
+          </div>
+          <figure>
+            <img src="tel-stock-assets/step06-copy-webhook.png" alt="Webhookの三点リーダーからリンクをコピーする画面">
+            <figcaption>スクショ6: 「リンクをコピー」でWebhook URLを取得します。</figcaption>
+          </figure>
+        </article>
+
+        <article class="step">
+          <div>
+            <div class="step-head"><div class="num">7</div><h3>チャット画面に戻り、Meetボタンを押す</h3></div>
+            <p>左上の戻る矢印などでチャット画面に戻ります。画面右上のビデオカメラのボタンを押して、ビデオ会議を追加します。</p>
+            <div class="do">押す場所: 右上のビデオカメラボタン</div>
+          </div>
+          <figure>
+            <img src="tel-stock-assets/step07-meet-button.png" alt="Google ChatのMeetボタン">
+            <figcaption>スクショ7: ビデオカメラのボタンからMeetを設定します。</figcaption>
+          </figure>
+        </article>
+
+        <article class="step">
+          <div>
+            <div class="step-head"><div class="num">8</div><h3>Meet URLをコピーして控える</h3></div>
+            <p>チャットに表示された青い「ビデオ会議」の部分を右クリックし、「リンクのアドレスをコピー」を選びます。</p>
+            <div class="do">控えるもの: Meet URL</div>
+          </div>
+          <figure>
+            <img src="tel-stock-assets/step08-copy-meet.png" alt="ビデオ会議カードからリンクのアドレスをコピーする画面">
+            <figcaption>スクショ8: Meetのリンクアドレスをコピーします。</figcaption>
+          </figure>
+        </article>
+
+        <article class="step slim">
+          <div>
+            <div class="step-head"><div class="num">9</div><h3>ビデオ会議を「ボードに固定」する</h3></div>
+            <p>ビデオ会議をクリックして表示される三点リーダーから「ボードに固定」を選びます。後から見つけやすくするための作業です。</p>
+            <div class="warn">ここまでで、スペースURL・Webhook URL・Meet URLの3つがそろっていれば、Google Chat側の準備は完了です。</div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>2. Admin画面からストックに登録する</h2>
+      <p class="section-intro">Admin画面では、先ほど控えた3つのURLを同じ行に貼り付けて登録します。</p>
+
+      <div class="admin-ui">
+        <div class="admin-top">
+          <div>
+            <div class="admin-title">TELスペース管理</div>
+            <div style="color: var(--muted); font-size: 13px;">ChatスペースのストックとメンティーへのTEL割り当て</div>
+          </div>
+          <div class="button">+ ストック追加</div>
+        </div>
+
+        <div class="modal-demo">
+          <h3>TELスペースをストックに追加</h3>
+          <div style="color: var(--muted); font-size: 13px;">Google Chatで事前に作成したスペースのURLとWebhook URLを登録します。</div>
+          <div class="field-grid">
+            <div class="field">
+              <label>スペースURL</label>
+              <div class="input-demo">https://chat.google.com/...</div>
+            </div>
+            <div class="field">
+              <label>Webhook URL</label>
+              <div class="input-demo">https://chat.googleapis.com/v1/spaces/...</div>
+            </div>
+            <div class="field">
+              <label>Meet URL</label>
+              <div class="input-demo">https://meet.google.com/xxx-xxxx-xxx</div>
+            </div>
+          </div>
+          <div style="text-align: right;"><span class="button primary">登録する</span></div>
+        </div>
+      </div>
+
+      <div class="flow">
+        <div>1. TELスペース管理</div>
+        <div>2. ストック追加</div>
+        <div>3. 3つのURLを貼る</div>
+        <div>4. 登録する</div>
+      </div>
+
+      <div class="warn">
+        複数のストックを作る場合は、Google Chatで別のTELスペースを作成し、URLを3つずつ控えて登録します。
+        同じWebhook URLやMeet URLを別ストックに使い回さないでください。
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>完了確認</h2>
+      <p class="section-intro">登録後は、以下の3点だけ確認します。</p>
+      <div class="checklist">
+        <div class="check">ストック総数が増えた</div>
+        <div class="check">未割り当てに表示された</div>
+        <div class="check">URLが3つ入っている</div>
+      </div>
+      <div class="warn">
+        登録後にエラーが出る場合は、URLの貼り間違いが多いです。スペースURLは chat.google.com、Webhook URLは chat.googleapis.com、Meet URLは meet.google.com で始まっているか確認してください。
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>参考情報</h2>
+      <ul class="source-list">
+        <li>Google Chatヘルプ: <a href="https://support.google.com/chat/answer/7659784?hl=ja">スペースを作成する手順</a></li>
+        <li>Google Workspace Developers: <a href="https://developers.google.com/workspace/chat/quickstart/webhooks?hl=ja">Google Chat の受信 Webhook を作成・管理する手順</a></li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>
