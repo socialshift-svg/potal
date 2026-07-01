@@ -2736,13 +2736,11 @@ function openLeaderChat() {
 
 // ══ クイックリンク ══
 async function loadQuickLinks() {
-  var cached = Cache.get('links');
-  const data = cached ? cached : await apiRequest('/api/mentee/links');
-  if (!cached && data) Cache.set('links', data, 600);
+  const data = await apiRequest('/api/mentee/links');
   if (!data || !data.links) return;
   const container = document.getElementById('quickLinksBar');
   if (!container) return;
-  const activeLinks = data.links.filter(l => l.is_active === 'true' || l.is_active === 'TRUE');
+  const activeLinks = data.links.filter(l => String(l.is_active || 'TRUE').toUpperCase() !== 'FALSE');
   if (activeLinks.length === 0) {
     container.innerHTML = '';
     return;

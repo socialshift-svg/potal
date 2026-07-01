@@ -510,7 +510,7 @@ body.login-mode .main { display:none !important; }
 
 <!-- リンク集 -->
 <div class="screen" id="s-links">
-  <div class="topbar"><div><div class="page-title">リンク集管理</div><div class="page-sub">業務リンクの登録・管理</div></div><div class="topbar-r"><button class="btn btn-p" onclick="openLinkCreate()">＋ 新規追加</button></div></div>
+  <div class="topbar"><div><div class="page-title">リンク集管理</div><div class="page-sub">業務リンクの登録・管理</div></div><div class="topbar-r"><span id="linksDirtyLabel" style="display:none;font-size:12px;color:var(--am);font-weight:600">未保存の変更があります</span><button class="btn btn-g" id="links-save-btn" onclick="saveLinkChanges()" disabled style="opacity:.5">変更保存</button><button class="btn btn-p" onclick="openLinkCreate()">＋ 新規追加</button></div></div>
   <div class="card" id="linksCard"><div class="ch"><div class="ct">登録済みリンク</div></div><div class="loading">読み込み中…</div></div>
 </div>
 
@@ -2488,7 +2488,18 @@ async function loadLinks() {
     return String(a.created_at||'').localeCompare(String(b.created_at||''));
   });
   window._adminLinks=links;
+  window._adminOriginalLinks=JSON.parse(JSON.stringify(links));
+  window._deletedLinkIds=[];
+  setLinksDirty(false);
   renderLinksFromCache();
+}
+
+function setLinksDirty(isDirty){
+  window._linksDirty=!!isDirty;
+  const btn=document.getElementById('links-save-btn');
+  const label=document.getElementById('linksDirtyLabel');
+  if(btn){btn.disabled=!isDirty;btn.style.opacity=isDirty?'1':'.5';}
+  if(label)label.style.display=isDirty?'':'none';
 }
 
 function renderLinksFromCache(){
@@ -2511,7 +2522,8 @@ function renderLinksFromCache(){
       </div>
     </div>`;
   }).join('')||'<div class="loading">リンクがありません</div>';
-  card.innerHTML=`<div class="ch"><div class="ct">登録済みリンク（${links.length}件）</div></div>`+items;
+  const note=window._linksDirty?'<div style="padding:10px 20px;background:var(--am-light);color:var(--am);font-size:12px;font-weight:600;border-bottom:1px solid var(--bd)">変更保存を押すまで、Mentee画面には反映されません。</div>':'';
+  card.innerHTML=`<div class="ch"><div class="ct">登録済みリンク（${links.length}件）</div></div>`+note+items;
 }
 
 function openLinkCreate(){
@@ -2536,37 +2548,79 @@ function openLinkEdit(linkId){
   openModal('linkModal');
 }
 
-async function submitLink() {
+function submitLink() {
   const linkId=document.getElementById('lk-edit-id').value;
   const payload={title:document.getElementById('lk-title').value.trim(),url:document.getElementById('lk-url').value.trim(),icon:document.getElementById('lk-icon').value.trim()||'🔗'};
   if(!payload.title||!payload.url){toast('タイトルとURLは必須です','err');return;}
-  const path=linkId?'api/admin/links/update':'api/admin/links';
-  if(linkId)payload.link_id=linkId;
-  const r=await gasReq(path,'POST',payload);
-  if(r&&(r.ok||!r.error)){closeModal('linkModal');await loadLinks();toast(linkId?'リンクを更新しました':'リンクを追加しました');}
-  else toast((linkId?'更新':'追加')+'に失敗: '+(r&&r.error||r&&r.message||'GAS応答なし'),'err');
+  const links=(window._adminLinks||[]).slice();
+  if(linkId){
+    const idx=links.findIndex(l=>String(l.link_id)===String(linkId));
+    if(idx<0){toast('リンク情報が見つかりません','err');return;}
+    links[idx]=Object.assign({},links[idx],payload);
+  }else{
+    links.push(Object.assign({
+      link_id:'tmp-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),
+      created_at:new Date().toISOString()
+    },payload));
+  }
+  window._adminLinks=links;
+  closeModal('linkModal');
+  setLinksDirty(true);
+  renderLinksFromCache();
+  toast(linkId?'編集内容を反映しました。変更保存で確定します':'リンクを追加しました。変更保存で確定します','info');
 }
 
-async function moveLink(linkId, direction){
+function moveLink(linkId, direction){
   const links=(window._adminLinks||[]).slice();
   const idx=links.findIndex(l=>String(l.link_id)===String(linkId));
   const next=idx+direction;
   if(idx<0||next<0||next>=links.length)return;
   const tmp=links[idx]; links[idx]=links[next]; links[next]=tmp;
   window._adminLinks=links;
+  setLinksDirty(true);
   renderLinksFromCache();
-  const orders=links.map((l,i)=>({link_id:l.link_id,order:i+1}));
-  const r=await gasReq('api/admin/links/reorder','POST',{orders:orders});
-  if(r&&(r.ok||!r.error)){toast('順番を更新しました');}
-  else {toast('順番の保存に失敗しました','err');await loadLinks();}
 }
 
-async function deleteLink(linkId, title) {
+function deleteLink(linkId, title) {
   title=title||(window._adminLinks||[]).find(l=>String(l.link_id)===String(linkId))?.title||'このリンク';
   if(!confirm('「'+title+'」を削除しますか？'))return;
-  const r=await gasReq('api/admin/links/delete','POST',{link_id:linkId});
-  if(r&&(r.ok||!r.error)){await loadLinks();toast('削除しました');}
-  else toast('削除に失敗: '+(r&&(r.error||r.message)||'GAS応答なし'),'err');
+  window._adminLinks=(window._adminLinks||[]).filter(l=>String(l.link_id)!==String(linkId));
+  if(String(linkId).indexOf('tmp-')!==0){
+    window._deletedLinkIds=window._deletedLinkIds||[];
+    if(window._deletedLinkIds.indexOf(linkId)<0)window._deletedLinkIds.push(linkId);
+  }
+  setLinksDirty(true);
+  renderLinksFromCache();
+  toast('削除予定にしました。変更保存で確定します','info');
+}
+
+async function saveLinkChanges(){
+  if(!window._linksDirty){toast('保存する変更はありません','info');return;}
+  const btn=document.getElementById('links-save-btn');
+  if(btn){btn.disabled=true;btn.textContent='保存中…';}
+  const links=(window._adminLinks||[]).map((l,i)=>({
+    link_id:l.link_id||'',
+    title:String(l.title||'').trim(),
+    url:String(l.url||'').trim(),
+    icon:String(l.icon||'🔗').trim()||'🔗',
+    category:String(l.category||''),
+    display_order:i+1
+  }));
+  const invalid=links.find(l=>!l.title||!l.url);
+  if(invalid){
+    if(btn){btn.disabled=false;btn.textContent='変更保存';}
+    toast('タイトルとURLが空のリンクがあります','err');
+    return;
+  }
+  const r=await gasReq('api/admin/links/save-all','POST',{links:links,deleted_ids:window._deletedLinkIds||[]});
+  if(btn)btn.textContent='変更保存';
+  if(r&&(r.ok||!r.error)){
+    await loadLinks();
+    toast('変更を保存しました。Mentee画面にも反映されます');
+  }else{
+    if(btn){btn.disabled=false;btn.style.opacity='1';}
+    toast('保存に失敗: '+(r&&(r.error||r.message)||'GAS応答なし'),'err');
+  }
 }
 
 // ══════════════════════════════════════════════════════════
