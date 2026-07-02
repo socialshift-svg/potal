@@ -2522,7 +2522,7 @@ function renderLinksFromCache(){
       </div>
     </div>`;
   }).join('')||'<div class="loading">リンクがありません</div>';
-  const note=window._linksDirty?'<div style="padding:10px 20px;background:var(--am-light);color:var(--am);font-size:12px;font-weight:600;border-bottom:1px solid var(--bd)">変更保存を押すまで、Mentee画面には反映されません。</div>':'';
+  const note=window._linksDirty?'<div style="padding:10px 20px;background:var(--am-light);color:var(--am);font-size:12px;font-weight:600;border-bottom:1px solid var(--bd)">変更保存を押すまで、Admin/Mentor/Mentee画面には反映されません。</div>':'';
   card.innerHTML=`<div class="ch"><div class="ct">登録済みリンク（${links.length}件）</div></div>`+note+items;
 }
 
@@ -2616,7 +2616,7 @@ async function saveLinkChanges(){
   if(btn)btn.textContent='変更保存';
   if(r&&(r.ok||!r.error)){
     await loadLinks();
-    toast('変更を保存しました。Mentee画面にも反映されます');
+    toast('変更を保存しました。Admin/Mentor/Mentee画面にも反映されます');
   }else{
     if(btn){btn.disabled=false;btn.style.opacity='1';}
     toast('保存に失敗: '+(r&&(r.error||r.message)||'GAS応答なし'),'err');
@@ -3075,7 +3075,7 @@ function nav(id, el) {
   if (id === 'survey')            { if (!_surveysLoaded) { _surveysLoaded = true; loadSurveys(); } }
   if (id === 'members')           { renderMembersTable(); }
   if (id === 'contents')          { if (!_contentsLoaded) { _contentsLoaded = true; loadContents(); } }
-  if (id === 'links')             { if (!_linksLoaded) { _linksLoaded = true; loadLinks(); } }
+  if (id === 'links')             { if (!window._linksDirty) { _linksLoaded = true; loadLinks(); } }
   if (id === 'notices')           { if (!_noticesLoaded) { _noticesLoaded = true; loadNotices(); } else { refreshNoticeUserList(); } }
   if (id === 'callReports')       { if (!_callReportsLoaded) { _callReportsLoaded = true; loadCallReports(); } }
   if (id === 'telStock')         { loadTelStock(); }

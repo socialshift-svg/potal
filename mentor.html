@@ -1660,7 +1660,7 @@ async function loadMentorQuickLinks() {
     return;
   }
   var active = data.links.filter(function(l){
-    return l.is_active === 'TRUE' || l.is_active === 'true' || l.is_active === true;
+    return String(l.is_active || 'TRUE').toUpperCase() !== 'FALSE';
   });
   if (active.length === 0) { container.innerHTML = ''; return; }
   container.innerHTML = active.map(function(l){
